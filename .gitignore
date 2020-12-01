@@ -1,7 +1,11 @@
 node_modules
 .DS_Store
 */__pycache__
+*/.DS_Store
 
 data_processing/config.py
 data_processing/data/ratings_export.csv
 data_processing/notes.txt
+
+.vscode
+*/.vscode
