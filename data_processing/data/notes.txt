@@ -4,3 +4,14 @@ test cases:
     * store ratings correctly in db if db option is on 
     * return array of ratings if db option is off
     * return an error if user does not exist
+
+
+timing on local machine:
+* 100k samples: 8 seconds
+* 200k samples: 14 seconds
+* 250k samples: 18 seconds
+* 300k samples: 22 seconds
+* 400k samples: 27 seconds
+* 500k samples: 33 seconds
+
+should probably explicitly set random seed on surprise functions (it's in the docs) so that recs are the same each time a user runs it

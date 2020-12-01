@@ -174,7 +174,7 @@ def main():
     loop.run_until_complete(future)
 
     # Find and store ratings for each user
-    future = asyncio.ensure_future(get_ratings(all_usernames, users, db))
+    future = asyncio.ensure_future(get_ratings(all_usernames[2000:], users, db))
     # future = asyncio.ensure_future(get_ratings(["samlearner", "colonelmortimer"], users, db))
     loop.run_until_complete(future)
 

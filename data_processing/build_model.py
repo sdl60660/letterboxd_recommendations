@@ -18,13 +18,13 @@ from get_user_ratings import get_user_data
 df = pd.read_csv('data/sample_rating_data.csv')
 # print(df.head())
 
-username = "samlearner"
+username = "faycwalker"
 user_movies = get_user_data(username)
 user_rated = [x for x in user_movies if x['rating_val'] > 0]
 
 user_df = pd.DataFrame(user_rated)
-
 df = pd.concat([df, user_df]).reset_index(drop=True)
+df.drop_duplicates(inplace=True)
 
 # Surprise dataset loading
 reader = Reader(rating_scale=(1, 10))
