@@ -1,0 +1,6 @@
+node_modules
+.DS_Store
+*/__pycache__
+
+data_processing/config.py
+data_processing/data/ratings_export.csv
