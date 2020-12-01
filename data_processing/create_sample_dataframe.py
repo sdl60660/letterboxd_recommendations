@@ -37,7 +37,3 @@ min_review_threshold = 8
 grouped_df = df.groupby(by=["movie_id"]).sum()
 grouped_df = grouped_df.loc[grouped_df['rating_val'] > min_review_threshold]
 grouped_df.to_csv("models/threshold_movie_list.csv")
-
-# print(grouped_df['movie_id'].to_list())
-# print(grouped_df.head())
-# print(grouped_df.shape)

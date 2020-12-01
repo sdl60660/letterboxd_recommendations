@@ -4,3 +4,4 @@ node_modules
 
 data_processing/config.py
 data_processing/data/ratings_export.csv
+data_processing/notes.txt

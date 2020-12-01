@@ -1,0 +1,6 @@
+test cases:
+
+* get_ratings.py
+    * store ratings correctly in db if db option is on 
+    * return array of ratings if db option is off
+    * return an error if user does not exist

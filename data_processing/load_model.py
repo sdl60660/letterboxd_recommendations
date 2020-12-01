@@ -11,6 +11,8 @@ from surprise.dump import load
 
 import pickle
 
+import pandas as pd
+
 
 def get_top_n(predictions, n=20):
     """Return the top-N recommendation for each user from a set of predictions.
@@ -40,9 +42,12 @@ def get_top_n(predictions, n=20):
 
 
 algo = load("models/mini_model.pkl")[1]
-prediction = algo.predict('5fc52b1c22862e5421d36cea', "get-out-2017")
+prediction = algo.predict('samlearner', "get-out-2017")
 print(prediction.est)
 
+movie_df = pd.read_csv('models/threshold_movie_list.csv')
+movie_list = movie_df['movie_id'].to_list()
+print(movie_list[:3])
 data = pickle.load(open("models/mini_model_data.pkl", "rb"))
 # First train an SVD algorithm on the movielens dataset.
 # data = Dataset.load_builtin('ml-100k')
@@ -54,7 +59,7 @@ trainset = data.build_full_trainset()
 testset = trainset.build_anti_testset()
 
 username = "samlearner"
-user_set = [x for x in user_set if x[0] === username]
+user_set = [x for x in testset if x[0] == username]
 print(user_set)
 
 # print(trainset.ur.keys(), testset[1])
