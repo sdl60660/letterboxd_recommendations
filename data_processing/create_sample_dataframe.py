@@ -5,6 +5,8 @@ import pandas as pd
 from numpy import asarray
 from numpy import savetxt
 
+import pickle
+
 import pymongo
 from config import config
 
@@ -34,6 +36,9 @@ df.to_csv('data/sample_rating_data.csv', index=False)
 
 min_review_threshold = 8
 
-grouped_df = df.groupby(by=["movie_id"]).sum()
+grouped_df = df.groupby(by=["movie_id"]).sum().reset_index()
 grouped_df = grouped_df.loc[grouped_df['rating_val'] > min_review_threshold]
-grouped_df.to_csv("models/threshold_movie_list.csv")
+# grouped_df.to_csv("models/threshold_movie_list.csv")
+
+with open('models/threshold_movie_list.txt', 'wb') as fp:
+    pickle.dump(grouped_df["movie_id"].to_list(), fp)

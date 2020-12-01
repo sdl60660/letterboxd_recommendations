@@ -41,33 +41,27 @@ def get_top_n(predictions, n=20):
     return top_n
 
 
+
+with open("models/user_watched.txt", "rb") as fp:
+    user_watched_list = pickle.load(fp)
+
+with open("models/threshold_movie_list.txt", "rb") as fp:
+    threshold_movie_list = pickle.load(fp)
+
 algo = load("models/mini_model.pkl")[1]
-prediction = algo.predict('samlearner', "get-out-2017")
-print(prediction.est)
-
-movie_df = pd.read_csv('models/threshold_movie_list.csv')
-movie_list = movie_df['movie_id'].to_list()
-print(movie_list[:3])
-data = pickle.load(open("models/mini_model_data.pkl", "rb"))
-# First train an SVD algorithm on the movielens dataset.
-# data = Dataset.load_builtin('ml-100k')
-trainset = data.build_full_trainset()
-# algo = SVD()
-# algo.fit(trainset)
-
-# Than predict ratings for all pairs (u, i) that are NOT in the training set.
-testset = trainset.build_anti_testset()
 
 username = "samlearner"
-user_set = [x for x in testset if x[0] == username]
-print(user_set)
 
-# print(trainset.ur.keys(), testset[1])
-# predictions = algo.test(testset)
+unwatched_movies = [x for x in threshold_movie_list if x not in user_watched_list]
+prediction_set = [(username, x, 0) for x in unwatched_movies]
 
-# top_n = get_top_n(predictions, n=20)
+# prediction = algo.predict(username, "despicable-me-3")
+# print(prediction.est)
 
-# # Print the recommended items for each user
-# for uid, user_ratings in top_n.items():
-#     if str(uid) == "5fc52b1c22862e5421d36cea":
-#         print(uid, [(iid, _) for (iid, _) in user_ratings])
+predictions = algo.test(prediction_set)
+top_n = get_top_n(predictions, n=20)
+
+# Print the recommended items for each user
+for uid, user_ratings in top_n.items():
+    if uid == "samlearner":
+        print(uid, [(iid, _) for (iid, _) in user_ratings])

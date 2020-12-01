@@ -29,9 +29,7 @@ def get_user_data(username):
     future = asyncio.ensure_future(get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=False, num_pages=num_pages, return_unrated=True))
     loop.run_until_complete(future)
 
-    objects = future.result()
-    print(objects)
-    return objects
+    return future.result()
 
 if __name__ == "__main__":
     username = "samlearner"
