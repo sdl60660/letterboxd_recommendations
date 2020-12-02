@@ -62,11 +62,10 @@ def create_app(test_config=None):
     def get_recs():
         if os.getenv('REDISTOGO_URL'):
             recs = q.enqueue(get_recommendations, args=(request, df, threshold_movie_list))
-            print(recs)
+            return recs
         else:
             recs = get_recommendations(request, df, threshold_movie_list)
-            
-        return(jsonify(recs))
+            return(jsonify(recs))
 
 
     return app
