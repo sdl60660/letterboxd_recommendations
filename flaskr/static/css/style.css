@@ -1,0 +1,36 @@
+
+body {
+	/*font-family: "Helvetica Neue",helvetica,arial,sans-serif;*/
+	background-color: #f9f9f9;
+	font-family: 'Inconsolata', Monaco, "Lucida Console", Consolas, "Courier New";
+}
+
+/*strong { font-weight: extra-bold; }*/
+
+
+.d3-tip {
+	max-width: 350px;
+	max-height: 300px;
+	background-color: white;
+	color: black;
+	border-radius: 5px;
+	border: 1px solid black;
+}
+
+.spacer {
+	height: 60px;
+}
+
+.footer {
+    font-size: 10pt;
+    padding-top: 40px;
+    padding-bottom: 60px;
+    min-height: 100vh;
+    font-family: "Helvetica Neue", helvetica, arial, sans-serif;
+}
+
+.icon-img {
+	height: 13px;
+	width: 13px;
+	margin-bottom: 2px;
+}
