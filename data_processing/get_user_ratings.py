@@ -10,7 +10,7 @@ import os
 if os.getcwd().endswith("/flaskr/data_processing"):
     from get_ratings import get_user_ratings
 else:
-    from flaskr.data_processing.get_ratings import get_user_ratings
+    from data_processing.get_ratings import get_user_ratings
 
 
 def get_page_count(username):

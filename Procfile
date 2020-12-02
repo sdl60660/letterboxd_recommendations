@@ -1,2 +1,2 @@
-web: gunicorn --chdir flaskr __init__:app
+web: gunicorn app:app
 worker: python flaskr/worker.py

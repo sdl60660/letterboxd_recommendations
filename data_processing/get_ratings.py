@@ -156,7 +156,7 @@ def main():
     if os.getcwd().endswith("/flaskr/data_processing"):
         from db_config import config
     else:
-        from flaskr.data_processing.db_config import config
+        from data_processing.db_config import config
 
     # Connect to MongoDB Client
     db_name = config["MONGO_DB"]

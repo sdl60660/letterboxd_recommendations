@@ -8,5 +8,5 @@ __pycache__
 */.DS_Store
 */.vscode
 
-flaskr/data_processing/db_config.py
-flaskr/data_processing/data/ratings_export.csv
+db_config.py
+ratings_export.csv

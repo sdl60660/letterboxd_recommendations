@@ -15,7 +15,7 @@ import os
 if os.getcwd().endswith("/flaskr/data_processing"):
     from get_user_ratings import get_user_data
 else:
-    from flaskr.data_processing.get_user_ratings import get_user_data
+    from data_processing.get_user_ratings import get_user_data
 
 import random
 import numpy as np
