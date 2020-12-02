@@ -4,16 +4,19 @@ import requests
 from bs4 import BeautifulSoup
 
 import pymongo
+import pandas as pd
+
 from db_config import config
 
 db_name = config["MONGO_DB"]
 client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
 db = client[db_name]
-reviews = db.reviews
+ratings = db.ratings
 movies = db.movies
 
-review_df = pd.DataFrame(list(reviews.find({})))
+review_df = pd.DataFrame(list(ratings.find({})))
+print(review_df.head())
 
 # base_url = "https://letterboxd.com/members/popular/page/{}"
 
