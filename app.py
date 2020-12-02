@@ -14,7 +14,7 @@ from rq import Queue
 from rq.job import Job
 from worker import conn
 
-from handle_recs import get_recommendations, add_nums
+from handle_recs import get_recommendations
 
 
 def create_app(test_config=None):
