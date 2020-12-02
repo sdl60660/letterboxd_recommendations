@@ -1,2 +1,2 @@
 web: gunicorn app:app
-worker: python flaskr/worker.py
+worker: python worker.py

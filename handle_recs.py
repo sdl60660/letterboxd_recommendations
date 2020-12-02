@@ -15,3 +15,6 @@ def get_recommendations(request, df, threshold_movie_list):
     recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
 
     return recs
+
+def test_function():
+    return 1+5

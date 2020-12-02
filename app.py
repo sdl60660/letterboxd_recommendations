@@ -14,7 +14,7 @@ from rq import Queue
 from rq.job import Job
 from worker import conn
 
-from handle_recs import get_recommendations
+from handle_recs import get_recommendations, test_function
 
 
 def create_app(test_config=None):
@@ -48,8 +48,9 @@ def create_app(test_config=None):
     def get_recs():
         
         job = q.enqueue(get_recommendations, args=(request, df, threshold_movie_list,))
-        print(job.get_id())
-        return jsonify({"redis_job_id": job.get_id()})
+        job2 = q.enqueue(test_function)
+        print(job.get_id(), job2.get_id)
+        return jsonify({"redis_job_ids": [job.get_id(), job2.get_id()]})
        
         # if os.getenv('REDISTOGO_URL'):
         # else:
