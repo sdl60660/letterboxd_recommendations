@@ -16,6 +16,9 @@ lxml = ">=4.6.2"
 scikit-surprise = ">=1.1.1"
 numpy = ">=1.19.4"
 pandas = ">=1.1.4"
+gunicorn = "*"
+Flask = "*"
+Cython = ">=0.28.5"
 
 [dev-packages]
 
