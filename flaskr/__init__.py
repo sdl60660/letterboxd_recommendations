@@ -30,8 +30,6 @@ def create_app(test_config=None):
     with open("flaskr/data_processing/models/threshold_movie_list.txt", "rb") as fp:
         threshold_movie_list = pickle.load(fp)
     
-    # algo, user_watched_list = build_model(df, "faycwalker")
-    # recs = run_model("faycwalker", algo, user_watched_list, threshold_movie_list, 25)
 
     @app.route('/')
     def homepage():
@@ -53,6 +51,8 @@ def create_app(test_config=None):
 
 
     return app
+
+app = create_app()
 
 # SECRET_KEY = os.getenv('SECRET_KEY', config['SECRET_KEY'])
 # app = Flask(__name__)
