@@ -11,14 +11,12 @@ from surprise import KNNBasic
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
 
-import os
-print(os.getcwd())
-if os.getcwd().endswith("/flaskr/data_processing"):
-    from db_config import config
-    from get_user_ratings import get_user_data
-else:
-    from flaskr.data_processing.db_config import config
-    from flaskr.data_processing.get_user_ratings import get_user_data
+# if os.getcwd().endswith("/flaskr/data_processing"):
+#     from db_config import config
+#     from get_user_ratings import get_user_data
+# else:
+#     from flaskr.data_processing.db_config import config
+#     from flaskr.data_processing.get_user_ratings import get_user_data
 
 import random
 import numpy as np
