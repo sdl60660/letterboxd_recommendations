@@ -25,9 +25,9 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
     
-    # print(os.getcwd())
-    df = pd.read_csv('flaskr/data_processing/data/training_data.csv')
-    with open("flaskr/data_processing/models/threshold_movie_list.txt", "rb") as fp:
+    print(os.getcwd())
+    df = pd.read_csv('data_processing/data/training_data.csv')
+    with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
         threshold_movie_list = pickle.load(fp)
     
 
@@ -53,10 +53,8 @@ def create_app(test_config=None):
     return app
 
 app = create_app()
-
-# SECRET_KEY = os.getenv('SECRET_KEY', config['SECRET_KEY'])
-# app = Flask(__name__)
-# app.secret_key = SECRET_KEY
+SECRET_KEY = os.getenv('SECRET_KEY', '12345')
+app.secret_key = SECRET_KEY
 
 
 if __name__ == "__main__":
