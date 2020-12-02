@@ -14,7 +14,7 @@ from rq import Queue
 from rq.job import Job
 from worker import conn
 
-from handle_recs import get_recommendations, test_function
+from handle_recs import get_recommendations
 
 
 def create_app(test_config=None):
@@ -27,16 +27,6 @@ def create_app(test_config=None):
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
-    
-    # if os.getcwd().endswith("flaskr"):
-    # df = pd.read_csv('data_processing/data/training_data.csv')
-    # with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
-    #     threshold_movie_list = pickle.load(fp)
-    # else:
-    #     df = pd.read_csv('flaskr/data_processing/data/training_data.csv')
-    #     with open("flaskr/data_processing/models/threshold_movie_list.txt", "rb") as fp:
-    #         threshold_movie_list = pickle.load(fp)
-    
 
     q = Queue(connection=conn)
 
@@ -49,14 +39,9 @@ def create_app(test_config=None):
         username = request.args.get('username')
 
         job = q.enqueue(get_recommendations, args=(username,), description=f"Recs for {request.args.get('username')}")
-        # job2 = q.enqueue(test_function)
         print(job.get_id())
         return jsonify({"redis_job_id": job.get_id()})
        
-        # if os.getenv('REDISTOGO_URL'):
-        # else:
-        #     recs = get_recommendations(request, df, threshold_movie_list)
-        #     return jsonify(recs)
     
     @app.route("/results/<job_key>", methods=['GET'])
     def get_results(job_key):

@@ -11,7 +11,7 @@ def get_recommendations(username):
     # num_items = int(request.args.get('num_items'))
     num_items = 30
     
-    training_data_rows = 5000
+    training_data_rows = 200000
     model_df = df.head(training_data_rows)
 
     print(model_df.head())
@@ -22,6 +22,3 @@ def get_recommendations(username):
     print("recs received")
 
     return recs
-
-def test_function():
-    return 1+5
