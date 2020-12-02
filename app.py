@@ -29,9 +29,9 @@ def create_app(test_config=None):
         app.config.from_mapping(test_config)
     
     # if os.getcwd().endswith("flaskr"):
-    df = pd.read_csv('data_processing/data/training_data.csv')
-    with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
-        threshold_movie_list = pickle.load(fp)
+    # df = pd.read_csv('data_processing/data/training_data.csv')
+    # with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
+    #     threshold_movie_list = pickle.load(fp)
     # else:
     #     df = pd.read_csv('flaskr/data_processing/data/training_data.csv')
     #     with open("flaskr/data_processing/models/threshold_movie_list.txt", "rb") as fp:
@@ -46,11 +46,12 @@ def create_app(test_config=None):
 
     @app.route('/get_recs')
     def get_recs():
-        
-        job = q.enqueue(get_recommendations, args=(request, df, threshold_movie_list,))
-        job2 = q.enqueue(test_function)
-        print(job.get_id(), job2.get_id)
-        return jsonify({"redis_job_ids": [job.get_id(), job2.get_id()]})
+        username = request.args.get('username')
+
+        job = q.enqueue(get_recommendations, args=(username,), description=f"Recs for {request.args.get('username')}")
+        # job2 = q.enqueue(test_function)
+        print(job.get_id())
+        return jsonify({"redis_job_id": job.get_id()})
        
         # if os.getenv('REDISTOGO_URL'):
         # else:
