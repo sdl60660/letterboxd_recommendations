@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+Cython = ">=0.28.5"
 scikit-learn = ">=0.23.2"
 requests = ">=2.25.0"
 beautifulsoup4 = ">=4.9.3"
@@ -18,7 +19,6 @@ numpy = ">=1.19.4"
 pandas = ">=1.1.4"
 gunicorn = "*"
 Flask = "*"
-Cython = ">=0.28.5"
 rq = "*"
 
 [dev-packages]
