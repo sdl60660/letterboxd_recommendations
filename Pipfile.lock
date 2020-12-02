@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "cf95e1a75a9ba1bd81d4b9d0c60a1df8fa7fa2c95aeec9110ef35cdec062888e"
+            "sha256": "3627ef0d5ede300b2d8c29fb4a5b3dc776f2cb9e950c6c9bc91cb1136bf5d87d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -501,6 +501,14 @@
             ],
             "version": "==2020.4"
         },
+        "redis": {
+            "hashes": [
+                "sha256:0e7e0cfca8660dea8b7d5cd8c4f6c5e29e11f31158c0b0ae91a397f00e5a05a2",
+                "sha256:432b788c4530cfe16d8d943a09d40ca6c16149727e4afe8c2c9d5580c59d9f24"
+            ],
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
+            "version": "==3.5.3"
+        },
         "requests": {
             "hashes": [
                 "sha256:7f1a0b932f4a60a1a65caa4263921bb7d9ee911957e0ae4a23a6dd08185ad5f8",
@@ -508,6 +516,14 @@
             ],
             "index": "pypi",
             "version": "==2.25.0"
+        },
+        "rq": {
+            "hashes": [
+                "sha256:0291603f0c5bb0ef18363f6b325ae76076c1d79bb918e052aac1f8da2297dbfb",
+                "sha256:e0435db8e8afd2f83fd17262722d02a4455403a8a6344670186497474d74ce3a"
+            ],
+            "index": "pypi",
+            "version": "==1.7.0"
         },
         "scikit-learn": {
             "hashes": [

@@ -19,6 +19,7 @@ pandas = ">=1.1.4"
 gunicorn = "*"
 Flask = "*"
 Cython = ">=0.28.5"
+rq = "*"
 
 [dev-packages]
 
