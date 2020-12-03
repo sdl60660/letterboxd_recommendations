@@ -17,8 +17,9 @@ const poll = async ({ fn, redisID, validate, interval, maxAttempts }) => {
   
     const executePoll = async (resolve, reject) => {
         const result = await fn(redisID);
-        console.log(result)
         attempts++;
+
+        console.log(attempts)
   
         if (validate(result)) {
             return resolve(result);
@@ -74,7 +75,7 @@ $form.addEventListener('submit', async (e) => {
         console.log(recs);
         let divContent = '<ol>';
         recs.forEach((rec) => {
-            divContent += `<li>${rec.movie_id}: ${rec.predicted_rating}</li>`;
+            divContent += `<li>${rec.movie_id}: ${d3.format("0.2f")(rec.predicted_rating)}</li>`;
         })
         divContent += '</ol>'
         $recResults.innerHTML = divContent
