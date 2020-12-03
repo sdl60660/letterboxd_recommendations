@@ -62,22 +62,23 @@
   		
 	<!-- Bootstrap grid setup -->
     <div class="container">
-        <div class="row">
-            <div class="col-md-2"></div>
-            <div class="col-md-8">
-                <div class="centered-form">
-                    <h3>Get Recommendations</h3>
-                    <form action="/get_recs">
-                        <label>Letterboxd Username</label>
-                        <input type="text" name="username" placeholder="Username" required>
-                        <!-- <label>Room</label> -->
-                        <!-- <input type="text" name="num_recs" placeholder="Room" required> -->
-                        <button>Get Recs</button>
-                    </form>
-                </div>
+        <div class="col-md-2"></div>
+        <div class="col-md-8">
+            <div class="row centered-form">
+                <h3>Get Recommendations</h3>
+                <form id="recommendation-form">
+                    <label>Letterboxd Username</label>
+                    <input type="text" name="username" placeholder="Username" required>
+                    <!-- <label>Room</label> -->
+                    <!-- <input type="text" name="num_recs" placeholder="Room" required> -->
+                    <button>Get Recs</button>
+                </form>
             </div>
-            <div class="col-md-2"></div>
+            <div class="row">
+                <span id="results"></span>
+            </div>
         </div>
+        <div class="col-md-2"></div>
     </div>
 
     <div class="container footer" style="text-align:justify; max-width: 650px; font-size: 9pt;">
@@ -96,9 +97,10 @@
         </div>
     </div>
 
+    <script src="https://d3js.org/d3.v6.min.js"></script>
 	<!-- Custom JS -->
     <!-- <script src="/static/js/utils.js"></script> -->
-	<!-- <script src="/static/js/main.js"></script> -->
+	<script src="/static/js/app.js"></script>
 
 </body>
 

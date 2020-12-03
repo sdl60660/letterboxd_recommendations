@@ -34,7 +34,7 @@ def create_app(test_config=None):
     def homepage():
         return render_template('index.html')
 
-    @app.route('/get_recs')
+    @app.route('/get_recs', methods=['GET', 'POST'])
     def get_recs():
         username = request.args.get('username')
 
@@ -52,7 +52,7 @@ def create_app(test_config=None):
         if job.is_finished:
             return jsonify(job.result), 200
         else:
-            return "Nay!", 202
+            return jsonify({}), 202
 
 
     return app
