@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
     <meta name="description" content="">
-    <title>Project Template</title>
+    <title>Letterboxd Movie Recommendations</title>
 
     <!-- Primary Meta Tags -->
     <meta name="title" content="">
@@ -34,6 +34,14 @@
     <link rel="stylesheet" href="static/css/jquery-ui.theme.min.css">
     <link rel="stylesheet" href="static/css/d3-tip.css">
     <link rel="stylesheet" href="static/css/fstdropdown.css"> -->
+
+    <!-- Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Playfair+Display">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Merriweather">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lora">
+    <link rel="stylesheet" href="https://use.typekit.net/qnl7egi.css">
+
     <!-- Custom CSS -->
     <link rel="stylesheet" type="text/css" href="static/css/style.css">
 
@@ -47,14 +55,14 @@
     <div class="spacer"></div>
     <div class="container" style="text-align:left; max-width: 650px;">
         <div class="row" style="text-align: center">
-            <h2>Project Title</h2>
+            <h1>Letterboxd Movie Recommendations</h1>
         </div>
         <br>
         <!-- <div class="spacer"></div> -->
         <div class="row">
             <div class="col-md-2"></div>
             <div class="col-md-8">
-                <p>Project Description</p>
+                <!-- <p>Project Description</p> -->
             </div>
             <div class="col-md-2"></div>
         </div>
@@ -65,13 +73,13 @@
         <div class="col-md-2"></div>
         <div class="col-md-8">
             <div class="row centered-form">
-                <h3>Get Recommendations</h3>
+                <!-- <h4>Get Recommendations</h4> -->
                 <form id="recommendation-form">
                     <label>Letterboxd Username</label>
                     <input type="text" name="username" placeholder="Username" required>
                     <!-- <label>Room</label> -->
                     <!-- <input type="text" name="num_recs" placeholder="Room" required> -->
-                    <button>Get Recs</button>
+                    <button id="form-submit-button">Get Recs</button>
                 </form>
             </div>
             <div class="row">

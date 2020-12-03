@@ -11,36 +11,34 @@ import pymongo
 from db_config import config
 
 
-def create_training_data(target_sample_size=200000):
-    # Connect to MongoDB Client
-    db_name = config["MONGO_DB"]
-    client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+def get_sample(cursor, iteration_size):
+    while True:
+        try:
+            rating_sample = cursor.aggregate([
+                {"$sample": {"size": iteration_size}}
+            ])
+            return list(rating_sample)
+        except pymongo.errors.OperationFailure:
+            print("Encountered $sample operation error. Retrying...")
+    
+    
 
-    db = client[db_name]
-    ratings = db.ratings
 
-    # all_ratings = ratings.find({}, { "user_id": 1, "movie_id": 1, "rating_val": 1, "_id": 0 })
-    # all_ratings = ratings.find({}, { "user_id": 1, "movie_id": 1, "rating_val": 1, "_id": 0 }, limit=250000)
+def create_training_data(db_client, sample_size=200000):
+    ratings = db_client.ratings
+
     all_ratings = []
-
-    sample_size = int(target_sample_size*1.1)
-    max_chunk_size = 500000
-    num_iterations = 1 + (sample_size // max_chunk_size)
-
-    for iteration in range(num_iterations):
-        iteration_size = min(max_chunk_size, sample_size - (max_chunk_size*iteration))
-
-        rating_sample = ratings.aggregate([
-            {"$sample": {"size": iteration_size}}
-        ])
-
-        all_ratings += list(rating_sample)
+    unique_records = 0
+    while unique_records < sample_size:
+        rating_sample = get_sample(ratings, 100000)
+        all_ratings += rating_sample
+        unique_records = len(set([(x['movie_id'] + x['user_id']) for x in all_ratings]))
+        print(unique_records)
 
     df = pd.DataFrame(all_ratings)
     df = df[["user_id", "movie_id", "rating_val"]]
-    # print(df.shape)
     df.drop_duplicates(inplace=True)
-    # print(df.shape)
+    df = df.head(sample_size)
 
     min_review_threshold = 5
 
@@ -51,17 +49,43 @@ def create_training_data(target_sample_size=200000):
     return df, full_movie_list
 
 
+def create_movie_data_sample(db_client, movie_list):
+    movies = db_client.movies
+    included_movies = movies.find( { "movie_id": { "$in": movie_list } } )
+    
+    movie_df = pd.DataFrame(list(included_movies))
+    movie_df = movie_df[['movie_id', 'image_url', 'movie_title', 'year_released']]
+    movie_df['image_url'] = movie_df['image_url'].str.replace('https://a.ltrbxd.com/resized/', '', regex=False)
+    movie_df['image_url'] = movie_df['image_url'].str.replace('https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png', '', regex=False)
+    
+    return movie_df
+
 if __name__ == "__main__":
-    success = False
+    # Connect to MongoDB Client
+    db_name = config["MONGO_DB"]
+    client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+    db = client[db_name]
 
-    while success == False:
-        try:
-            training_df, threshold_movie_list = create_training_data(200000)
-            success = True
-        except pymongo.errors.OperationFailure:
-            print("Encountered $sample operation error. Retrying...")
+    # Generate training data sample
+    training_df, threshold_movie_list = create_training_data(db, 500000)
 
+    # Create review counts dataframe
+    review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).sum().reset_index()
+    # We'll pull review counts from the full DB dataset, but then only include those in the threshold list in the final dataframe
+    # This is because only those on the threshold list will make it into the model anyway, so filtering the dataframe now avoids processing later
+    # But we start with the full dataset so as to get more accurate review counts, rather than using review counts from a smaller sample
+    review_counts_df = review_counts_df[review_counts_df['movie_id'].isin(threshold_movie_list)]
+    
+    # Generate movie data CSV
+    movie_df = create_movie_data_sample(db, threshold_movie_list)
+    print(movie_df.head())
+    print(movie_df.shape)
+    
+
+    # Store Data
     with open('models/threshold_movie_list.txt', 'wb') as fp:
         pickle.dump(threshold_movie_list, fp)
     
     training_df.to_csv('data/training_data.csv', index=False)
+    review_counts_df.to_csv('data/review_counts.csv', index=False)
+    movie_df.to_csv('../static/data/movie_data.csv', index=False)
