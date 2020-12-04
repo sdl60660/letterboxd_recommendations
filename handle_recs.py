@@ -22,33 +22,45 @@ def get_previous_job_from_registry(index=-1):
     return job
 
 
+def filter_threshold_list(threshold_movie_list, review_count_threshold=2000):
+    review_counts = pd.read_csv('data_processing/data/review_counts.csv')
+    review_counts = review_counts.loc[review_counts['rating_val'] < review_count_threshold]
+    
+    included_movies = review_counts['movie_id'].to_list()
+    threshold_movie_list = [x for x in threshold_movie_list if x in included_movies]
+
+    return threshold_movie_list
+
+
 def get_client_user_data(username):
     user_data = get_user_data(username)
     return user_data
 
 
 def build_client_model(username, training_data_rows=200000, popularity_filter=False, num_items=30):
+    # Load user data from previous Redis job
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
     user_data = user_data_job.result
 
+    # Load in training full training dataset and filter it to the selected sample size
     df = pd.read_csv('data_processing/data/training_data.csv')
-    with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
-        threshold_movie_list = pickle.load(fp)
-    
     model_df = df.head(training_data_rows)
 
+    # Load in the list of all availble movie ids (passed the threshold of at least five samples in dataset)
+    with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
+        threshold_movie_list = pickle.load(fp)
+
+    # If user has requested only less often reviewed movies, apply review count threshold to the movie id list
     if popularity_filter:
         review_count_threshold = 2000
-
-        review_counts = pd.read_csv('data_processing/data/review_counts.csv')
-        review_counts = review_counts.loc[review_counts['rating_val'] < review_count_threshold]
-        
-        included_movies = review_counts['movie_id'].to_list()
-        threshold_movie_list = [x for x in threshold_movie_list if x in included_movies]
+        threshold_movie_list = filter_threshold_list(threshold_movie_list, review_count_threshold)
     
+    # Build model with appended user data
     algo, user_watched_list = build_model(model_df, user_data)
-    # del model_df
+    del model_df
+
+    # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
     recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
     return recs    
 
