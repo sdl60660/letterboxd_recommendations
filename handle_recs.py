@@ -47,8 +47,10 @@ def build_client_model(training_data_rows=200000, popularity_filter=False):
         included_movies = review_counts['movie_id'].to_list()
         threshold_movie_list = [x for x in threshold_movie_list if x in included_movies]
     
-    print('Building model')
     algo, user_watched_list = build_model(model_df, user_data)
+    del model_df
+
+    print("Returning build data")
     return pickle.dumps(algo), pickle.dumps(user_watched_list), pickle.dumps(threshold_movie_list)
     
 
