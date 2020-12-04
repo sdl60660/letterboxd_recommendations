@@ -11,6 +11,7 @@ import pandas as pd
 import pickle
 
 from rq import Queue
+from rq.exceptions import NoSuchJobError
 from rq.job import Job
 from worker import conn
 
@@ -45,10 +46,10 @@ def create_app(test_config=None):
 
         num_items = 30
         
-        job_get_user_data = q.enqueue(get_client_user_data, args=(username,), description=f"Scraping user data for {request.args.get('username')}")
-        job_create_df = q.enqueue(create_training_data, args=(training_data_size, exclude_popular,), depends_on=job_get_user_data, description=f"Creating training dataframe for {request.args.get('username')}")
-        job_build_model = q.enqueue(build_client_model, args=(username,), depends_on=job_create_df, description=f"Building model for {request.args.get('username')}")
-        job_run_model = q.enqueue(run_client_model, args=(username,num_items,), depends_on=job_build_model, description=f"Running model for {request.args.get('username')}")
+        job_get_user_data = q.enqueue(get_client_user_data, args=(username,), description=f"Scraping user data for {request.args.get('username')}", result_ttl=3)
+        job_create_df = q.enqueue(create_training_data, args=(training_data_size, exclude_popular,), depends_on=job_get_user_data, description=f"Creating training dataframe for {request.args.get('username')}", result_ttl=3)
+        job_build_model = q.enqueue(build_client_model, args=(username,), depends_on=job_create_df, description=f"Building model for {request.args.get('username')}", result_ttl=3)
+        job_run_model = q.enqueue(run_client_model, args=(username,num_items,), depends_on=job_build_model, description=f"Running model for {request.args.get('username')}", result_ttl=3)
 
         return jsonify({
             "redis_get_user_data_job_id": job_get_user_data.get_id(),
@@ -60,11 +61,14 @@ def create_app(test_config=None):
     
     @app.route("/results", methods=['GET'])
     def get_results():
-
         job_ids = request.args.to_dict()
         job_statuses = {}
         for key, job_id in job_ids.items():
-            job_statuses[key.replace('_id', '_status')] = Job.fetch(job_id, connection=conn).get_status()
+            print(key, job_id)
+            try:
+                job_statuses[key.replace('_id', '_status')] = Job.fetch(job_id, connection=conn).get_status()
+            except NoSuchJobError:
+                job_statuses[key.replace('_id', '_status')] = "finished"
 
         end_job = Job.fetch(job_ids['redis_run_model_job_id'], connection=conn)
         # print(job_statuses)

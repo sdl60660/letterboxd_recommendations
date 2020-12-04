@@ -13,7 +13,7 @@ from worker import conn
 
 
 def get_previous_job_from_registry(index=-1):
-    q = Queue('default', connection=conn)
+    q = Queue('high', connection=conn)
     registry = FinishedJobRegistry(queue=q)
     
     job_id = registry.get_job_ids()[index]
@@ -28,6 +28,10 @@ def get_client_user_data(username):
 
 
 def create_training_data(training_data_rows=200000, popularity_filter=False):
+    current_job = get_current_job(conn)
+    user_data_job = current_job.dependency
+    user_data = user_data_job.result
+
     df = pd.read_csv('data_processing/data/training_data.csv')
     with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
         threshold_movie_list = pickle.load(fp)
@@ -43,10 +47,6 @@ def create_training_data(training_data_rows=200000, popularity_filter=False):
         
         included_movies = review_counts['movie_id'].to_list()
         threshold_movie_list = [x for x in threshold_movie_list if x in included_movies]
-
-    current_job = get_current_job(conn)
-    user_data_job = current_job.dependency
-    user_data = user_data_job.result
     
     return pickle.dumps(model_df), threshold_movie_list, user_data
 
