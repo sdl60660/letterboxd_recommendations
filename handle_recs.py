@@ -24,7 +24,7 @@ def get_previous_job_from_registry(index=-1):
 
 def get_client_user_data(username):
     user_data = get_user_data(username)
-    return user_data
+    return pickle.dumps(user_data)
 
 
 def create_training_data(training_data_rows=200000, popularity_filter=False):
@@ -48,26 +48,26 @@ def create_training_data(training_data_rows=200000, popularity_filter=False):
     user_data_job = current_job.dependency
     user_data = user_data_job.result
     
-    return model_df, threshold_movie_list, user_data
+    return pickle.dumps(model_df), threshold_movie_list, user_data
 
 
 def build_client_model(username):
     current_job = get_current_job(conn)
     training_data_job = current_job.dependency
 
-    model_df = training_data_job.result[0]
+    model_df = pickle.loads(training_data_job.result[0])
     threshold_movie_list = training_data_job.result[1]
-    user_data = training_data_job.result[2]
+    user_data = pickle.loads(training_data_job.result[2])
     
     algo, user_watched_list = build_model(model_df, user_data)
-    return algo, user_watched_list, threshold_movie_list
+    return pickle.dumps(algo), user_watched_list, threshold_movie_list
 
 
 def run_client_model(username, num_items=30):
     current_job = get_current_job(conn)
     build_model_job = current_job.dependency
 
-    algo = build_model_job.result[0]
+    algo = pickle.loads(build_model_job.result[0])
     user_watched_list = build_model_job.result[1]
     threshold_movie_list = build_model_job.result[2]
 
