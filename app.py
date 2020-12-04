@@ -14,7 +14,7 @@ from rq import Queue
 from rq.job import Job
 from worker import conn
 
-from handle_recs import get_recommendations
+from handle_recs import get_recommendations, create_training_data, build_client_model, run_client_model
 
 
 def create_app(test_config=None):
@@ -28,7 +28,7 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    q = Queue(connection=conn)
+    q = Queue('default', connection=conn)
 
     @app.route('/')
     def homepage():
@@ -37,22 +37,40 @@ def create_app(test_config=None):
     @app.route('/get_recs', methods=['GET', 'POST'])
     def get_recs():
         username = request.args.get('username')
+        training_data_size = int(request.args.get('training_data_size'))
+        if request.args.get('exclude_popular') == "true":
+            exclude_popular = True
+        else:
+            exclude_popular = False
 
-        job = q.enqueue(get_recommendations, args=(username,), description=f"Recs for {request.args.get('username')}")
-        print(job.get_id())
-        return jsonify({"redis_job_id": job.get_id()})
+        num_items = 30
+        
+        job_create_df = q.enqueue(create_training_data, args=(training_data_size, exclude_popular,), description=f"Creating training dataframe for {request.args.get('username')}")
+        job_build_model = q.enqueue(build_client_model, args=(username,), depends_on=job_create_df, description=f"Building model for {request.args.get('username')}")
+        job_run_model = q.enqueue(run_client_model, args=(username,num_items,), depends_on=job_build_model, description=f"Running model for {request.args.get('username')}")
+
+        return jsonify({
+            "redis_create_df_job_id": job_create_df.get_id(),
+            "redis_build_model_job_id": job_build_model.get_id(),
+            "redis_run_model_job_id": job_run_model.get_id(),
+            })
        
     
-    @app.route("/results/<job_key>", methods=['GET'])
-    def get_results(job_key):
+    @app.route("/results", methods=['GET'])
+    def get_results():
 
-        job = Job.fetch(job_key, connection=conn)
-        print(job)
+        job_ids = request.args.to_dict()
+        job_statuses = {}
+        for key, job_id in job_ids.items():
+            job_statuses[key.replace('_id', '')] = Job.fetch(job_id, connection=conn).get_status()
 
-        if job.is_finished:
-            return jsonify(job.result), 200
+        end_job = Job.fetch(job_ids['run_model_job_id'], connection=conn)
+        # print(job_statuses)
+
+        if end_job.is_finished:
+            return jsonify({"statuses": job_statuses, "result": end_job.result}), 200
         else:
-            return jsonify({}), 202
+            return jsonify({"statuses": job_statuses}), 202
 
 
     return app

@@ -16,13 +16,27 @@ body {
 	background-color: rgba(173,216,230,0.3);
 	/* border: 1px solid black; */
     border-radius: 10px;
-    margin: 10px 8px;
+	margin: 10px 8px;
+	font-size: 17px;
 }
 
 .movie-poster {
 	max-height: 70px;
 	width: auto;
 	margin-right: 10px;
+}
+
+#recommendation-form {
+	/* display: flex; */
+}
+
+#recommendation-form td {
+	padding-right: 10px;
+	padding-bottom: 5px;
+}
+
+#model-strength-slider {
+	max-width: 200px;
 }
 
 .spacer {

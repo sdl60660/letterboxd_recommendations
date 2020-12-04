@@ -75,10 +75,22 @@
             <div class="row centered-form">
                 <!-- <h4>Get Recommendations</h4> -->
                 <form id="recommendation-form">
-                    <label>Letterboxd Username</label>
-                    <input type="text" name="username" placeholder="Username" required>
-                    <!-- <label>Room</label> -->
-                    <!-- <input type="text" name="num_recs" placeholder="Room" required> -->
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td><label>Letterboxd Username</label></td>
+                                <td><input type="text" name="username" placeholder="Username" required></td>
+                            </tr>
+                            <tr>
+                                <td><label>Exclude Popular Movies?</label></td>
+                                <td><input type="checkbox" name="exclude_popular"></td>
+                            </tr>
+                            <tr>
+                                <td><label>Model Strength</label></td>
+                                <td><input type="range" id="model-strength-slider" name="model_strength" value="200000" step="100000" min="100000" max="500000"></td>
+                            </tr>
+                        </tbody>
+                    </table>
                     <button id="form-submit-button">Get Recs</button>
                 </form>
             </div>

@@ -12,14 +12,14 @@ const determinePhoneBrowsing = () => {
     }
 }
 
-const poll = async ({ fn, redisID, validate, interval, maxAttempts }) => {
+const poll = async ({ fn, redisIDs, validate, interval, maxAttempts }) => {
     let attempts = 0;
   
     const executePoll = async (resolve, reject) => {
-        const result = await fn(redisID);
+        const result = await fn(redisIDs);
         attempts++;
 
-        console.log(attempts)
+        console.log(attempts, result.statuses);
   
         if (validate(result)) {
             return resolve(result);
@@ -33,26 +33,36 @@ const poll = async ({ fn, redisID, validate, interval, maxAttempts }) => {
     return new Promise(executePoll);
 };
 
-const getRecData = async (redisID) => {
-    const response = await fetch(`/results/${redisID}`, {
+const getRecData = async (redisIDs) => {
+    const paramString = new URLSearchParams({
+        create_df_job_id: redisIDs.redis_create_df_job_id,
+        build_model_job_id: redisIDs.redis_build_model_job_id,
+        run_model_job_id: redisIDs.redis_run_model_job_id
+    }).toString();
+
+    const response = await fetch(`/results?${paramString}`, {
         method: 'GET'
     });
     const data = await response.json();
     return data;
 };
   
-const validateData = (data) => JSON.stringify(data) !== "{}";
+const validateData = (data) => data.statuses.run_model_job === "finished";
 const POLL_INTERVAL = 1000;
 
 const $form = document.querySelector("#recommendation-form");
 const $submitButton = document.querySelector("#form-submit-button");
 const $recResults = document.querySelector("#results");
+
 $form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = e.target.elements.username.value;
+    const filterPopular = e.target.elements.exclude_popular.checked;
+    const modelStrength = e.target.elements.model_strength.value;
+
     $submitButton.setAttribute("disabled", "disabled");
 
-    const response = await fetch(`/get_recs?username=${username}`, {   // assuming the backend is hosted on the same server
+    const response = await fetch(`/get_recs?username=${username}&exclude_popular=${filterPopular}&training_data_size=${modelStrength}`, {
         method: 'GET'
     });
     const data = await response.json();
@@ -60,12 +70,13 @@ $form.addEventListener('submit', async (e) => {
     
     poll({
         fn: getRecData,
-        redisID: data.redis_job_id,
+        redisIDs: data,
         validate: validateData,
         interval: POLL_INTERVAL,
     })
-    .then((recs) => {
-        console.log(recs);
+    .then((response) => {
+        // console.log(response);
+        const recs = response.result;
         const movieIDList = recs.map((rec) => rec.movie_id);
         const selectMovieData = allMovieData.filter((movie) => movieIDList.includes(movie.movie_id))
 
