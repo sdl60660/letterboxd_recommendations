@@ -24,13 +24,13 @@ def get_previous_job_from_registry(index=-1):
 
 def get_client_user_data(username):
     user_data = get_user_data(username)
-    return pickle.dumps(user_data)
+    return user_data
 
 
 def build_client_model(training_data_rows=200000, popularity_filter=False):
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
-    user_data = pickle.loads(user_data_job.result)
+    user_data = user_data_job.result
 
     df = pd.read_csv('data_processing/data/training_data.csv')
     with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
@@ -51,7 +51,7 @@ def build_client_model(training_data_rows=200000, popularity_filter=False):
     del model_df
 
     print("Returning build data")
-    return pickle.dumps(algo), pickle.dumps(user_watched_list), pickle.dumps(threshold_movie_list)
+    return algo, user_watched_list, threshold_movie_list
     
 
 
@@ -95,9 +95,9 @@ def run_client_model(username, num_items=30):
     current_job = get_current_job(conn)
     build_model_job = current_job.dependency
 
-    algo = pickle.loads(build_model_job.result[0])
-    user_watched_list = pickle.loads(build_model_job.result[1])
-    threshold_movie_list = pickle.loads(build_model_job.result[2])
+    algo = build_model_job.result[0]
+    user_watched_list = build_model_job.result[1]
+    threshold_movie_list = build_model_job.result[2]
 
     recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
 
