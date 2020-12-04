@@ -43,6 +43,8 @@ def build_client_model(username, training_data_rows=200000, popularity_filter=Fa
     user_data_job = current_job.dependency
     user_data = user_data_job.result
 
+    current_job.meta['stage'] = 'creating_sample_data'
+    current_job.save()
     # Load in training full training dataset and filter it to the selected sample size
     df = pd.read_csv('data_processing/data/training_data.csv')
     model_df = df.head(training_data_rows)
@@ -56,10 +58,14 @@ def build_client_model(username, training_data_rows=200000, popularity_filter=Fa
         review_count_threshold = 2000
         threshold_movie_list = filter_threshold_list(threshold_movie_list, review_count_threshold)
     
+    current_job.meta['stage'] = 'building_model'
+    current_job.save()
     # Build model with appended user data
     algo, user_watched_list = build_model(model_df, user_data)
     del model_df
 
+    current_job.meta['stage'] = 'running_model'
+    current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
     recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
     return recs    

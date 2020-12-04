@@ -13,6 +13,8 @@ import pickle
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Job
+from rq.registry import DeferredJobRegistry
+
 from worker import conn
 
 from handle_recs import get_client_user_data, build_client_model
@@ -29,7 +31,7 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    q = Queue('default', connection=conn)
+    queue_pool = [Queue(channel, connection=conn) for channel in ['high', 'default', 'low']]
 
     @app.route('/')
     def homepage():
@@ -45,6 +47,10 @@ def create_app(test_config=None):
             exclude_popular = False
 
         num_items = 30
+
+        ordered_queues = sorted(queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count)
+        print([(q, DeferredJobRegistry(queue=q).count) for q in ordered_queues])
+        q = ordered_queues[0]
         
         job_get_user_data = q.enqueue(get_client_user_data, args=(username,), description=f"Scraping user data for {request.args.get('username')}", result_ttl=30)
         # job_create_df = q.enqueue(create_training_data, args=(training_data_size, exclude_popular,), depends_on=job_get_user_data, description=f"Creating training dataframe for {request.args.get('username')}", result_ttl=5)
@@ -64,7 +70,7 @@ def create_app(test_config=None):
         job_ids = request.args.to_dict()
         job_statuses = {}
         for key, job_id in job_ids.items():
-            print(key, job_id)
+            # print(key, job_id)
             try:
                 job_statuses[key.replace('_id', '_status')] = Job.fetch(job_id, connection=conn).get_status()
             except NoSuchJobError:
