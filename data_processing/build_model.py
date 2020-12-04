@@ -25,23 +25,32 @@ def build_model(df, user_data):
  
     user_rated = [x for x in user_data if x['rating_val'] > 0]
 
+    print("Concatenating user data...")
     user_df = pd.DataFrame(user_rated)
     df = pd.concat([df, user_df]).reset_index(drop=True)
     df.drop_duplicates(inplace=True)
+    del user_df
 
+    print("Loading user data into reader...")
     # Surprise dataset loading
     reader = Reader(rating_scale=(1, 10))
     data = Dataset.load_from_df(df[["user_id", "movie_id", "rating_val"]], reader)
+    del df
 
+    print("Creating algorithm...")
     # Configure algorithm
     algo = SVD()
     # cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True)
 
+    print("Creating training data...")
     trainingSet = data.build_full_trainset()
+    print("Training algorithm...")
     algo.fit(trainingSet)
 
+    print("Creating user watch list...")
     user_watched_list = [x['movie_id'] for x in user_data]
 
+    print("Returning data...")
     return algo, user_watched_list
 
 if __name__ == "__main__":
@@ -50,7 +59,7 @@ if __name__ == "__main__":
         from get_user_ratings import get_user_data
     else:
         from data_processing.get_user_ratings import get_user_data
-        
+
     # Load ratings data
     df = pd.read_csv('data/training_data.csv')
 

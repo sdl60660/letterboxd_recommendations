@@ -32,19 +32,11 @@ def build_client_model(training_data_rows=200000, popularity_filter=False):
     user_data_job = current_job.dependency
     user_data = pickle.loads(user_data_job.result)
 
-    print(user_data)
-
     df = pd.read_csv('data_processing/data/training_data.csv')
     with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
         threshold_movie_list = pickle.load(fp)
     
-    print(df.head())
-    print(threshold_movie_list[:5])
-    
     model_df = df.head(training_data_rows)
-    # print(model_df.head())
-
-    print(model_df.head())
 
     if popularity_filter:
         review_count_threshold = 2000
