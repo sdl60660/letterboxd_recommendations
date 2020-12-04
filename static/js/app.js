@@ -1,6 +1,15 @@
 
 // Initialize global variables
+const POLL_INTERVAL = 1000;
+const $form = document.querySelector("#recommendation-form");
+const $submitButton = document.querySelector("#form-submit-button");
+const $recResults = document.querySelector("#results");
+const $progressList = document.querySelector("#task-progress-list");
 
+const checkmark = `<img class="checkmark" src="/static/images/checkbox.svg"></img>`;
+const loadSpinner = `<div class="loader"></div>`;
+
+let progressStep = 0;
 
 // Determine if the user is browsing on mobile and adjust worldMapWidth if they are
 const determinePhoneBrowsing = () => {
@@ -12,16 +21,16 @@ const determinePhoneBrowsing = () => {
     }
 }
 
-const poll = async ({ fn, redisIDs, validate, interval, maxAttempts }) => {
+const poll = async ({ fn, data, validate, interval, maxAttempts }) => {
     let attempts = 0;
   
     const executePoll = async (resolve, reject) => {
-        const result = await fn(redisIDs);
+        const result = await fn(data.redisIDs);
         attempts++;
 
         console.log(attempts, result.statuses);
   
-        if (validate(result)) {
+        if (validate(result, data.username)) {
             return resolve(result);
         } else if (maxAttempts && attempts === maxAttempts) {
             return reject(new Error('Exceeded max attempts'));
@@ -43,12 +52,20 @@ const getRecData = async (redisIDs) => {
     return data;
 };
   
-const validateData = (data) => data.statuses.redis_build_model_job_status === "finished";
-const POLL_INTERVAL = 1000;
+const validateData = (data, username) => {
+    if (data.statuses.redis_get_user_data_job_status === "finished" && progressStep === 0) {
+        document.querySelector("#load-user-task-progress").innerHTML = `<div class="progress-container">${checkmark}</div><span class="progress-text">Gathered User Ratings From <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">Profile</a></span>`
+        document.querySelector("#run-model-task-progress").innerHTML = `<div class="progress-container">${loadSpinner}</div><span class="progress-text">Building Recommendation Model...</span>`
+        progressStep = 1;
+    }
 
-const $form = document.querySelector("#recommendation-form");
-const $submitButton = document.querySelector("#form-submit-button");
-const $recResults = document.querySelector("#results");
+    if (data.statuses.redis_build_model_job_status === "finished") {
+        document.querySelector("#run-model-task-progress").innerHTML = `<div class="progress-container">${checkmark}</div><span class="progress-text">Finished Building Recommendation Model</span>`
+        progressStep = 2;
+    }
+    
+    return data.statuses.redis_build_model_job_status === "finished";
+}
 
 $form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -63,10 +80,18 @@ $form.addEventListener('submit', async (e) => {
     });
     const data = await response.json();
     console.log(data);
+
+    let progressTasks = '';
+    progressTasks += `<li id="load-user-task-progress"><div class="progress-container"><div class="loader"></div></div><span class="progress-text">Gathering User Ratings From <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">Profile</a></span></li>`;
+    progressTasks += `<li id="run-model-task-progress"><div class="progress-container"><div class="waiting-loader"></div></div><span class="progress-text">Build Recommendation Model</span></li>`;
+    $progressList.innerHTML = progressTasks;
     
     poll({
         fn: getRecData,
-        redisIDs: data,
+        data: {
+            redisIDs: data,
+            username
+        },
         validate: validateData,
         interval: POLL_INTERVAL,
     })
@@ -95,6 +120,7 @@ $form.addEventListener('submit', async (e) => {
         $recResults.innerHTML = divContent;
 
         $submitButton.removeAttribute("disabled");
+        progressStep = 0;
     })
     .catch(err => console.error(err));
 });

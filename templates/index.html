@@ -79,7 +79,7 @@
                         <tbody>
                             <tr>
                                 <td><label>Letterboxd Username</label></td>
-                                <td><input type="text" name="username" placeholder="Username" required></td>
+                                <td><input type="text" name="username" placeholder="Username" id="username-input" required></td>
                             </tr>
                             <tr>
                                 <td><label>Exclude Popular Movies?</label></td>
@@ -95,7 +95,11 @@
                 </form>
             </div>
             <div class="row">
-                <span id="results"></span>
+                <div id="progress-tracking">
+                    <ul id="task-progress-list">
+                    </ul>
+                </div>
+                <div id="results"></div>
             </div>
         </div>
         <div class="col-md-2"></div>
@@ -106,7 +110,7 @@
             <div class="col-md-2"></div>
             <div class="col-md-8">
                 <!-- <p>Visualization by Sam Learner.</p> -->
-                <p>Visualization by Sam Learner | <a href="mailto:learnersd@gmail.com"><img class="icon-img" src="/static/images/email.svg"></a> | <a href="https://twitter.com/sam_learner"><img class="icon-img" src="/static/images/twitter.svg"></a> | <a href="https://github.com/sdl60660"><img class="icon-img" src="/static/images/github.png"></a></p>
+                <p>Visualization by <a href="www.samlearner.com">Sam Learner</a> | <a href="mailto:learnersd@gmail.com"><img class="icon-img" src="/static/images/email.svg"></a> | <a href="https://twitter.com/sam_learner"><img class="icon-img" src="/static/images/twitter.svg"></a> | <a href="https://github.com/sdl60660"><img class="icon-img" src="/static/images/github.png"></a></p>
                 <!-- Add project repo link<p>Code and data for this project lives <a href="">here</a>.</p>  -->
                 
                 <!-- <p>Credits/sources/notes</p> -->

@@ -26,6 +26,40 @@ body {
 	margin-right: 10px;
 }
 
+#username-input {
+	padding-left: 5px;
+	border-radius: 3px;
+}
+
+#progress-tracking {
+	margin: 15px 10px;
+}
+
+#progress-tracking ul {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+
+	display: flex;
+	flex-direction: column;
+	/* position: absolute; */
+}
+
+#progress-tracking ul li {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+
+	padding: 2px;
+	/* position: absolute; */
+}
+
+.checkmark {
+	height: 26px;
+	width: 26px;
+	margin: auto;
+}
+
 #recommendation-form {
 	/* display: flex; */
 }
@@ -37,6 +71,42 @@ body {
 
 #model-strength-slider {
 	max-width: 200px;
+}
+
+.loader {
+	border: 3px solid #f3f3f3; /* Light gray */
+	border-top: 3px solid #444; /* Dark gray */
+	border-radius: 50%;
+	width: 20px;
+	height: 20px;
+	animation: spin 1s linear infinite;
+	margin: auto;
+	/* margin: 3px 3px 0px;	 */
+}
+
+.waiting-loader {
+	border: 3px solid #f3f3f3; /* Light gray */
+	border-radius: 50%;
+	width: 20px;
+	height: 20px;
+	margin: auto;
+	/* opacity: 0.0; */
+  }
+
+.progress-text {
+	margin-left: 8px;
+}
+
+.progress-container {
+	min-width: 30px;
+	min-height: 30px;
+	display: flex;
+	align-items: center;
+}
+  
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
 }
 
 .spacer {
