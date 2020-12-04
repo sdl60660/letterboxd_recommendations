@@ -27,6 +27,7 @@ body {
 }
 
 #username-input {
+	max-height: 30px;
 	padding-left: 5px;
 	border-radius: 3px;
 }
@@ -60,8 +61,56 @@ body {
 	margin: auto;
 }
 
+.grid-wrapper {
+	display: grid;
+	grid-template-rows: 50px 50px 50px 50px;
+	grid-template-columns: 250px 200px;
+
+	align-items: center;
+}
+
+label {
+	font-weight: unset;
+}
+
+.grid-label {
+	/* background-color: gray; */
+	/* padding: 1em; */
+	/* margin: 5px; */
+}
+
+/* label.grid-item {
+	padding: 1em;
+	min-height: 50px;
+} */
+
+/* :nth-child(odd of .grid-item) { 
+	background-color: gray;
+} */
+
 #recommendation-form {
-	/* display: flex; */
+	display: table;
+	margin: auto;
+	font-size: 15px;
+
+
+	padding: 1.5em;
+	background-color: #eee;
+	border-radius: 10px;
+	border: 1px solid #444;
+}
+
+#form-submit-button {
+	margin-top: 10px;
+}
+
+#results {
+	max-height: 70vh;
+	overflow-y: scroll;
+}
+
+#body-content-container {
+	min-height: 80vh;
 }
 
 #recommendation-form td {
@@ -117,7 +166,7 @@ body {
     font-size: 10pt;
     padding-top: 40px;
     padding-bottom: 60px;
-    min-height: 100vh;
+    /* min-height: 100vh; */
     font-family: "Helvetica Neue", helvetica, arial, sans-serif;
 }
 
@@ -126,3 +175,66 @@ body {
 	width: 13px;
 	margin-bottom: 2px;
 }
+
+/* The switch - the box around the slider */
+.switch {
+	position: relative;
+	display: inline-block;
+	width: 60px;
+	height: 30px;
+  }
+  
+  /* Hide default HTML checkbox */
+  .switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+  }
+  
+  /* The slider */
+  .slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	-webkit-transition: .4s;
+	transition: .4s;
+  }
+  
+  .slider:before {
+	position: absolute;
+	content: "";
+	height: 22px;
+	width: 22px;
+	left: 4px;
+	bottom: 4px;
+	background-color: white;
+	-webkit-transition: .4s;
+	transition: .4s;
+  }
+  
+  input:checked + .slider {
+	background-color: #2196F3;
+  }
+  
+  input:focus + .slider {
+	box-shadow: 0 0 1px #2196F3;
+  }
+  
+  input:checked + .slider:before {
+	-webkit-transform: translateX(28px);
+	-ms-transform: translateX(28px);
+	transform: translateX(28px);
+  }
+  
+  /* Rounded sliders */
+  .slider.round {
+	border-radius: 34px;
+  }
+  
+  .slider.round:before {
+	border-radius: 50%;
+  }

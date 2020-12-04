@@ -32,6 +32,8 @@ def create_app(test_config=None):
         app.config.from_mapping(test_config)
 
     queue_pool = [Queue(channel, connection=conn) for channel in ['high', 'default', 'low']]
+    # queue_pool = [Queue(channel, connection=conn) for channel in ['high']]
+
 
     @app.route('/')
     def homepage():

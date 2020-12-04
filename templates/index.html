@@ -69,31 +69,29 @@
     </div>
   		
 	<!-- Bootstrap grid setup -->
-    <div class="container">
+    <div class="container" id="body-content-container">
         <div class="col-md-2"></div>
         <div class="col-md-8">
-            <div class="row centered-form">
+            <!-- <div class="row centered-form"> -->
                 <!-- <h4>Get Recommendations</h4> -->
                 <form id="recommendation-form">
-                    <table>
-                        <tbody>
-                            <tr>
-                                <td><label>Letterboxd Username</label></td>
-                                <td><input type="text" name="username" placeholder="Username" id="username-input" required></td>
-                            </tr>
-                            <tr>
-                                <td><label>Exclude Popular Movies?</label></td>
-                                <td><input type="checkbox" name="exclude_popular"></td>
-                            </tr>
-                            <tr>
-                                <td><label>Model Strength</label></td>
-                                <td><input type="range" id="model-strength-slider" name="model_strength" value="200000" step="100000" min="100000" max="500000"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <button id="form-submit-button">Get Recs</button>
+                    <div class="grid-wrapper">
+                        <label class="grid-item grid-label">Letterboxd Username</label>
+                        <input class="grid-item" type="text" name="username" placeholder="Username" id="username-input" required>
+                        
+                        <label class="grid-item grid-label">Exclude Popular Movies?</label>
+                        <label class="switch grid-item">
+                            <input type="checkbox" name="exclude_popular">
+                            <span class="slider round"></span>
+                        </label>
+                        
+                        <label class="grid-item grid-label">Model Strength</label></td>
+                        <input class="grid-item" type="range" id="model-strength-slider" name="model_strength" value="200000" step="100000" min="100000" max="500000">
+
+                        <button class="grid-item" id="form-submit-button">Get Recs</button>
+                    </div>
                 </form>
-            </div>
+            <!-- </div> -->
             <div class="row">
                 <div id="progress-tracking">
                     <ul id="task-progress-list">
@@ -106,14 +104,18 @@
     </div>
 
     <div class="container footer" style="text-align:justify; max-width: 650px; font-size: 9pt;">
+        <hr>
         <div class="row">
             <div class="col-md-2"></div>
             <div class="col-md-8">
                 <!-- <p>Visualization by Sam Learner.</p> -->
                 <p>Visualization by <a href="www.samlearner.com">Sam Learner</a> | <a href="mailto:learnersd@gmail.com"><img class="icon-img" src="/static/images/email.svg"></a> | <a href="https://twitter.com/sam_learner"><img class="icon-img" src="/static/images/twitter.svg"></a> | <a href="https://github.com/sdl60660"><img class="icon-img" src="/static/images/github.png"></a></p>
                 <!-- Add project repo link<p>Code and data for this project lives <a href="">here</a>.</p>  -->
-                
-                <!-- <p>Credits/sources/notes</p> -->
+                <p><strong>Notes</strong></p>
+                <p></p>
+
+                <p><strong>Methodology</strong></p>
+                <p></p>
 
                 <!-- <p>Last Updated: July 2020</p> -->
             </div>
