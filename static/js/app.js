@@ -34,11 +34,7 @@ const poll = async ({ fn, redisIDs, validate, interval, maxAttempts }) => {
 };
 
 const getRecData = async (redisIDs) => {
-    const paramString = new URLSearchParams({
-        create_df_job_id: redisIDs.redis_create_df_job_id,
-        build_model_job_id: redisIDs.redis_build_model_job_id,
-        run_model_job_id: redisIDs.redis_run_model_job_id
-    }).toString();
+    const paramString = new URLSearchParams(redisIDs).toString();
 
     const response = await fetch(`/results?${paramString}`, {
         method: 'GET'
@@ -47,7 +43,7 @@ const getRecData = async (redisIDs) => {
     return data;
 };
   
-const validateData = (data) => data.statuses.run_model_job === "finished";
+const validateData = (data) => data.statuses.redis_run_model_job_status === "finished";
 const POLL_INTERVAL = 1000;
 
 const $form = document.querySelector("#recommendation-form");

@@ -7,7 +7,7 @@ import asyncio
 from aiohttp import ClientSession
 
 import os
-if os.getcwd().endswith("/flaskr/data_processing"):
+if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
 else:
     from data_processing.get_ratings import get_user_ratings
@@ -31,7 +31,6 @@ def get_user_data(username):
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    # loop = asyncio.get_event_loop()
     future = asyncio.ensure_future(get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=False, num_pages=num_pages, return_unrated=True))
     loop.run_until_complete(future)
 

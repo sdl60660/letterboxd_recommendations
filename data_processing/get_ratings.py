@@ -152,7 +152,11 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
                 
 
 def main():
-    from db_config import config
+    import os
+    if os.getcwd().endswith("data_processing"):
+        from db_config import config
+    else:
+        from data_processing.db_config import config
 
     # Connect to MongoDB Client
     db_name = config["MONGO_DB"]
