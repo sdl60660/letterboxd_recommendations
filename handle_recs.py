@@ -27,7 +27,7 @@ def get_client_user_data(username):
     return user_data
 
 
-def build_client_model(training_data_rows=200000, popularity_filter=False):
+def build_client_model(username, training_data_rows=200000, popularity_filter=False, num_items=30):
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
     user_data = user_data_job.result
@@ -48,11 +48,9 @@ def build_client_model(training_data_rows=200000, popularity_filter=False):
         threshold_movie_list = [x for x in threshold_movie_list if x in included_movies]
     
     algo, user_watched_list = build_model(model_df, user_data)
-    del model_df
-
-    print("Returning build data")
-    return algo, user_watched_list, threshold_movie_list
-    
+    # del model_df
+    recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
+    return recs    
 
 
 # def create_training_data(training_data_rows=200000, popularity_filter=False):
@@ -91,15 +89,15 @@ def build_client_model(training_data_rows=200000, popularity_filter=False):
 #     return pickle.dumps(algo), user_watched_list, threshold_movie_list
 
 
-def run_client_model(username, num_items=30):
-    current_job = get_current_job(conn)
-    build_model_job = current_job.dependency
+# def run_client_model(username, num_items=30):
+#     current_job = get_current_job(conn)
+#     build_model_job = current_job.dependency
 
-    algo = build_model_job.result[0]
-    user_watched_list = build_model_job.result[1]
-    threshold_movie_list = build_model_job.result[2]
+#     algo = build_model_job.result[0]
+#     user_watched_list = build_model_job.result[1]
+#     threshold_movie_list = build_model_job.result[2]
 
-    recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
+#     recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
 
-    return recs
+#     return recs
 

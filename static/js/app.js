@@ -43,7 +43,7 @@ const getRecData = async (redisIDs) => {
     return data;
 };
   
-const validateData = (data) => data.statuses.redis_run_model_job_status === "finished";
+const validateData = (data) => data.statuses.redis_build_model_job_status === "finished";
 const POLL_INTERVAL = 1000;
 
 const $form = document.querySelector("#recommendation-form");

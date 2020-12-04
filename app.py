@@ -15,7 +15,7 @@ from rq.exceptions import NoSuchJobError
 from rq.job import Job
 from worker import conn
 
-from handle_recs import get_client_user_data, build_client_model, run_client_model
+from handle_recs import get_client_user_data, build_client_model
 
 
 def create_app(test_config=None):
@@ -48,14 +48,14 @@ def create_app(test_config=None):
         
         job_get_user_data = q.enqueue(get_client_user_data, args=(username,), description=f"Scraping user data for {request.args.get('username')}", result_ttl=10)
         # job_create_df = q.enqueue(create_training_data, args=(training_data_size, exclude_popular,), depends_on=job_get_user_data, description=f"Creating training dataframe for {request.args.get('username')}", result_ttl=5)
-        job_build_model = q.enqueue(build_client_model, args=(training_data_size, exclude_popular,), depends_on=job_get_user_data, description=f"Building model for {request.args.get('username')}", result_ttl=30)
-        job_run_model = q.enqueue(run_client_model, args=(username,num_items,), depends_on=job_build_model, description=f"Running model for {request.args.get('username')}", result_ttl=5)
+        job_build_model = q.enqueue(build_client_model, args=(username, training_data_size, exclude_popular,num_items,), depends_on=job_get_user_data, description=f"Building model for {request.args.get('username')}", result_ttl=30)
+        # job_run_model = q.enqueue(run_client_model, args=(username,num_items,), depends_on=job_build_model, description=f"Running model for {request.args.get('username')}", result_ttl=5)
 
         return jsonify({
             "redis_get_user_data_job_id": job_get_user_data.get_id(),
             # "redis_create_df_job_id": job_create_df.get_id(),
-            "redis_build_model_job_id": job_build_model.get_id(),
-            "redis_run_model_job_id": job_run_model.get_id()
+            "redis_build_model_job_id": job_build_model.get_id()
+            # "redis_run_model_job_id": job_run_model.get_id()
             })
        
     
@@ -70,7 +70,7 @@ def create_app(test_config=None):
             except NoSuchJobError:
                 job_statuses[key.replace('_id', '_status')] = "finished"
 
-        end_job = Job.fetch(job_ids['redis_run_model_job_id'], connection=conn)
+        end_job = Job.fetch(job_ids['redis_build_model_job_id'], connection=conn)
         # print(job_statuses)
 
         if end_job.is_finished:
