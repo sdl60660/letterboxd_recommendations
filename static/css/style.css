@@ -5,6 +5,8 @@ body {
 	/* font-family: 'Inconsolata', Monaco, "Lucida Console", Consolas, "Courier New"; */
 	/* font-family: 'Lora', 'Merriweather', 'Playfair Display'; */
 	font-family: aktiv-grotesk, 'Inconsolata', Monaco;
+
+	/* font-size: 14px; */
 }
 
 /*strong { font-weight: extra-bold; }*/
@@ -64,9 +66,10 @@ body {
 .grid-wrapper {
 	display: grid;
 	grid-template-rows: 50px 50px 50px 50px;
-	grid-template-columns: 250px 200px;
+	grid-template-columns: 12em 12em;
 
 	align-items: center;
+	font-size: 15px;
 }
 
 label {
@@ -91,17 +94,22 @@ label {
 #recommendation-form {
 	display: table;
 	margin: auto;
-	font-size: 15px;
 
 
 	padding: 1.5em;
-	background-color: #eee;
+	/* background-color: #eee; */
+	background-color: #fff;
 	border-radius: 10px;
 	border: 1px solid #444;
 }
 
 #form-submit-button {
 	margin-top: 10px;
+	grid-column: 1 / 3;
+	margin: 0 20%;
+	padding: 5px 0;
+	border-radius: 5px;
+	/* max-width: 50%; */
 }
 
 #results {
@@ -237,4 +245,12 @@ label {
   
   .slider.round:before {
 	border-radius: 50%;
+  }
+
+  @media only screen and (max-width: 700px) {
+	.grid-wrapper {
+		font-size: 13px;
+	}
+
+	
   }

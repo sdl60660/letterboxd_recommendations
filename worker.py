@@ -15,6 +15,7 @@ conn = redis.from_url(redis_url)
 if __name__ == '__main__':
     with Connection(conn):
         worker = Worker(map(Queue, listen))
-        # send_kill_horse_command(redis, worker.name)
         worker.work()
+        # send_kill_horse_command(redis, worker.name)
+        
         
