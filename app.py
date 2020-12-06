@@ -79,7 +79,7 @@ def create_app(test_config=None):
                 job_statuses[key.replace('_id', '_status')] = "finished"
 
         end_job = Job.fetch(job_ids['redis_build_model_job_id'], connection=conn)
-        # print(job_statuses)
+        print(end_job.meta.get('stage'))
 
         if end_job.is_finished:
             return jsonify({"statuses": job_statuses, "result": end_job.result}), 200
