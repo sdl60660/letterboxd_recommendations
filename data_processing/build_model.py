@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # Load ratings data
     df = pd.read_csv('data/training_data.csv')
 
-    user_data = get_user_data("samlearner")
+    user_data = get_user_data("samlearner")[0]
     algo, user_watched_list = build_model(df, user_data)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)

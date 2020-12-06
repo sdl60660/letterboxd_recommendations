@@ -7,6 +7,7 @@ const $recResults = document.querySelector("#results");
 const $progressList = document.querySelector("#task-progress-list");
 
 const checkmark = `<img class="checkmark" src="/static/images/checkbox.svg"></img>`;
+const errorImg = `<img class="error" src="/static/images/error.png"></img>`;
 const loadSpinner = `<div class="loader"></div>`;
 
 let progressStep = 0;
@@ -21,6 +22,10 @@ const determinePhoneBrowsing = () => {
     }
 }
 
+const updateStatus = (elementID, statusInnerText, iconElement) => {
+    document.querySelector(`#${elementID}`).innerHTML = `<div class="progress-container">${iconElement}</div><span class="progress-text">${statusInnerText}</span>`;
+}
+
 const poll = async ({ fn, data, validate, interval, maxAttempts }) => {
     let attempts = 0;
   
@@ -28,7 +33,7 @@ const poll = async ({ fn, data, validate, interval, maxAttempts }) => {
         const result = await fn(data.redisIDs);
         attempts++;
 
-        console.log(attempts, result.statuses);
+        console.log(attempts, result);
   
         if (validate(result, data.username)) {
             return resolve(result);
@@ -54,14 +59,37 @@ const getRecData = async (redisIDs) => {
   
 const validateData = (data, username) => {
     if (data.statuses.redis_get_user_data_job_status === "finished" && progressStep === 0) {
-        document.querySelector("#load-user-task-progress").innerHTML = `<div class="progress-container">${checkmark}</div><span class="progress-text">Gathered User Ratings From <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">Profile</a></span>`
-        document.querySelector("#run-model-task-progress").innerHTML = `<div class="progress-container">${loadSpinner}</div><span class="progress-text">Building Recommendation Model...</span>`
+        const numRatings = data.execution_data.num_user_ratings;
+
+        if (data.execution_data.user_status === "user_not_found") {
+            const gatherDataFinishedText = `Could not find Letterboxd user: ${username}. Will return generic recommendations.`;
+            updateStatus("load-user-task-progress", gatherDataFinishedText, errorImg)
+        }
+        else {
+            let gatherDataFinishedText = `Gathered ${numRatings} movie ratings from ${username}'s <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">profile</a>`
+
+            if (data.execution_data.num_user_ratings < 20) {
+                gatherDataFinishedText += ' (Rate more movies for more accurate results)';
+            }
+
+            updateStatus("load-user-task-progress", gatherDataFinishedText, checkmark)
+        }
+    
+        updateStatus("build-model-task-progress", "Building recommendation model...", loadSpinner);
+        
         progressStep = 1;
     }
 
-    if (data.statuses.redis_build_model_job_status === "finished") {
-        document.querySelector("#run-model-task-progress").innerHTML = `<div class="progress-container">${checkmark}</div><span class="progress-text">Finished Building Recommendation Model</span>`
+    if (data.execution_data.build_model_stage === "running_model" && progressStep === 1) {
+        updateStatus("build-model-task-progress", "Built recommendation model", checkmark);
+        updateStatus("run-model-task-progress", `Generating recommendations for ${username}`, loadSpinner);
+
         progressStep = 2;
+    }
+
+    if (data.statuses.redis_build_model_job_status === "finished") {
+        updateStatus("build-model-task-progress", "Finished building recommendation model", checkmark);
+        updateStatus("run-model-task-progress", `Generated recommendations for ${username}`, checkmark);
     }
     
     return data.statuses.redis_build_model_job_status === "finished";
@@ -82,8 +110,9 @@ $form.addEventListener('submit', async (e) => {
     console.log(data);
 
     let progressTasks = '';
-    progressTasks += `<li id="load-user-task-progress"><div class="progress-container"><div class="loader"></div></div><span class="progress-text">Gathering User Ratings From <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">Profile</a></span></li>`;
-    progressTasks += `<li id="run-model-task-progress"><div class="progress-container"><div class="waiting-loader"></div></div><span class="progress-text">Build Recommendation Model</span></li>`;
+    progressTasks += `<li id="load-user-task-progress"><div class="progress-container"><div class="loader"></div></div><span class="progress-text">Gathering movie ratings from ${username}'s <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">profile</a></span></li>`;
+    progressTasks += `<li id="build-model-task-progress"><div class="progress-container"><div class="waiting-loader"></div></div><span class="progress-text">Build recommendation model</span></li>`;
+    progressTasks += `<li id="run-model-task-progress"><div class="progress-container"><div class="waiting-loader"></div></div><span class="progress-text">Generate recommendations for ${username}</span></li>`;
     $progressList.innerHTML = progressTasks;
     
     poll({

@@ -87,7 +87,6 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
     
 
 async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=True, num_pages=None, return_unrated=False):
-    # url = "https://letterboxd.com/{}/films/ratings/page/{}/"
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
     
     if not num_pages:
@@ -98,8 +97,6 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
     async with ClientSession() as session:
-        # print("Starting Scrape", time.time() - start)
-
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
@@ -108,8 +105,6 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
 
         # Gather all ratings page responses
         scrape_responses = await asyncio.gather(*tasks)
-
-        # print("Finishing Scrape", time.time() - start)
         
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
     tasks = []
@@ -127,8 +122,6 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     if not store_in_db:
         return upsert_operations
 
-    # print("Starting Upsert", time.time() - start)
-
     # Execute bulk upsert operations
     try:
         if len(upsert_operations) > 0:
@@ -138,12 +131,9 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
-    # print("Finishing Upsert", time.time() - start)
-
 
 async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True):
     start = time.time()
-    # print("Function Start")
 
     # Loop through each user
     for i, username in enumerate(usernames):

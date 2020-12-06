@@ -57,7 +57,7 @@ body {
 	/* position: absolute; */
 }
 
-.checkmark {
+img.checkmark, img.error {
 	height: 26px;
 	width: 26px;
 	margin: auto;

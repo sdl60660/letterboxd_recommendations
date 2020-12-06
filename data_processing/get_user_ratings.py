@@ -18,6 +18,11 @@ def get_page_count(username):
     r = requests.get(url.format(username))
 
     soup = BeautifulSoup(r.text, "lxml")
+    
+    body = soup.find("body")
+    if "error" in body["class"]:
+        return -1
+
     try:
         page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
         num_pages = int(page_link.find("a").text.replace(',', ''))
@@ -28,13 +33,17 @@ def get_page_count(username):
 
 def get_user_data(username):
     num_pages = get_page_count(username)
+    
+    if num_pages == -1:
+        return [], "user_not_found"
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     future = asyncio.ensure_future(get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=False, num_pages=num_pages, return_unrated=True))
     loop.run_until_complete(future)
+    # print(future.result())
 
-    return future.result()
+    return future.result(), "success"
 
 if __name__ == "__main__":
     username = "samlearner"

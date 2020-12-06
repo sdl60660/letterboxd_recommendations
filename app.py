@@ -41,7 +41,7 @@ def create_app(test_config=None):
 
     @app.route('/get_recs', methods=['GET', 'POST'])
     def get_recs():
-        username = request.args.get('username')
+        username = request.args.get('username').lower()
         training_data_size = int(request.args.get('training_data_size'))
         if request.args.get('exclude_popular') == "true":
             exclude_popular = True
@@ -70,21 +70,28 @@ def create_app(test_config=None):
     @app.route("/results", methods=['GET'])
     def get_results():
         job_ids = request.args.to_dict()
+        
         job_statuses = {}
         for key, job_id in job_ids.items():
-            # print(key, job_id)
             try:
                 job_statuses[key.replace('_id', '_status')] = Job.fetch(job_id, connection=conn).get_status()
             except NoSuchJobError:
                 job_statuses[key.replace('_id', '_status')] = "finished"
 
+        
         end_job = Job.fetch(job_ids['redis_build_model_job_id'], connection=conn)
-        print(end_job.meta.get('stage'))
+        execution_data = {"build_model_stage": end_job.meta.get('stage')}
+
+        try:
+            user_job = Job.fetch(job_ids['redis_get_user_data_job_id'], connection=conn)
+            execution_data |= {"num_user_ratings": user_job.meta.get('num_user_ratings'), "user_status": user_job.meta.get('user_status')}
+        except NoSuchJobError:
+            pass
 
         if end_job.is_finished:
-            return jsonify({"statuses": job_statuses, "result": end_job.result}), 200
+            return jsonify({"statuses": job_statuses, "execution_data": execution_data, "result": end_job.result}), 200
         else:
-            return jsonify({"statuses": job_statuses}), 202
+            return jsonify({"statuses": job_statuses, "execution_data": execution_data }), 202
 
 
     return app
