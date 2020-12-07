@@ -71,7 +71,7 @@ const validateData = (data, username) => {
             let gatherDataFinishedText = `Gathered ${numRatings} movie ratings from ${username}'s <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">profile</a>`
 
             if (data.execution_data.num_user_ratings < 30) {
-                gatherDataFinishedText += ' (Rate more movies for more accurate results)';
+                gatherDataFinishedText += ' (Rate more movies for more personalized results)';
             }
 
             updateStatus("load-user-task-progress", gatherDataFinishedText, checkmark)
