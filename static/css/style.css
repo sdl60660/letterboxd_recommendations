@@ -87,7 +87,7 @@ img.checkmark, img.error {
 .grid-wrapper {
 	display: grid;
 	grid-template-rows: 50px 50px 50px 50px;
-	grid-template-columns: 12em 12em;
+	grid-template-columns: 11.8em 11.8em;
 
 	align-items: center;
 	font-size: 15px;
