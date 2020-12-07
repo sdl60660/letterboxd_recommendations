@@ -63,6 +63,12 @@ def create_movie_data_sample(db_client, movie_list):
 if __name__ == "__main__":
     # Connect to MongoDB Client
     db_name = config["MONGO_DB"]
+
+    if "CONNECTION_URL" in config.keys():
+        client = pymongo.MongoClient(config["CONNECTION_URL"])
+    else:
+        client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+
     client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
     db = client[db_name]
 

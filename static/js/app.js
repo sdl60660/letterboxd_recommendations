@@ -125,7 +125,7 @@ $form.addEventListener('submit', async (e) => {
         },
         validate: validateData,
         interval: POLL_INTERVAL,
-        maxAttempts: 300
+        maxAttempts: 200
     })
     .then((response) => {
         // console.log(response);
@@ -158,7 +158,10 @@ $form.addEventListener('submit', async (e) => {
         $submitButton.removeAttribute("disabled");
         progressStep = 0;
     })
-    .catch(err => console.error(err));
+    .catch((err) => {
+        let progressTasks = `<li id="server-busy-error"><div class="progress-container">${errorImg}</div><span class="progress-text">Sorry! Server is too busy with other requests right now. Try again later.</span></li>`;
+        $progressList.innerHTML = progressTasks;
+    });
 });
 
 var promises = [

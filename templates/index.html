@@ -52,6 +52,15 @@
         <div class="row" style="text-align: center">
             <h1>Letterboxd Movie Recommendations</h1>
         </div>
+        <br>
+        <div class="row" style="text-align: left">
+            <p>
+                This site will gather movie ratings from any Letterboxd user and provide movie recommendations based on ratings 
+                data from thousands of other users. The more movies you've rated on Letterboxd, the better and more personalized 
+                the recommendations will be, but it can provide recommendations to any user. If you'd like to filter out more well-known 
+                movies (based on the number of Letterboxd reviews), you can do so using the last slider below.
+            </p>
+        </div>
     </div>
           
     <br>
@@ -68,12 +77,12 @@
                         <input class="grid-item" type="text" name="username" placeholder="Username" id="username-input" required>
                         
                         <label class="grid-item model-strength-label">Faster Results</label>
-                        <input class="grid-item" type="range" id="model-strength-slider" name="model_strength" value="400000" step="100000" min="100000" max="500000">
+                        <input class="grid-item" type="range" id="model-strength-slider" name="model_strength" value="200000" step="100000" min="100000" max="500000">
                         <label class="grid-item model-strength-label">Better Results</label>
 
                         <label class="grid-item popularity-filter-label">All Movies</label>
                         <input class="grid-item" type="range" id="popularity-filter-slider" name="popularity_filter" value="-1" step="1" min="-1" max="5">
-                        <label class="grid-item popularity-filter-label">Less-Reviewed Movies</label>
+                        <label class="grid-item popularity-filter-label">Less-Reviewed Movies Only</label>
 
                         <!-- <label class="grid-item grid-label">Exclude Popular Movies?</label>
                         <label class="switch grid-item">
