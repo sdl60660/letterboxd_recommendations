@@ -43,7 +43,7 @@ def get_client_user_data(username):
     return user_data[0]
 
 
-def build_client_model(username, training_data_rows=200000, popularity_filter=False, num_items=30):
+def build_client_model(username, training_data_rows=200000, popularity_threshold=None, num_items=30):
     # Load user data from previous Redis job
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
@@ -60,9 +60,8 @@ def build_client_model(username, training_data_rows=200000, popularity_filter=Fa
         threshold_movie_list = pickle.load(fp)
 
     # If user has requested only less often reviewed movies, apply review count threshold to the movie id list
-    if popularity_filter:
-        review_count_threshold = 2000
-        threshold_movie_list = filter_threshold_list(threshold_movie_list, review_count_threshold)
+    if popularity_threshold:
+        threshold_movie_list = filter_threshold_list(threshold_movie_list, popularity_threshold)
     
     current_job.meta['stage'] = 'building_model'
     current_job.save()

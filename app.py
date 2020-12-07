@@ -33,7 +33,7 @@ def create_app(test_config=None):
 
     queue_pool = [Queue(channel, connection=conn) for channel in ['high', 'default', 'low']]
     # queue_pool = [Queue(channel, connection=conn) for channel in ['high']]
-
+    popularity_thresholds_500k_samples = [17000, 10000, 5000, 2000, 1000, 500]
 
     @app.route('/')
     def homepage():
@@ -43,10 +43,12 @@ def create_app(test_config=None):
     def get_recs():
         username = request.args.get('username').lower()
         training_data_size = int(request.args.get('training_data_size'))
-        if request.args.get('exclude_popular') == "true":
-            exclude_popular = True
+        popularity_filter = int(request.args.get("popularity_filter"))
+
+        if popularity_filter >= 0:
+            popularity_threshold = popularity_thresholds_500k_samples[popularity_filter]
         else:
-            exclude_popular = False
+            popularity_threshold = None
 
         num_items = 30
 
@@ -56,7 +58,7 @@ def create_app(test_config=None):
         
         job_get_user_data = q.enqueue(get_client_user_data, args=(username,), description=f"Scraping user data for {request.args.get('username')}", result_ttl=30)
         # job_create_df = q.enqueue(create_training_data, args=(training_data_size, exclude_popular,), depends_on=job_get_user_data, description=f"Creating training dataframe for {request.args.get('username')}", result_ttl=5)
-        job_build_model = q.enqueue(build_client_model, args=(username, training_data_size, exclude_popular,num_items,), depends_on=job_get_user_data, description=f"Building model for {request.args.get('username')}", result_ttl=15)
+        job_build_model = q.enqueue(build_client_model, args=(username, training_data_size, popularity_threshold, num_items,), depends_on=job_get_user_data, description=f"Building model for {request.args.get('username')}", result_ttl=15)
         # job_run_model = q.enqueue(run_client_model, args=(username,num_items,), depends_on=job_build_model, description=f"Running model for {request.args.get('username')}", result_ttl=5)
 
         return jsonify({

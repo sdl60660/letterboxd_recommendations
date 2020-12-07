@@ -73,14 +73,19 @@
                         <label class="grid-item grid-label">Letterboxd Username</label>
                         <input class="grid-item" type="text" name="username" placeholder="Username" id="username-input" required>
                         
-                        <label class="grid-item grid-label">Model Strength</label></td>
-                        <input class="grid-item" type="range" id="model-strength-slider" name="model_strength" value="500000" step="100000" min="100000" max="500000">
+                        <label class="grid-item model-strength-label">Faster Results</label>
+                        <input class="grid-item" type="range" id="model-strength-slider" name="model_strength" value="400000" step="100000" min="100000" max="500000">
+                        <label class="grid-item model-strength-label">Better Results</label>
 
-                        <label class="grid-item grid-label">Exclude Popular Movies?</label>
+                        <label class="grid-item popularity-filter-label">All Movies</label>
+                        <input class="grid-item" type="range" id="popularity-filter-slider" name="popularity_filter" value="-1" step="1" min="-1" max="5">
+                        <label class="grid-item popularity-filter-label">Less-Reviewed Only</label>
+
+                        <!-- <label class="grid-item grid-label">Exclude Popular Movies?</label>
                         <label class="switch grid-item">
                             <input type="checkbox" name="exclude_popular">
                             <span class="slider round"></span>
-                        </label>
+                        </label> -->
 
                         <button class="grid-item" id="form-submit-button">Get Recommendations</button>
                     </div>

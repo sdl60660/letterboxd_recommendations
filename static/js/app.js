@@ -70,7 +70,7 @@ const validateData = (data, username) => {
         else {
             let gatherDataFinishedText = `Gathered ${numRatings} movie ratings from ${username}'s <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">profile</a>`
 
-            if (data.execution_data.num_user_ratings < 20) {
+            if (data.execution_data.num_user_ratings < 30) {
                 gatherDataFinishedText += ' (Rate more movies for more accurate results)';
             }
 
@@ -100,12 +100,12 @@ const validateData = (data, username) => {
 $form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = e.target.elements.username.value.toLowerCase();;
-    const filterPopular = e.target.elements.exclude_popular.checked;
+    const popularityFilter = e.target.elements.popularity_filter.value;
     const modelStrength = e.target.elements.model_strength.value;
 
     $submitButton.setAttribute("disabled", "disabled");
 
-    const response = await fetch(`/get_recs?username=${username}&exclude_popular=${filterPopular}&training_data_size=${modelStrength}`, {
+    const response = await fetch(`/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}`, {
         method: 'GET'
     });
     const data = await response.json();
