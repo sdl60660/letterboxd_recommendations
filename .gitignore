@@ -1,6 +1,6 @@
 node_modules
 .DS_Store
-*/app_config.py
+app_config.py
 notes.txt
 .vscode
 
