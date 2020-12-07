@@ -10,6 +10,8 @@ const checkmark = `<img class="checkmark" src="/static/images/checkbox.svg"></im
 const errorImg = `<img class="error" src="/static/images/error.png"></img>`;
 const loadSpinner = `<div class="loader"></div>`;
 
+const colorScale = d3.scaleLinear().domain([1,5.5,9,10]).range(["red","#fde541","green","#1F3D0C"])
+
 let progressStep = 0;
 
 // Determine if the user is browsing on mobile and adjust worldMapWidth if they are
@@ -97,7 +99,7 @@ const validateData = (data, username) => {
 
 $form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const username = e.target.elements.username.value;
+    const username = e.target.elements.username.value.toLowerCase();;
     const filterPopular = e.target.elements.exclude_popular.checked;
     const modelStrength = e.target.elements.model_strength.value;
 
@@ -131,7 +133,7 @@ $form.addEventListener('submit', async (e) => {
         const movieIDList = recs.map((rec) => rec.movie_id);
         const selectMovieData = allMovieData.filter((movie) => movieIDList.includes(movie.movie_id))
 
-        let divContent = '<ol>';
+        let divContent = '<ol id="recommendation-list">';
 
         recs.forEach((rec) => {
             const movieData = selectMovieData.find((d) => d.movie_id === rec.movie_id)
@@ -142,12 +144,16 @@ $form.addEventListener('submit', async (e) => {
             }
 
             divContent += '<li><div class="movie-rec">';
-            divContent += `<a target="_blank" href="https://letterboxd.com/film/${movieData.movie_id}/"><img class="movie-poster" src="${imageURL}">${movieData.movie_title} (${yearReleased})</a>: ${d3.format("0.2f")(rec.predicted_rating)}`
+            divContent += `<a class="grid-item" target="_blank" href="https://letterboxd.com/film/${movieData.movie_id}/"><img class="movie-poster" src="${imageURL}"></a>`
+            divContent += `<a class="grid-item title-link" target="_blank" href="https://letterboxd.com/film/${movieData.movie_id}/">${movieData.movie_title} (${yearReleased})</a>`;
+            divContent += `<div class="grid-item predicted-rating-score">${d3.format("0.2f")(rec.predicted_rating)}</div>`;
             divContent += '</div></li>';
         })
 
         divContent += '</ol>';
         $recResults.innerHTML = divContent;
+
+        d3.selectAll('.predicted-rating-score').style('color', function(d) { return colorScale(d3.select(this).text()) });
 
         $submitButton.removeAttribute("disabled");
         progressStep = 0;

@@ -11,6 +11,10 @@ body {
 
 /*strong { font-weight: extra-bold; }*/
 
+#recommendation-list {
+	font-size: 18px;
+}
+
 .movie-rec {
 	min-width: 250px;
 	min-height: 100px;
@@ -20,6 +24,23 @@ body {
     border-radius: 10px;
 	margin: 10px 8px;
 	font-size: 17px;
+
+	display: grid;
+	grid-template-columns: 10% 75% 15%;
+	align-items: center;
+}
+
+.predicted-rating-score {
+	padding: 8px;
+	font-size: 20px;
+	font-weight: bold;
+	max-width: 70px;
+	background-color: white;
+	text-align: center;
+}
+
+.title-link {
+	padding: 0px 8px;
 }
 
 .movie-poster {
@@ -254,5 +275,18 @@ label {
 
 	.movie-rec {
 		font-size: 14px;
+	}
+
+	#recommendation-list {
+		font-size: 14px;
+		padding-left: 25px;
+	}
+
+	.predicted-rating-score {
+		font-size: 16px;
+	}
+
+	.movie-rec {
+		grid-template-columns: 18% 67% 15%;
 	}
   }

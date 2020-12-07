@@ -11,4 +11,4 @@ __pycache__
 db_config.py
 ratings_export.csv
 
-mini_model.pkl
+data_processing/models/mini_model.pkl
