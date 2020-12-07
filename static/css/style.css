@@ -300,4 +300,9 @@ label {
 	.movie-rec {
 		grid-template-columns: 18% 67% 15%;
 	}
+
+	.model-strength-label, .popularity-filter-label {
+		font-size: 12px;
+	}
+	
   }
