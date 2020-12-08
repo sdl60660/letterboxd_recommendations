@@ -70,7 +70,7 @@ const validateData = (data, username) => {
         else {
             let gatherDataFinishedText = `Gathered ${numRatings} movie ratings from ${username}'s <a target="_blank" href="https://letterboxd.com/${username}/films/ratings/">profile</a>`
 
-            if (data.execution_data.num_user_ratings < 30) {
+            if (data.execution_data.num_user_ratings < 50) {
                 gatherDataFinishedText += ' (Rate more movies for more personalized results)';
             }
 
