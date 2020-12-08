@@ -144,7 +144,7 @@ $form.addEventListener('submit', async (e) => {
             }
 
             divContent += '<li><div class="movie-rec">';
-            divContent += `<a class="grid-item" target="_blank" href="https://letterboxd.com/film/${movieData.movie_id}/"><img class="movie-poster" src="${imageURL}"></a>`
+            divContent += `<a class="grid-item poster-container" target="_blank" href="https://letterboxd.com/film/${movieData.movie_id}/"><img class="movie-poster" src="${imageURL}"></a>`
             divContent += `<a class="grid-item title-link" target="_blank" href="https://letterboxd.com/film/${movieData.movie_id}/">${movieData.movie_title} (${yearReleased})</a>`;
             divContent += `<div class="grid-item predicted-rating-score">${d3.format("0.2f")(rec.predicted_rating)}</div>`;
             divContent += '</div></li>';
