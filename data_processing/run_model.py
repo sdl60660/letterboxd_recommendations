@@ -11,13 +11,14 @@ from surprise.dump import load
 
 import pickle
 import pandas as pd
+import random
 
 
 def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
     
     def get_top_n(predictions, n=20):
         top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
-        top_n.sort(key=lambda x: x[1], reverse=True)
+        top_n.sort(key=lambda x: (x[1], random.random()), reverse=True)
 
         return top_n[:n]
 
