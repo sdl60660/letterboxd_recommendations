@@ -41,7 +41,7 @@ def create_app(test_config=None):
 
     @app.route('/get_recs', methods=['GET', 'POST'])
     def get_recs():
-        username = request.args.get('username').lower()
+        username = request.args.get('username').lower().strip()
         training_data_size = int(request.args.get('training_data_size'))
         popularity_filter = int(request.args.get("popularity_filter"))
 
@@ -50,7 +50,7 @@ def create_app(test_config=None):
         else:
             popularity_threshold = None
 
-        num_items = 30
+        num_items = 50
 
         ordered_queues = sorted(queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count)
         print([(q, DeferredJobRegistry(queue=q).count) for q in ordered_queues])
