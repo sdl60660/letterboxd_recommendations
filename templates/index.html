@@ -74,7 +74,7 @@
                 <form id="recommendation-form">
                     <div class="grid-wrapper">
                         <label class="grid-item grid-label">Letterboxd Username</label>
-                        <input class="grid-item" type="text" name="username" placeholder="Username" id="username-input" required>
+                        <input class="grid-item" type="text" name="username" placeholder="Username" id="username-input" pattern="^[A-Za-z0-9_]*$" oninvalid="setCustomValidity('Please provide a valid Letterboxd username (letters, numbers, and underscores only)')" oninput="setCustomValidity('')" required />
                         
                         <label class="grid-item model-strength-label">Faster Results</label>
                         <input class="grid-item" type="range" id="model-strength-slider" name="model_strength" value="200000" step="100000" min="100000" max="500000">
