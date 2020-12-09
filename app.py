@@ -33,7 +33,7 @@ def create_app(test_config=None):
 
     queue_pool = [Queue(channel, connection=conn) for channel in ['high', 'default', 'low']]
     # queue_pool = [Queue(channel, connection=conn) for channel in ['high']]
-    popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150, 80]
+    popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
 
     @app.route('/')
     def homepage():
