@@ -32,7 +32,7 @@ body {
 }
 
 .poster-container {
-	text-align: center;
+	justify-self: center;
 }
 
 .predicted-rating-score {
@@ -42,7 +42,7 @@ body {
 	max-width: 70px;
 	background-color: white;
 	text-align: center;
-	margin: auto;
+	justify-self: center;
 }
 
 .title-link {
