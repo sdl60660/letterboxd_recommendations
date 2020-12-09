@@ -9,6 +9,10 @@
 # pipenv run python get_ratings.py
 # echo "Finished scraping user ratings from site"
 
+# echo "Scraping movie data from site."
+# pipenv run python get_movies.py
+# echo "Finished scraping movie data from site"
+
 # echo
 
 echo "================================"

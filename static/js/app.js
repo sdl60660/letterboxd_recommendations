@@ -181,14 +181,20 @@ $form.addEventListener('submit', async (e) => {
         divContent += '</ol>';
         $recResults.innerHTML = divContent;
 
+        // Set predicted ratings to red-yellow-green color scale
         d3.selectAll('.predicted-rating-score').style('color', function(d) { return colorScale(d3.select(this).text()) });
 
+        // Re-enable submit button
         $submitButton.removeAttribute("disabled");
         progressStep = 0;
     })
     .catch((err) => {
+        // Replace task list with error message 
         let progressTasks = `<li id="server-busy-error"><div class="progress-container">${errorImg}</div><span class="progress-text">Sorry! Server is too busy with other requests right now. Try again later.</span></li>`;
         $progressList.innerHTML = progressTasks;
+
+        // Re-enable submit button
+        $submitButton.removeAttribute("disabled");
     });
 });
 

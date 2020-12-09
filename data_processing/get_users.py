@@ -18,7 +18,7 @@ users = db.users
 
 base_url = "https://letterboxd.com/members/popular/page/{}"
 
-for page in range(1, 401):
+for page in range(1, 129):
     print("Page {}".format(page))
 
     r = requests.get(base_url.format(page))

@@ -166,8 +166,8 @@ def main():
     loop = asyncio.get_event_loop()
 
     # Find number of ratings pages for each user and add to their Mongo document (note: max of 128 scrapable pages)
-    # future = asyncio.ensure_future(get_page_counts(all_usernames, users))
-    future = asyncio.ensure_future(get_page_counts([], users))
+    future = asyncio.ensure_future(get_page_counts(all_usernames, users))
+    # future = asyncio.ensure_future(get_page_counts([], users))
     loop.run_until_complete(future)
 
     # Find and store ratings for each user
