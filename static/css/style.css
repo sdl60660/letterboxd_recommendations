@@ -331,3 +331,21 @@ label {
 	}
 	
   }
+
+  @media only screen and (max-width: 700px) {
+	.movie-rec {
+		font-size: 13px;
+	}
+
+	.predicted-rating-score {
+		font-size: 15px;
+	}
+
+	.grid-wrapper { 
+		grid-template-columns: 6.4em 4em 4em 6.4em;
+	}
+
+	#recommendation-form {
+		padding: 1.1em;
+	}
+  }

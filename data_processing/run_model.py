@@ -37,7 +37,6 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
     for i, prediction in enumerate(return_object):
         if prediction['predicted_rating'] == 10:
             return_object[i]['unclipped_rating'] = float(algo.predict(username, prediction["movie_id"], clip=False).est)
-            # return_object[i]['predicted_rating'] = float(algo.predict(username, prediction["movie_id"], clip=False).est)
 
     return_object.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
 
@@ -52,4 +51,5 @@ if __name__ == "__main__":
 
     algo = load("models/mini_model.pkl")[1]
 
-    run_model("samlearner", algo, user_watched_list, threshold_movie_list, 25)
+    recs = run_model("samlearner", algo, user_watched_list, threshold_movie_list, 25)
+    print(recs)

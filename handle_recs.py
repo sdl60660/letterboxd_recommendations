@@ -24,7 +24,7 @@ def get_previous_job_from_registry(index=-1):
 
 def filter_threshold_list(threshold_movie_list, review_count_threshold=2000):
     review_counts = pd.read_csv('data_processing/data/review_counts.csv')
-    review_counts = review_counts.loc[review_counts['rating_val'] < review_count_threshold]
+    review_counts = review_counts.loc[review_counts['count'] < review_count_threshold]
     
     included_movies = review_counts['movie_id'].to_list()
     threshold_movie_list = [x for x in threshold_movie_list if x in included_movies]

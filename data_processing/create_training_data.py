@@ -22,8 +22,6 @@ def get_sample(cursor, iteration_size):
             print("Encountered $sample operation error. Retrying...")
     
     
-
-
 def create_training_data(db_client, sample_size=200000):
     ratings = db_client.ratings
 
@@ -39,10 +37,12 @@ def create_training_data(db_client, sample_size=200000):
     df = df[["user_id", "movie_id", "rating_val"]]
     df.drop_duplicates(inplace=True)
     df = df.head(sample_size)
+    print(df.head())
 
     min_review_threshold = 5
 
-    grouped_df = df.groupby(by=["movie_id"]).sum().reset_index()
+    grouped_df = df.groupby(by=["movie_id"]).count().reset_index()
+    print(grouped_df.head())
     grouped_df = grouped_df.loc[grouped_df['rating_val'] > min_review_threshold]
     full_movie_list = grouped_df["movie_id"].to_list()
 
@@ -69,18 +69,19 @@ if __name__ == "__main__":
     else:
         client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
-    client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
     db = client[db_name]
 
     # Generate training data sample
-    training_df, threshold_movie_list = create_training_data(db, 500000)
+    training_df, threshold_movie_list = create_training_data(db, 1000000)
 
     # Create review counts dataframe
-    review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).sum().reset_index()
+    review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).count().reset_index()
     # We'll pull review counts from the full DB dataset, but then only include those in the threshold list in the final dataframe
     # This is because only those on the threshold list will make it into the model anyway, so filtering the dataframe now avoids processing later
     # But we start with the full dataset so as to get more accurate review counts, rather than using review counts from a smaller sample
     review_counts_df = review_counts_df[review_counts_df['movie_id'].isin(threshold_movie_list)]
+    review_counts_df["count"] = review_counts_df["_id"]
+    review_counts_df = review_counts_df[["movie_id", "count"]]
     
     # Generate movie data CSV
     movie_df = create_movie_data_sample(db, threshold_movie_list)

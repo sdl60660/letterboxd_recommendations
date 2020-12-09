@@ -37,7 +37,7 @@ def build_model(df, user_data):
 
     # Configure algorithm
     algo = SVD()
-    # cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=5, verbose=True)
+    # cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=3, verbose=True)
 
     trainingSet = data.build_full_trainset()
     algo.fit(trainingSet)
