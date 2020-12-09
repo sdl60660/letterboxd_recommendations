@@ -10,7 +10,9 @@ const checkmark = `<img class="checkmark" src="/static/images/checkbox.svg"></im
 const errorImg = `<img class="error" src="/static/images/error.png"></img>`;
 const loadSpinner = `<div class="loader"></div>`;
 
-const colorScale = d3.scaleLinear().domain([1,5.5,9,10]).range(["red","#fde541","green","#1F3D0C"])
+const colorScale = d3.scaleLinear().domain([1,5.5,9,10]).range(["red","#fde541","green","#1F3D0C"]);
+
+let recs = [];
 
 let progressStep = 0;
 
@@ -22,6 +24,30 @@ const determinePhoneBrowsing = () => {
     else{
         return false;
     }
+}
+
+const exportCSV = () => {
+    let rows = [
+        ["LetterboxdURI"]
+    ];
+    console.log(recs);
+
+    recs.forEach((row) => {
+        rows.push([`https://letterboxd.com/film/${row['movie_id']}/`])
+    })
+    
+    let csvContent = "data:text/csv;charset=utf-8," 
+        + rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    let link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "letterboxd_recs.csv");
+    document.body.appendChild(link); // Required for FF
+
+    document.querySelector("#download-button").insertAdjacentHTML("afterend", '<div>Import downloaded file <a target="_blank" href="https://letterboxd.com/list/new/">here</a> to create a Letterboxd list</div>')
+
+    link.click(); // This will download the data file as a CSV
 }
 
 const updateStatus = (elementID, statusInnerText, iconElement) => {
@@ -129,9 +155,11 @@ $form.addEventListener('submit', async (e) => {
     })
     .then((response) => {
         // console.log(response);
-        const recs = response.result;
+        recs = response.result;
         const movieIDList = recs.map((rec) => rec.movie_id);
         const selectMovieData = allMovieData.filter((movie) => movieIDList.includes(movie.movie_id))
+
+        $progressList.insertAdjacentHTML('beforeend', '<div id="download-container"><button id="download-button" onclick="exportCSV()">Download Recommendations</button></div>');
 
         let divContent = '<ol id="recommendation-list">';
 

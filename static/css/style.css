@@ -197,6 +197,21 @@ label {
 	display: flex;
 	align-items: center;
 }
+
+#intro-container {
+	text-align:left;
+	max-width: 650px;
+}
+
+#download-container {
+	text-align: center;
+	min-height: 70px;
+}
+
+#download-button {
+	max-width: 80%;	
+	margin: 15px auto 5px;
+}
   
 @keyframes spin {
 	0% { transform: rotate(0deg); }
@@ -287,6 +302,7 @@ label {
   @media only screen and (max-width: 700px) {
 	.grid-wrapper {
 		font-size: 13px;
+		grid-template-columns: 6.5em 4.2em 4.2em 6.5em;
 	}
 
 	.movie-rec {
@@ -308,6 +324,10 @@ label {
 
 	.model-strength-label, .popularity-filter-label {
 		font-size: 12px;
+	}
+
+	#intro-container {
+		max-width: 85%;
 	}
 	
   }
