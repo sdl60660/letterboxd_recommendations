@@ -332,9 +332,15 @@ label {
 	
   }
 
-  @media only screen and (max-width: 700px) {
+  @media only screen and (max-width: 400px) {
+	#recommendation-list {
+		font-size: 13px;
+		padding-left: 21px;
+	}
+
 	.movie-rec {
 		font-size: 13px;
+		grid-template-columns: 18% 63% 19%;
 	}
 
 	.predicted-rating-score {
