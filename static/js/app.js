@@ -151,7 +151,7 @@ $form.addEventListener('submit', async (e) => {
         },
         validate: validateData,
         interval: POLL_INTERVAL,
-        maxAttempts: 200
+        maxAttempts: 250
     })
     .then((response) => {
         // console.log(response);
