@@ -2,6 +2,7 @@
 
 import pandas as pd
 
+import numpy as np
 from numpy import asarray
 from numpy import savetxt
 
@@ -87,7 +88,14 @@ if __name__ == "__main__":
     movie_df = create_movie_data_sample(db, threshold_movie_list)
     print(movie_df.head())
     print(movie_df.shape)
+
+    # Use movie_df to remove any items from threshold_list that do not have a "year_released"
+    # This virtually always means it's a collection of more popular movies (such as the LOTR trilogy) and we don't want it included in recs
+    retain_list = movie_df.loc[(movie_df['year_released'].notna() & movie_df['year_released'] != 0.0)]['movie_id'].to_list()
     
+    # print(len(threshold_movie_list))
+    threshold_movie_list = [x for x in threshold_movie_list if x in retain_list]
+    # print(len(threshold_movie_list))
 
     # Store Data
     with open('models/threshold_movie_list.txt', 'wb') as fp:
