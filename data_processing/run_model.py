@@ -19,7 +19,7 @@ def get_top_n(predictions, n=20):
     top_n.sort(key=lambda x: (x[1], random.random()), reverse=True)
 
     return top_n[:n]
-    
+
 
 def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
     unwatched_movies = [x for x in threshold_movie_list if x not in user_watched_list]
@@ -39,7 +39,6 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
             return_object[i]['unclipped_rating'] = float(algo.predict(username, prediction["movie_id"], clip=False).est)
 
     return_object.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
-
     return return_object
 
 if __name__ == "__main__":
