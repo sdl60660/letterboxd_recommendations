@@ -14,14 +14,14 @@ import pandas as pd
 import random
 
 
-def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
+def get_top_n(predictions, n=20):
+    top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
+    top_n.sort(key=lambda x: (x[1], random.random()), reverse=True)
+
+    return top_n[:n]
     
-    def get_top_n(predictions, n=20):
-        top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
-        top_n.sort(key=lambda x: (x[1], random.random()), reverse=True)
 
-        return top_n[:n]
-
+def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
     unwatched_movies = [x for x in threshold_movie_list if x not in user_watched_list]
     prediction_set = [(username, x, 0) for x in unwatched_movies]
 
