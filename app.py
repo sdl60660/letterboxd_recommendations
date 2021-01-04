@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 # from classes.database import Database, CursorFromConnectionFromPool
 # from psycopg2.extensions import AsIs
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import json
 import datetime
@@ -19,7 +19,6 @@ from worker import conn
 
 from handle_recs import get_client_user_data, build_client_model
 
-from urllib.parse import urlparse, urlunparse
 
 FROM_DOMAIN = "letterboxd-recommendations.herokuapp.com"
 TO_DOMAIN = "letterboxd.samlearner.com"
