@@ -239,6 +239,8 @@ label {
 .header {
 	background-color: #f1f1f1;
 	height: 10vh;
+	max-height: 70px;
+	min-height: 45px;
 	display: flex;
 }
 
