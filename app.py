@@ -19,6 +19,11 @@ from worker import conn
 
 from handle_recs import get_client_user_data, build_client_model
 
+from urllib.parse import urlparse, urlunparse
+
+FROM_DOMAIN = "letterboxd-recommendations.herokuapp.com"
+TO_DOMAIN = "letterboxd.samlearner.com"
+
 
 def create_app(test_config=None):
     # create and configure the app
@@ -34,6 +39,14 @@ def create_app(test_config=None):
     queue_pool = [Queue(channel, connection=conn) for channel in ['high', 'default', 'low']]
     # queue_pool = [Queue(channel, connection=conn) for channel in ['high']]
     popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
+
+    @app.before_request
+    def redirect_to_new_domain():
+        urlparts = urlparse(request.url)
+        if urlparts.netloc == FROM_DOMAIN:
+            urlparts_list = list(urlparts)
+            urlparts_list[1] = TO_DOMAIN
+            return redirect(urlunparse(urlparts_list), code=301)
 
     @app.route('/')
     def homepage():
