@@ -144,7 +144,7 @@ def main():
             else:
                 break
         else:
-            print(f"Count not complete requests for chunk {chunk+1}")
+            print(f"Count not complete requests for chunk {attempt+1}")
         
 
 
