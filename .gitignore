@@ -1,14 +1,16 @@
-node_modules
-.DS_Store
-app_config.py
-notes.txt
-.vscode
-
 __pycache__
+.DS_Store
 */.DS_Store
+.vscode
 */.vscode
 
-db_config.py
-ratings_export.csv
+notes.txt
 
+# Holds the secret key for the flask app
+app_config.py
+# Holds MongoDB database connection URL/db name
+data_processing/db_config.py
+# Export used to repopulate MongoDB collection to avoid re-crawling, too large to push remote
+data_processing/data/ratings_export.csv
+# Model output from build_model.py, too large to push to remote
 data_processing/models/mini_model.pkl
