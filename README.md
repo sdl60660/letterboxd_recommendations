@@ -17,14 +17,8 @@ The underlying model is completely blind to genres, themes, directors, cast, or 
 The web crawling/data processing portion of this project (everything that isn't related to what happens on the webpage) lives in the `data_processing` subdirectory. There you'll find a bash script called `run_scripts.sh`. Use this as your guide for running the crawler, building a training data set, or running the model on your own. HOWEVER, keep in mind that a full crawl of users, ratings, and movies will take several hours. If you'd like to skip that step, I'll keep this Kaggle dataset up to date with the data from my latest crawl: https://www.kaggle.com/samlearner/letterboxd-movie-ratings-data. Regardless of whether you run the crawl on your own or download the exported data from Kaggle, there are three very quick things you'll need to do to get up and running outside of installing the dependencies in requirements.txt:
 
 1. Start up a local MongoDB server (ideally at the default port 27017)
-2. Add a file to the data_processing subdirectory called "db_config" with some basic information on your MongoDB server. If you're running a local server on the default port, all you'd need in that file is this:
-
-`config = {
-    'MONGO_DB': 'letterboxd',
-    'CONNECTION_URL': 'mongodb://localhost:27017/'
-}`
-
-3. If you'd like to run the web server locally, you'll need a file to the top-level directory called `app_config.py` with a secret key for the Flask app. All that needs is a line that looks like this: `SECRET_KEY = "[your_secret_key]"`
+2. Add a file to the data_processing subdirectory called "db_config" with some basic information on your MongoDB server. If you're running a local server on the default port, all you'd need in that file is this: `config = { 'MONGO_DB': 'letterboxd', 'CONNECTION_URL': 'mongodb://localhost:27017/'}`
+3. If you'd like to run the web server locally, you'll need a file to the top-level directory called `app_config.py` with a secret key for the Flask app. All that needs is a line that looks like this: `SECRET_KEY = "[your_secret_key]"`. Your secret key can be anything.
 
 At that point, if you'd like to run the crawl on your own, you can just run the first three scripts listed in data_processing/run_scripts.sh (`get_users.py`, `get_ratings.py`, `get_movies.py`). If you download the data from Kaggle, you'll just need to import each CSV into your Mongo database as its own collection. The other three python scripts (`create_training_data.py`, `build_model.py`, `run_model.py`) will build and run the SVD model for you.
 
