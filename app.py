@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect
+from flask_talisman import Talisman
 # from classes.database import Database, CursorFromConnectionFromPool
 # from psycopg2.extensions import AsIs
 from urllib.parse import urlparse, urlunparse
@@ -27,6 +28,7 @@ TO_DOMAIN = "letterboxd.samlearner.com"
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
+    Talisman(app)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
