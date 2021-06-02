@@ -21,7 +21,7 @@ from handle_recs import get_client_user_data, build_client_model
 
 
 FROM_DOMAIN = "letterboxd-recommendations.herokuapp.com"
-TO_DOMAIN = "https://letterboxd.samlearner.com"
+TO_DOMAIN = "letterboxd.samlearner.com"
 
 
 def create_app(test_config=None):
