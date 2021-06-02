@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect
 from flask_talisman import Talisman
+from flask_cors import CORS
 # from classes.database import Database, CursorFromConnectionFromPool
 # from psycopg2.extensions import AsIs
 from urllib.parse import urlparse, urlunparse
@@ -28,7 +29,21 @@ TO_DOMAIN = "letterboxd.samlearner.com"
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    Talisman(app)
+
+    csp = {
+        'default-src': ['*', "'unsafe-inline'", "'unsafe-eval'"]
+        # 'script-src': ["'unsafe-inline'", "'nonce-allow'"],
+        # 'style-src': ["'unsafe-inline'", "'nonce-allow'"],
+        # 'connect-src': ["'unsafe-inline'", "'nonce-allow'"],
+        # 'img-src': ["*"],
+        # 'default-src': [
+        #     '\'self\'',
+        #     "'nonce-allow'",
+        #     "d3js.org"
+        # ]
+    }
+    Talisman(app, content_security_policy=csp)
+    CORS(app)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
