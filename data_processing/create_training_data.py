@@ -73,7 +73,7 @@ if __name__ == "__main__":
     db = client[db_name]
 
     # Generate training data sample
-    training_df, threshold_movie_list = create_training_data(db, 1000000)
+    training_df, threshold_movie_list = create_training_data(db, 1500000)
 
     # Create review counts dataframe
     review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).count().reset_index()
