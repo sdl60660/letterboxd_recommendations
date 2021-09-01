@@ -90,6 +90,7 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
         # If returning objects, just append the object to return list
         if not send_to_db:
             operations.append(rating_object)
+            
         # Otherwise return an UpdateOne operation to bulk execute
         else:
             operations.append(UpdateOne({
