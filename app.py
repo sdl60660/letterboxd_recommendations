@@ -73,6 +73,7 @@ def create_app(test_config=None):
         username = request.args.get('username').lower().strip()
         training_data_size = int(request.args.get('training_data_size'))
         popularity_filter = int(request.args.get("popularity_filter"))
+        data_opt_in = int(request.args.get("data_opt_in"))
 
         if popularity_filter >= 0:
             popularity_threshold = popularity_thresholds_500k_samples[popularity_filter]

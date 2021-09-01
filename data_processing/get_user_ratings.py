@@ -74,7 +74,7 @@ def send_to_db(username, display_name, user_ratings):
         users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
 
         upsert_operations = []
-        print(len(user_ratings))
+        # print(len(user_ratings))
         for rating in user_ratings:
             upsert_operations.append(
                 ReplaceOne({

@@ -1,17 +1,19 @@
 #!/usr/local/bin/python3.9
 
+import requests
+import time
+
 import asyncio
 from aiohttp import ClientSession
-import requests
-from pprint import pprint
-
 from bs4 import BeautifulSoup
+
+from pprint import pprint
 
 import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-import time
+from utils import format_seconds
 
 
 async def fetch(url, session, input_data={}):
@@ -30,7 +32,8 @@ async def get_page_counts(usernames, users_cursor):
         
         responses = await asyncio.gather(*tasks)
 
-        for response in responses:
+        update_operations = []
+        for i, response in enumerate(responses):
             soup = BeautifulSoup(response[0], "lxml")
             try:
                 page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
@@ -38,7 +41,21 @@ async def get_page_counts(usernames, users_cursor):
             except IndexError:
                 num_pages = 1
 
-            users_cursor.update_one({"username": response[1]['username']}, {"$set": {"num_ratings_pages": num_pages}})
+            # users_cursor.update_one({"username": response[1]['username']}, {"$set": {"num_ratings_pages": num_pages}})   
+            update_operations.append(
+                UpdateOne({
+                    "username": response[1]['username']
+                    },
+                    {"$set": {"num_ratings_pages": num_pages}},
+                    upsert=True
+                )
+            )
+
+        try:
+            if len(update_operations) > 0:
+                users_cursor.bulk_write(update_operations, ordered=False)
+        except BulkWriteError as bwe:
+            pprint(bwe.details)
 
 
 async def generate_ratings_operations(response, send_to_db=True, return_unrated=False):
@@ -81,7 +98,10 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
                 },
                 {
                     "$set": rating_object
-                }, upsert=True))
+                },
+                    upsert=True
+                )
+            )
     
     return operations
     
@@ -118,28 +138,62 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     upsert_operations = []
     for response in parse_responses:
         upsert_operations += response
-    
-    if not store_in_db:
-        return upsert_operations
 
-    # Execute bulk upsert operations
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            ratings = mongo_db.ratings
-            ratings.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
-
+    return upsert_operations
 
 async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True):
     start = time.time()
 
-    # Loop through each user
-    for i, username in enumerate(usernames):
-        print(i, username, round((time.time() - start), 2))
-        await get_user_ratings(username, db_cursor=db_cursor, mongo_db=mongo_db, store_in_db=store_in_db)
-                
+    chunk_size = 16
+    chunk_index = 0
+
+    while chunk_index*chunk_size <= len(usernames) + chunk_size:
+        tasks = []
+        db_operations = []
+
+        start_index = chunk_size*chunk_index
+        end_index = chunk_size*chunk_index + chunk_size
+        username_chunk = usernames[start_index:end_index]
+
+        # For a given chunk, scrape each user's ratings and form an array of database upsert operations
+        for i, username in enumerate(username_chunk):
+            print((chunk_size*chunk_index)+i, username)
+            task = asyncio.ensure_future(get_user_ratings(username, db_cursor=db_cursor, mongo_db=mongo_db, store_in_db=store_in_db))
+            tasks.append(task)
+
+        # Gather all ratings page responses, concatenate all db upsert operatons for use in a bulk write
+        user_responses = await asyncio.gather(*tasks)
+        for response in user_responses:
+            db_operations += response
+
+        if store_in_db:
+            # Execute bulk upsert operations
+            try:
+                if len(db_operations) > 0:
+                    ratings = mongo_db.ratings
+                    # Bulk write all upsert operations into ratings collection in db
+                    ratings.bulk_write(db_operations, ordered=False)
+            except BulkWriteError as bwe:
+                pprint(bwe.details)
+        
+        chunk_index += 1
+        print_status(start, chunk_size, chunk_index, len(db_operations), len(usernames))
+
+def print_status(start, chunk_size, chunk_index, total_operations, total_records):
+    total_time = round((time.time() - start), 2)
+    completed_records = (chunk_size*chunk_index)
+    time_per_user = round(total_time / completed_records, 2)
+    remaining_estimate = round(time_per_user * (total_records - completed_records), 2)
+
+    print("\n================")
+    print(f"Users Complete: {completed_records}")
+    print(f"Users Remaining: {(total_records - completed_records)}")
+    print("Chunk Database Operations:", total_operations)
+    print()
+    print("Current Time/User:", f"{time_per_user} seconds")
+    print("Elapsed Time:", format_seconds(total_time))
+    print("Est. Time Remaining:", format_seconds(remaining_estimate))
+    print("================\n")
 
 def main():
     import os
@@ -152,7 +206,7 @@ def main():
     db_name = config["MONGO_DB"]
 
     if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"])
+        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
     else:
         # client = motor.motor_asyncio.AsyncIOMotorClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/?retryWrites=true&w=majority')
         client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
@@ -172,7 +226,7 @@ def main():
 
     # Find and store ratings for each user
     future = asyncio.ensure_future(get_ratings(all_usernames, users, db))
-    # future = asyncio.ensure_future(get_ratings(["samlearner", "colonelmortimer"], users, db))
+    # future = asyncio.ensure_future(get_ratings(["samlearner"], users, db))
     loop.run_until_complete(future)
 
 

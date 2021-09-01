@@ -128,10 +128,11 @@ $form.addEventListener('submit', async (e) => {
     const username = e.target.elements.username.value.toLowerCase();;
     const popularityFilter = e.target.elements.popularity_filter.value;
     const modelStrength = e.target.elements.model_strength.value;
+    const dataOptIn = e.target.elements.data_opt_in.value;
 
     $submitButton.setAttribute("disabled", "disabled");
 
-    const response = await fetch(`/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}`, {
+    const response = await fetch(`/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`, {
         method: 'GET'
     });
     const data = await response.json();

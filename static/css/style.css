@@ -112,6 +112,11 @@ label {
 	/* margin: 5px; */
 }
 
+.data-opt-in-label {
+	grid-column: 1 / 4;
+	font-size: 14px;
+}
+
 /* label.grid-item {
 	padding: 1em;
 	min-height: 50px;

@@ -1,10 +1,14 @@
 #!/usr/local/bin/python3.9
 
+from pymongo.operations import ReplaceOne, UpdateOne
 import requests
 from bs4 import BeautifulSoup
 
 import pymongo
+from pymongo.errors import BulkWriteError
 from db_config import config
+
+from pprint import pprint
 
 
 db_name = config["MONGO_DB"]
@@ -27,6 +31,8 @@ for page in range(1, 129):
     table = soup.find("table", attrs={"class": "person-table"})
     rows = table.findAll("td", attrs={"class": "table-person"})
     
+
+    update_operations = []
     for row in rows:
         link = row.find("a")["href"]
         username = link.strip('/')
@@ -39,5 +45,19 @@ for page in range(1, 129):
             "num_reviews": num_reviews
         }
 
-        users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
+        update_operations.append(
+            UpdateOne({
+                "username": user["username"]
+                },
+                {"$set": user},
+                upsert=True
+            )
+        )
+
+        # users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
         
+    try:
+        if len(update_operations) > 0:
+            users.bulk_write(update_operations, ordered=False)
+    except BulkWriteError as bwe:
+        pprint(bwe.details)

@@ -66,7 +66,7 @@ if __name__ == "__main__":
     db_name = config["MONGO_DB"]
 
     if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"])
+        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
     else:
         client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
