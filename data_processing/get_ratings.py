@@ -2,6 +2,7 @@
 
 import requests
 import time
+from tqdm import tqdm
 
 import asyncio
 from aiohttp import ClientSession
@@ -65,7 +66,8 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
     reviews = soup.findAll("li", attrs={"class": "poster-container"})
 
     # Create empty array to store list of bulk operations or rating objects
-    operations = []
+    ratings_operations = []
+    movie_operations = []
 
     # For each review, parse data from scraped page and append an UpdateOne operation for bulk execution or a rating object
     for review in reviews:
@@ -86,14 +88,22 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
                     "rating_val": rating_val,
                     "user_id": response[1]["username"]
                 }
+        
+        # We're going to eventually send a bunch of upsert operations for movies with just IDs
+        # For movies already in the database, this won't impact anything
+        # But this will allow us to easily figure out which movies we need to scraped data on later,
+        # Rather than scraping data for hundreds of thousands of movies everytime there's a broader data update
+        skeleton_movie_object = {
+            "movie_id": movie_id
+        }
 
         # If returning objects, just append the object to return list
         if not send_to_db:
-            operations.append(rating_object)
-            
+            ratings_operations.append(rating_object)
+
         # Otherwise return an UpdateOne operation to bulk execute
         else:
-            operations.append(UpdateOne({
+            ratings_operations.append(UpdateOne({
                     "user_id": response[1]["username"],
                     "movie_id": movie_id
                 },
@@ -103,8 +113,18 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
                     upsert=True
                 )
             )
+
+            movie_operations.append(UpdateOne({
+                    "movie_id": movie_id
+                },
+                {
+                    "$set": skeleton_movie_object
+                },
+                    upsert=True
+                )
+            )
     
-    return operations
+    return ratings_operations, movie_operations
     
 
 async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=True, num_pages=None, return_unrated=False):
@@ -136,21 +156,27 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     parse_responses = await asyncio.gather(*tasks)
 
     # Concatenate each response's upsert operations/output dicts
-    upsert_operations = []
+    upsert_ratings_operations = []
+    upsert_movies_operations = []
     for response in parse_responses:
-        upsert_operations += response
+        upsert_ratings_operations += response[0]
+        upsert_movies_operations += response[1]
 
-    return upsert_operations
+    return upsert_ratings_operations, upsert_movies_operations
 
 async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True):
     start = time.time()
+
+    ratings_collection = mongo_db.ratings
+    movies_collection = mongo_db.movies
 
     chunk_size = 16
     chunk_index = 0
 
     while chunk_index*chunk_size <= len(usernames) + chunk_size:
         tasks = []
-        db_operations = []
+        db_ratings_operations = []
+        db_movies_operations = []
 
         start_index = chunk_size*chunk_index
         end_index = chunk_size*chunk_index + chunk_size
@@ -165,20 +191,24 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
         # Gather all ratings page responses, concatenate all db upsert operatons for use in a bulk write
         user_responses = await asyncio.gather(*tasks)
         for response in user_responses:
-            db_operations += response
+            db_ratings_operations += response[0]
+            db_movies_operations += response[1]
 
         if store_in_db:
             # Execute bulk upsert operations
             try:
-                if len(db_operations) > 0:
-                    ratings = mongo_db.ratings
+                if len(db_ratings_operations) > 0:
                     # Bulk write all upsert operations into ratings collection in db
-                    ratings.bulk_write(db_operations, ordered=False)
+                    ratings_collection.bulk_write(db_ratings_operations, ordered=False)
+                
+                if len(db_movies_operations) > 0:
+                    movies_collection.bulk_write(db_movies_operations, ordered=False)
+
             except BulkWriteError as bwe:
                 pprint(bwe.details)
         
         chunk_index += 1
-        print_status(start, chunk_size, chunk_index, len(db_operations), len(usernames))
+        print_status(start, chunk_size, chunk_index, len(db_ratings_operations), len(usernames))
 
 def print_status(start, chunk_size, chunk_index, total_operations, total_records):
     total_time = round((time.time() - start), 2)
