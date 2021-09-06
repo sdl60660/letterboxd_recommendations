@@ -3,6 +3,7 @@
 import requests
 import time
 from tqdm import tqdm
+import math
 
 import asyncio
 from aiohttp import ClientSession
@@ -164,6 +165,7 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
 
     return upsert_ratings_operations, upsert_movies_operations
 
+
 async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True):
     start = time.time()
 
@@ -171,9 +173,10 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
     movies_collection = mongo_db.movies
 
     chunk_size = 16
-    chunk_index = 0
+    total_chunks = math.ceil(len(usernames) / chunk_size)
 
-    while chunk_index*chunk_size <= len(usernames) + chunk_size:
+    pbar = tqdm(range(total_chunks))
+    for chunk_index in pbar:
         tasks = []
         db_ratings_operations = []
         db_movies_operations = []
@@ -182,9 +185,11 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
         end_index = chunk_size*chunk_index + chunk_size
         username_chunk = usernames[start_index:end_index]
 
+        pbar.set_description(f"Scraping ratings data for user group {chunk_index+1} of {total_chunks}")
+
         # For a given chunk, scrape each user's ratings and form an array of database upsert operations
         for i, username in enumerate(username_chunk):
-            print((chunk_size*chunk_index)+i, username)
+            # print((chunk_size*chunk_index)+i, username)
             task = asyncio.ensure_future(get_user_ratings(username, db_cursor=db_cursor, mongo_db=mongo_db, store_in_db=store_in_db))
             tasks.append(task)
 
@@ -207,8 +212,8 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
             except BulkWriteError as bwe:
                 pprint(bwe.details)
         
-        chunk_index += 1
-        print_status(start, chunk_size, chunk_index, len(db_ratings_operations), len(usernames))
+        # print_status(start, chunk_size, chunk_index, len(db_ratings_operations), len(usernames))
+
 
 def print_status(start, chunk_size, chunk_index, total_operations, total_records):
     total_time = round((time.time() - start), 2)
@@ -225,6 +230,7 @@ def print_status(start, chunk_size, chunk_index, total_operations, total_records
     print("Elapsed Time:", format_seconds(total_time))
     print("Est. Time Remaining:", format_seconds(remaining_estimate))
     print("================\n")
+
 
 def main():
     import os
@@ -251,9 +257,9 @@ def main():
     loop = asyncio.get_event_loop()
 
     # Find number of ratings pages for each user and add to their Mongo document (note: max of 128 scrapable pages)
-    future = asyncio.ensure_future(get_page_counts(all_usernames, users))
+    # future = asyncio.ensure_future(get_page_counts(all_usernames, users))
     # future = asyncio.ensure_future(get_page_counts([], users))
-    loop.run_until_complete(future)
+    # loop.run_until_complete(future)
 
     # Find and store ratings for each user
     future = asyncio.ensure_future(get_ratings(all_usernames, users, db))
