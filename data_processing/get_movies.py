@@ -12,6 +12,7 @@ import pymongo
 import pandas as pd
 
 import time
+from tqdm import tqdm
 
 import pymongo
 from pymongo import UpdateOne
@@ -118,10 +119,13 @@ def main():
     chunk_size = 500
     num_chunks = len(all_movies) // chunk_size + 1
 
-    print("Total movies to scrape:", len(all_movies))
+    print("Total Movies to Scrape:", len(all_movies))
     print('Total Chunks:', num_chunks)
-    for chunk in range(num_chunks):
-        print('Chunk:', chunk+1)
+    print("==========================\n")
+
+    pbar = tqdm(range(num_chunks))
+    for chunk in pbar:
+        pbar.set_description(f"Scraping chunk {chunk+1} of {num_chunks}")
 
         if chunk == num_chunks - 1:
             chunk = all_movies[chunk*chunk_size:]
