@@ -28,6 +28,8 @@ total_pages = 128
 pbar = tqdm(range(1, total_pages+1))
 for page in pbar:
     # print("Page {}".format(page))
+    pbar.set_description(f"Scraping page {page} of {total_pages} of top users")
+
 
     r = requests.get(base_url.format(page))
     soup = BeautifulSoup(r.text, "html.parser")
