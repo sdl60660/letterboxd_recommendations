@@ -4,6 +4,7 @@ import requests
 import time
 from tqdm import tqdm
 import math
+from itertools import chain
 
 import asyncio
 from aiohttp import ClientSession
@@ -158,6 +159,10 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
         tasks.append(task)
     
     parse_responses = await asyncio.gather(*tasks)
+
+    if store_in_db == False:
+        parse_responses = list(chain.from_iterable(parse_responses))[0]
+        return parse_responses
 
     # Concatenate each response's upsert operations/output dicts
     upsert_ratings_operations = []
