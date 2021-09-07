@@ -128,7 +128,7 @@ $form.addEventListener('submit', async (e) => {
     const username = e.target.elements.username.value.toLowerCase();;
     const popularityFilter = e.target.elements.popularity_filter.value;
     const modelStrength = e.target.elements.model_strength.value;
-    const dataOptIn = e.target.elements.data_opt_in.value;
+    const dataOptIn = e.target.elements.data_opt_in.checked;
 
     $submitButton.setAttribute("disabled", "disabled");
 
