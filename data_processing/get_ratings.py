@@ -15,7 +15,10 @@ import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-from utils import format_seconds
+if __name__ == "__main__":
+    from utils import utils
+else:
+    from data_processing.utils import utils
 
 
 async def fetch(url, session, input_data={}):
@@ -227,8 +230,8 @@ def print_status(start, chunk_size, chunk_index, total_operations, total_records
     print("Chunk Database Operations:", total_operations)
     print()
     print("Current Time/User:", f"{time_per_user} seconds")
-    print("Elapsed Time:", format_seconds(total_time))
-    print("Est. Time Remaining:", format_seconds(remaining_estimate))
+    print("Elapsed Time:", utils.format_seconds(total_time))
+    print("Est. Time Remaining:", utils.format_seconds(remaining_estimate))
     print("================\n")
 
 
