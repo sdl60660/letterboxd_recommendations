@@ -52,8 +52,9 @@ def get_user_data(username, data_opt_in=False):
     future = asyncio.ensure_future(get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=False, num_pages=num_pages, return_unrated=True))
     loop.run_until_complete(future)
 
+    user_ratings = [x for x in future.result() if x["rating_val"] >= 0]
     if data_opt_in:
-        send_to_db(username, display_name, user_ratings=future.result())
+        send_to_db(username, display_name, user_ratings=user_ratings)
 
     return future.result(), "success"
 
