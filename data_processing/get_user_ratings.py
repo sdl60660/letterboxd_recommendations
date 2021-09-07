@@ -41,7 +41,7 @@ def get_page_count(username):
 
     return num_pages, display_name
 
-def get_user_data(username):
+def get_user_data(username, data_opt_in=False):
     num_pages, display_name = get_page_count(username)
     
     if num_pages == -1:
@@ -52,7 +52,8 @@ def get_user_data(username):
     future = asyncio.ensure_future(get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=False, num_pages=num_pages, return_unrated=True))
     loop.run_until_complete(future)
 
-    send_to_db(username, display_name, user_ratings=future.result())
+    if data_opt_in:
+        send_to_db(username, display_name, user_ratings=future.result())
 
     return future.result(), "success"
 

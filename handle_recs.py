@@ -32,8 +32,8 @@ def filter_threshold_list(threshold_movie_list, review_count_threshold=2000):
     return threshold_movie_list
 
 
-def get_client_user_data(username):
-    user_data = get_user_data(username)
+def get_client_user_data(username, data_opt_in):
+    user_data = get_user_data(username, data_opt_in)
     
     current_job = get_current_job(conn)
     current_job.meta['user_status'] = user_data[1]
