@@ -161,7 +161,7 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     parse_responses = await asyncio.gather(*tasks)
 
     if store_in_db == False:
-        parse_responses = list(chain.from_iterable(parse_responses))[0]
+        parse_responses = list(chain.from_iterable(list(chain.from_iterable(parse_responses))))
         return parse_responses
 
     # Concatenate each response's upsert operations/output dicts
