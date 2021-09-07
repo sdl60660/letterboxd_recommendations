@@ -12,6 +12,7 @@ import pymongo
 import pandas as pd
 
 import time
+from tqdm import tqdm
 
 import pymongo
 from pymongo import UpdateOne
@@ -103,32 +104,28 @@ def main():
     db_name = config["MONGO_DB"]
 
     if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"])
+        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
     else:
         client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
     db = client[db_name]
-    ratings = db.ratings
     movies = db.movies
 
-    pipeline = [
-        {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
-        {"$sort": {"_id": -1}}
-    ]
-    grouped_review_df = pd.DataFrame(list(ratings.aggregate(pipeline)))
-    # grouped_review_df = grouped_review_df.loc[grouped_review_df['count'] > 5]
-    # print(grouped_review_df.head())
-    print(grouped_review_df.shape)
-
-    all_movies = grouped_review_df['_id'].to_list()
+    # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
+    # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
+    all_movies = [x['movie_id'] for x in list(movies.find({ "year_released": { "$exists": False }, "movie_title": { "$exists": False}}))]
     
     loop = asyncio.get_event_loop()
     chunk_size = 500
     num_chunks = len(all_movies) // chunk_size + 1
 
+    print("Total Movies to Scrape:", len(all_movies))
     print('Total Chunks:', num_chunks)
-    for chunk in range(num_chunks):
-        print('Chunk:', chunk+1)
+    print("==========================\n")
+
+    pbar = tqdm(range(num_chunks))
+    for chunk in pbar:
+        pbar.set_description(f"Scraping chunk {chunk+1} of {num_chunks}")
 
         if chunk == num_chunks - 1:
             chunk = all_movies[chunk*chunk_size:]

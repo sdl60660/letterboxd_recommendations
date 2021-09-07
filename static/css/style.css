@@ -57,9 +57,10 @@ body {
 
 #username-input {
 	max-height: 30px;
-	padding-left: 5px;
+	padding: 8px;
+	margin: 0 6rem;
 	border-radius: 3px;
-	grid-column: 3 / 5;
+	grid-column: 1 / 5;
 }
 
 #progress-tracking {
@@ -95,7 +96,7 @@ img.checkmark, img.error {
 .grid-wrapper {
 	display: grid;
 	grid-template-rows: 50px 50px 50px 50px;
-	grid-template-columns: 6.5em 5.4em 5.4em 6.5em;
+	grid-template-columns: 7em 6.4em 6.4em 7em;
 
 	align-items: center;
 	font-size: 16px;
@@ -112,6 +113,11 @@ label {
 	/* margin: 5px; */
 }
 
+.data-opt-in-label {
+	grid-column: 1 / 4;
+	font-size: 14px;
+}
+
 /* label.grid-item {
 	padding: 1em;
 	min-height: 50px;
@@ -125,8 +131,7 @@ label {
 	display: table;
 	margin: auto;
 
-
-	padding: 1.5em;
+	padding: 3rem 2rem;
 	/* background-color: #eee; */
 	background-color: #fff;
 	border-radius: 10px;
@@ -163,8 +168,16 @@ label {
 }
 
 .model-strength-label, .popularity-filter-label {
-	text-align: center;
+	/* text-align: center; */
 	font-size: 14px;
+}
+
+.model-strength-label--left {
+	text-align: left;
+}
+
+.model-strength-label--right {
+	text-align: right;
 }
 
 .loader {
@@ -261,6 +274,10 @@ label {
 	text-decoration: none;
 }
 
+.intro-paragraph {
+	font-size: 16px;
+}
+
 /* The switch - the box around the slider */
 .switch {
 	position: relative;
@@ -325,6 +342,11 @@ label {
   }
 
   @media only screen and (max-width: 700px) {
+
+	.intro-paragraph {
+		font-size: 14px;
+	}
+
 	.grid-wrapper {
 		font-size: 13px;
 		grid-template-columns: 6.5em 4.2em 4.2em 6.5em;
@@ -354,7 +376,14 @@ label {
 	#intro-container {
 		max-width: 85%;
 	}
-	
+
+	.data-opt-in-label {
+		font-size: 12px;
+	}
+
+	#username-input {
+		margin: 0 2rem;
+	}
   }
 
   @media only screen and (max-width: 400px) {
