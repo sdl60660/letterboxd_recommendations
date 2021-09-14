@@ -9,7 +9,14 @@ from numpy import savetxt
 import pickle
 
 import pymongo
-from db_config import config
+
+try:
+    from db_config import config
+except ImportError:
+    import os
+    config = {}
+    config["MONGO_DB"] = os.getenv('MONGO_DB')
+    config["CONNECTION_URL"] = os.getenv('CONNECTION_URL')
 
 
 def get_sample(cursor, iteration_size):
