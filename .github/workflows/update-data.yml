@@ -2,7 +2,7 @@ name: update-data
 
 on:
   schedule:
-    - cron: '0 12 * * *' # runs at 12:00 UTC everyday
+    - cron: '0 0 * * 0' # runs once per week at 00:00 on Sunday, UTC
   push:
     branches:
       - workflow-test
@@ -30,6 +30,8 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
         run: python data_processing/create_training_data.py
           
       - name: commit files
