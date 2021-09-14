@@ -32,7 +32,7 @@ jobs:
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
           CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        run: python data_processing/create_training_data.py
+        run: cd data_processing && python create_training_data.py
           
       - name: commit files
         run: |
