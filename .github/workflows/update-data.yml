@@ -2,7 +2,7 @@ name: update-data
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # runs once per week at 00:00 on Sunday, UTC
+    - cron: '0 0 * * 0' # runs once per week at 00:00 on Sunday (UTC)
   push:
     branches:
       - workflow-test
