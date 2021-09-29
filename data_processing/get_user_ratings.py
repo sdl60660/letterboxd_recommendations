@@ -66,6 +66,7 @@ def send_to_db(username, display_name, user_ratings):
         db = client["letterboxd"]
         users = db.users
         ratings = db.ratings
+        movies = db.movies
 
         user = {
             "username": username,
@@ -75,10 +76,11 @@ def send_to_db(username, display_name, user_ratings):
 
         users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
 
-        upsert_operations = []
+        upsert_ratings_operations = []
+        upsert_movies_operations = []
         # print(len(user_ratings))
         for rating in user_ratings:
-            upsert_operations.append(
+            upsert_ratings_operations.append(
                 ReplaceOne({
                     "user_id": username,
                     "movie_id": rating["movie_id"]
@@ -87,9 +89,23 @@ def send_to_db(username, display_name, user_ratings):
                 upsert=True)
             )
 
+            upsert_movies_operations.append(UpdateOne({
+                    "movie_id": rating["movie_id"]
+                },
+                {
+                    "$set": {
+                        "movie_id": rating["movie_id"]
+                    }
+                },
+                    upsert=True
+                )
+            )
+
         try:
-            if len(upsert_operations) > 0:
-                ratings.bulk_write(upsert_operations, ordered=False)
+            if len(upsert_ratings_operations) > 0:
+                ratings.bulk_write(upsert_ratings_operations, ordered=False)
+            if len(upsert_movies_operations) > 0:
+                movies.bulk_write(upsert_movies_operations, ordered=False)
         except BulkWriteError as bwe:
             pprint(bwe.details)
 
