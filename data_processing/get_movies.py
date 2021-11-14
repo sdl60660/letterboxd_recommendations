@@ -18,7 +18,8 @@ import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-from db_config import config
+# This is a MongoDB connection URL and a TMDB API key imported from a file in the .gitignore
+from db_config import config, tmdb_key
 
 
 async def fetch(url, session, input_data={}):
@@ -57,13 +58,62 @@ async def fetch(url, session, input_data={}):
         #     watches = None
 
         soup.find("span", attrs={"class": "rating"})
+
+        try:
+            imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})['href']
+            imdb_id = imdb_link.split('/title')[1].strip('/').split('/')[0]
+        except:
+            imdb_link = ''
+            imdb_id = ''
+
+        try:
+            tmdb_link = soup.find("a", attrs={"data-track-action": "TMDb"})['href']
+            tmdb_id = tmdb_link.split('/movie')[1].strip('/').split('/')[0]
+        except:
+            tmdb_link = ''
+            tmdb_id = ''
         
         movie_object = {
                     "movie_id": input_data["movie_id"],
                     "movie_title": movie_title,
                     "image_url": image_url,
-                    "year_released": year
+                    "year_released": year,
+                    "imdb_link": imdb_link,
+                    "tmdb_link": tmdb_link,
+                    "imdb_id": imdb_id,
+                    "tmdb_id": tmdb_id
                 }
+
+        update_operation = UpdateOne({
+                "movie_id": input_data["movie_id"]
+            },
+            {
+                "$set": movie_object
+            }, upsert=True)
+
+
+        return update_operation
+
+
+async def fetch_tmdb_data(url, session, movie_data, input_data={}):
+    async with session.get(url) as r:
+        response = await r.json()
+
+        movie_object = movie_data
+
+        object_fields = ["genres", "production_countries", "spoken_languages"]
+        for field_name in object_fields:
+            try:
+                movie_object[field_name] = [x["name"] for x in response[field_name]]
+            except:
+                movie_object[field_name] = None
+        
+        simple_fields = ["popularity", "overview", "runtime", "vote_average", "vote_count", "release_date", "original_language"]
+        for field_name in simple_fields:
+            try:
+                movie_object[field_name] = response[field_name]
+            except:
+                movie_object[field_name] = None
 
         update_operation = UpdateOne({
                 "movie_id": input_data["movie_id"]
@@ -99,8 +149,31 @@ async def get_movies(movie_list, db_cursor, mongo_db):
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
+async def get_rich_data(movie_list, db_cursor, mongo_db):
+    base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
 
-def main():
+    async with ClientSession() as session:
+        # print("Starting Scrape", time.time() - start)
+
+        tasks = []
+        # Make a request for each ratings page and add to task queue
+        for movie in movie_list:
+            task = asyncio.ensure_future(fetch_tmdb_data(base_url.format(movie["tmdb_id"], tmdb_key), session, movie, {"movie_id": movie["movie_id"]}))
+            tasks.append(task)
+
+        # Gather all ratings page responses
+        upsert_operations = await asyncio.gather(*tasks)
+
+    try:
+        if len(upsert_operations) > 0:
+            # Create/reference "ratings" collection in db
+            movies = mongo_db.movies
+            movies.bulk_write(upsert_operations, ordered=False)
+    except BulkWriteError as bwe:
+        pprint(bwe.details)
+
+
+def main(data_type="letterboxd"):
     db_name = config["MONGO_DB"]
 
     if "CONNECTION_URL" in config.keys():
@@ -113,7 +186,11 @@ def main():
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
-    all_movies = [x['movie_id'] for x in list(movies.find({ "year_released": { "$exists": False }, "movie_title": { "$exists": False}}))]
+    # all_movies = [x['movie_id'] for x in list(movies.find({ "year_released": { "$exists": False }, "movie_title": { "$exists": False}}))]
+    if data_type == "letterboxd":
+        all_movies = [x['movie_id'] for x in list(movies.find({ "tmdb_id": { "$exists": False }}))]
+    else:
+        all_movies = [x for x in list(movies.find({ "genres": { "$eq": None }, "tmdb_id": {"$ne": ""}, "tmdb_id": { "$exists": True }}))]
     
     loop = asyncio.get_event_loop()
     chunk_size = 500
@@ -134,16 +211,21 @@ def main():
 
         for attempt in range(5):
             try:
-                future = asyncio.ensure_future(get_movies(chunk, movies, db))
+                if data_type == "letterboxd":
+                    future = asyncio.ensure_future(get_movies(chunk, movies, db))
+                else:
+                    future = asyncio.ensure_future(get_rich_data(chunk, movies, db))
                 loop.run_until_complete(future)
-            except:
+            except Exception as e:
+                print(f"Error: {e}")
                 print(f"Error on attempt {attempt+1}, retrying...")
             else:
                 break
         else:
-            print(f"Count not complete requests for chunk {attempt+1}")
+            print(f"Count not complete requests for chunk {chunk+1}")
         
-
+    return
 
 if __name__ == "__main__":
-    main()
+    main("letterboxd")
+    main("tmdb")
