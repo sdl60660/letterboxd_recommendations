@@ -17,3 +17,5 @@ data_processing/data/ratings_export.csv
 
 # Model output from build_model.py, too large to push to remote
 data_processing/models/mini_model.pkl
+
+node_modules
