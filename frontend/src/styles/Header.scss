@@ -1,0 +1,24 @@
+.header {
+	background-color: #f1f1f1;
+	height: 9vh;
+	max-height: 70px;
+	min-height: 40px;
+	display: flex;
+}
+
+.header .main-site-link {
+	align-self: center;
+	margin-right: 3vw;
+	position: absolute;
+	right: 0vw;
+
+}
+
+.header .main-site-link button {
+	background-color: rgba(48, 112, 196, 0.8);
+	color: white;
+	padding: 0.6rem;
+	border-radius: 3px;
+	font-size: 1.1rem;
+	text-decoration: none;
+}

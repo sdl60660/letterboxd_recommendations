@@ -1,0 +1,37 @@
+
+
+#intro-container {
+    text-align:left;
+    max-width: 650px;
+    margin-top: 2rem;
+}
+
+#intro-container .row {
+    text-align: center;
+}
+
+#intro-container .row.intro-paragraph {
+    text-align: left;
+}
+
+.intro-paragraph {
+	font-size: 16px;
+}
+
+#intro-container h1 {
+    font-size: 2.2rem;
+    font-family: "aktiv-grotesk", Inconsolata, Monaco;
+    font-weight: 500;
+}
+
+@media only screen and (max-width: 700px) {
+
+    .intro-paragraph {
+        font-size: 14px;
+    }
+
+    #intro-container {
+        max-width: 85%;
+    }
+}
+

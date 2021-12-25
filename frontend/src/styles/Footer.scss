@@ -1,0 +1,32 @@
+.footer {
+    margin: auto;
+    width: 70vw;
+    max-width: 550px;
+    font-size: 0.85rem;
+    text-align: left;
+    font-family: "Roboto", Helvetica, sans-serif;
+}
+
+.footer .heading {
+    font-weight: bold;
+}
+
+.footer section {
+    margin-bottom: 2rem;
+}
+
+.footer hr {
+    max-width: 80%;
+    margin-bottom: 2rem;
+}
+
+.icon-img {
+    margin: auto;
+    padding-left: 4px;
+}
+
+@media only screen and (max-width: 750px) {
+    .footer {
+        max-width: 90vw;
+    }
+}
