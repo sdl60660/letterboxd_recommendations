@@ -3,14 +3,14 @@ import '../styles/Footer.scss';
 
 const Footer = (props) => {
     return (
-        <div class="container footer">
+        <div className="container footer">
             <hr />
             <section>
                 <p style={{fontWeight: "bold"}}>Project by <a target="_blank" rel="noreferrer" href="https://www.samlearner.com/">Sam Learner</a> |
-                    <a target="_blank" rel="noreferrer" href="mailto:learnersd@gmail.com"><img class="icon-img" src="images/email.svg" alt="email link" /></a> |
-                    <a target="_blank" rel="noreferrer" href="https://twitter.com/sam_learner"><img class="icon-img" src="images/twitter.svg" alt="twitter link" /></a> |
-                    <a target="_blank" rel="noreferrer" href="https://github.com/sdl60660"><img class="icon-img" src="images/github.svg" alt="github link" /></a> |
-                    <a target="_blank" rel="noreferrer" href="https://letterboxd.com/samlearner/"><img class="icon-img" src="images/letterboxd.svg" alt="letterboxd link" /></a>
+                    <a target="_blank" rel="noreferrer" href="mailto:learnersd@gmail.com"><img className="icon-img" src="images/email.svg" alt="email link" /></a> |
+                    <a target="_blank" rel="noreferrer" href="https://twitter.com/sam_learner"><img className="icon-img" src="images/twitter.svg" alt="twitter link" /></a> |
+                    <a target="_blank" rel="noreferrer" href="https://github.com/sdl60660"><img className="icon-img" src="images/github.svg" alt="github link" /></a> |
+                    <a target="_blank" rel="noreferrer" href="https://letterboxd.com/samlearner/"><img className="icon-img" src="images/letterboxd.svg" alt="letterboxd link" /></a>
                 </p>
                 <p>Code and data for this project lives <a target="_blank" rel="noreferrer" href="https://github.com/sdl60660/letterboxd_recommendations">here</a>.</p>
             </section>

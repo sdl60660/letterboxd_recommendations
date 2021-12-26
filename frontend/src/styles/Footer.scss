@@ -5,6 +5,10 @@
     font-size: 0.85rem;
     text-align: left;
     font-family: "Roboto", Helvetica, sans-serif;
+    padding-top: 40px;
+    padding-bottom: 60px;
+    /* min-height: 100vh; */
+    font-family: 'Helvetica Neue', helvetica, arial, sans-serif;
 }
 
 .footer .heading {
@@ -20,10 +24,22 @@
     margin-bottom: 2rem;
 }
 
+.footer a {
+    text-decoration: none;
+}
+
 .icon-img {
     margin: auto;
     padding-left: 4px;
+    height: 13px;
+    width: 13px;
+    margin-bottom: 2px;
 }
+
+.spacer {
+    height: 60px;
+}
+
 
 @media only screen and (max-width: 750px) {
     .footer {

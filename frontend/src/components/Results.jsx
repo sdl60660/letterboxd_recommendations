@@ -1,19 +1,13 @@
 import React from 'react';
 
-const Results = (props) => {
+
+const Results = ({ queryData }) => {
 
     return (
-        <div class="row">
-            <div id="progress-tracking">
-                <ul id="task-progress-list">
-                </ul>
-            </div>
-            <div id="results"></div>
+        <div id="results">
+            
         </div>
     )
 }
-
-
-
 
 export default Results;
