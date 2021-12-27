@@ -42,15 +42,11 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
     top_n = get_top_n(predictions, num_recommendations)
     movie_data = {x["movie_id"]: {k:v for k,v in x.items() if k != "_id"} for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})}
 
-    print(top_n)
-
     # Print the recommended items for user
     # for prediction in top_n:
     #     print(f"{prediction[0]}: {round(prediction[1], 2)}")
 
     return_object = [{"movie_id": x[0], "predicted_rating": x[1], "unclipped_rating": x[1], "movie_data": movie_data[x[0]] } for x in top_n]
-
-    print('RETURN OBJECT HERE', return_object)
 
     for i, prediction in enumerate(return_object):
         if prediction['predicted_rating'] == 10:
