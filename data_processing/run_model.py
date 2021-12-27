@@ -20,7 +20,7 @@ import pymongo
 try:
     from .db_config import config
 except ImportError:
-    pass
+    config = None
 
 
 def get_top_n(predictions, n=20):
