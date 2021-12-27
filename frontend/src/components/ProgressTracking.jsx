@@ -81,11 +81,11 @@ const ProgressTracking = ({ queryData, redisData }) => {
     }, [redisData])
 
     return (
-        <div id="progress-tracking">
+        <div id="progress-tracking" tabIndex="0">
             <ul id="task-progress-list">
                 {queryData && !queryData.error && (
                     <>
-                        <li id="load-user-task-progress">
+                        <li id="load-user-task-progress" tabIndex="0">
                             <div className="progress-container">
                                 {renderIcon({
                                     status: stageProgress.userData,
@@ -102,7 +102,7 @@ const ProgressTracking = ({ queryData, redisData }) => {
                             </span>
                         </li>
 
-                        <li id="build-model-task-progress">
+                        <li id="build-model-task-progress" tabIndex="0">
                             <div className="progress-container">
                                 {renderIcon({
                                     status: stageProgress.buildModel,
@@ -117,7 +117,7 @@ const ProgressTracking = ({ queryData, redisData }) => {
                             </span>
                         </li>
 
-                        <li id="run-model-task-progress">
+                        <li id="run-model-task-progress" tabIndex="0">
                             <div className="progress-container">
                                 {renderIcon({ status: stageProgress.runModel })}
                             </div>
