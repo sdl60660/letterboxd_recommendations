@@ -5,10 +5,6 @@
     margin-top: 0;
 }
 
-#recommendation-list li::marker {
-    font-size: 14px;
-}
-
 .movie-rec-wrapper {
     display: inline-block;
     vertical-align: middle;
@@ -22,7 +18,7 @@
     background-color: rgba(173, 216, 230, 0.3);
     /* border: 1px solid black; */
     border-radius: 10px;
-    margin: 10px 8px;
+    margin: 4px 8px;
     font-size: 17px;
 
     display: flex;
