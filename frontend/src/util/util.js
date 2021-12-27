@@ -24,8 +24,7 @@ export const poll = async ({ fn, data, validate, interval, maxAttempts }) => {
 export const getRecData = async (redisIDs) => {
     const paramString = new URLSearchParams(redisIDs).toString();
 
-    const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "http://letterboxd.samlearner.com";
-    console.log('here', process.env.NODE_ENV, url);
+    const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "https://letterboxd.samlearner.com";
     const response = await fetch(`${url}/results?${paramString}`, {
         method: 'GET'
     });
