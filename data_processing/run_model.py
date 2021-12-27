@@ -32,12 +32,12 @@ def get_top_n(predictions, n=20):
 
 def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
      # Connect to MongoDB Client
-    if config and config["MONGO_DB"]:
+    if config:
         db_name = config["MONGO_DB"]
     else:
         db_name = os.environ.get('MONGO_DB', '')
 
-    if config and config["CONNECTION_URL"]:
+    if config:
         connection_url = config["CONNECTION_URL"]
     else:
         connection_url = os.environ.get('CONNECTION_URL', '')
