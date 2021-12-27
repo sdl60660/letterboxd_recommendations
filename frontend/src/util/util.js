@@ -9,7 +9,7 @@ export const poll = async ({ fn, data, validate, interval, maxAttempts }) => {
 
         console.log(attempts, result);
   
-        if (validate(result, data.username, data.progressStep, data.setProgressStep, data.setRedisData)) {
+        if (validate(result, data.progressStep, data.setProgressStep, data.setRedisData)) {
             return resolve(result);
         } else if (maxAttempts && attempts === maxAttempts) {
             return reject(new Error('Exceeded max attempts'));

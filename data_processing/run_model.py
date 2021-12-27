@@ -13,8 +13,17 @@ import pickle
 import pandas as pd
 import random
 
+import os
+
 import pymongo
-from .db_config import config
+
+try:
+    from .db_config import config
+except ImportError:
+    config = {
+        'MONGO_DB': os.getenv('MONGO_DB', ''),
+        'CONNECTION_URL': os.getenv('CONNECTION_URL', '')
+    }
 
 
 def get_top_n(predictions, n=20):

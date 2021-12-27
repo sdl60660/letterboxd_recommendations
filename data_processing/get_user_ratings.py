@@ -29,7 +29,7 @@ def get_page_count(username):
     
     body = soup.find("body")
     if "error" in body["class"]:
-        return -1
+        return -1, None
 
     try:
         page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]

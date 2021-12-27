@@ -15,15 +15,16 @@ import { poll, getRecData } from '../util/util'
 
 const validateData = (
     data,
-    username,
     progressStep,
     setProgressStep,
     setRedisData
 ) => {
     setRedisData(data)
 
+    const userJobStatus = data.statuses.redis_get_user_data_job_status;
+
     if (
-        data.statuses.redis_get_user_data_job_status === 'finished' &&
+        (userJobStatus === 'finished' || userJobStatus === "failed") &&
         progressStep === 0
     ) {
         setProgressStep(1);
@@ -86,7 +87,6 @@ const Controls = ({
             fn: getRecData,
             data: {
                 redisIDs: data,
-                username,
                 progressStep: requestProgressStep,
                 setProgressStep: setRequestProgressStep,
                 setRedisData,

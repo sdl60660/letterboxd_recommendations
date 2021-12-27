@@ -26,6 +26,16 @@ a {
     margin-bottom: 1rem;
 }
 
+ol {
+    text-align: -webkit-center;
+}
+
+ol li::marker {
+    margin: auto;
+    align-self: center;
+    padding: 0;
+}
+
 #username-input {
     max-height: 30px;
     padding: 8px;
