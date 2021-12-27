@@ -1,7 +1,7 @@
 
 #recommendation-list {
     font-size: 18px;
-    padding-left: 32px;
+    padding-left: 30px;
     margin-top: 0;
 }
 
@@ -15,8 +15,10 @@
     margin: 10px 8px;
     font-size: 17px;
 
-    display: grid;
-    grid-template-columns: 10% 75% 15%;
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    // grid-template-columns: 10% 75% 15%;
     align-items: center;
 
     box-sizing: border-box;
@@ -39,10 +41,19 @@
 .title-link {
     padding: 0px 8px;
     justify-self: left;
+    width: 100%;
+    text-align: left;
 }
 
 .movie-poster {
     max-height: 70px;
     width: auto;
-    margin-right: 10px;
+}
+
+@media only screen and (max-width: 700px) {
+    .grid-item.title-link {
+        padding-left: 5px;
+        font-size: 0.9rem;
+        text-align: left;
+    }
 }

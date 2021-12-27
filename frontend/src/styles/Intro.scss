@@ -15,7 +15,7 @@
 }
 
 .intro-paragraph {
-	font-size: 16px;
+	font-size: 1rem;
     margin-bottom: 2rem;
 }
 
@@ -28,11 +28,11 @@
 @media only screen and (max-width: 700px) {
 
     .intro-paragraph {
-        font-size: 14px;
+        // font-size: 0.9rem;
     }
 
     #intro-container {
-        max-width: 85%;
+        max-width: 80vw;
     }
 }
 

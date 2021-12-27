@@ -15,6 +15,10 @@
     color: rgba(0,0,0,0.8) !important;
 }
 
+.data_opt_in_control label span {
+    text-align: left;
+}
+
 .recommendation-form .submit-button button {
     font-size: 1rem;
 }
@@ -35,16 +39,9 @@
     /* max-width: 50%; */
 }
 
-.data-opt-in-label {
-    grid-column: 1 / 5;
-    font-size: 14px;
-}
-
-
 .recommendation-form input {
     font-size: 1rem;
 }
-
 
 #body-content-container {
     min-height: 80vh;
@@ -191,4 +188,24 @@ input:checked + .slider:before {
 
 .slider.round:before {
     border-radius: 50%;
+}
+
+@media only screen and (max-width: 700px) {
+    .recommendation-form {
+        background-color: unset;
+        border: unset;
+        padding: 1.5rem;
+    }
+
+    .data_opt_in_control label {
+        gap: 1rem;
+    }
+
+    .slider-wrapper {
+        padding-left: 0 !important;
+    }
+
+    .recommendation-form label, .recommendation-form span {
+        font-size: 14px;
+    }
 }
