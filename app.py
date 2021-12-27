@@ -59,7 +59,8 @@ def create_app(test_config=None):
     # @app.before_request
     # def redirect_to_new_domain():
     #     urlparts = urlparse(request.url)
-    #     if urlparts.netloc == FROM_DOMAIN:
+
+    #     if urlparts.netloc == FROM_DOMAIN and urlparts.path == "/":
     #         urlparts_list = list(urlparts)
     #         urlparts_list[1] = TO_DOMAIN
     #         return redirect(urlunparse(urlparts_list), code=301)
