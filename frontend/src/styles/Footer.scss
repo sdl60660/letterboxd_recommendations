@@ -31,10 +31,12 @@
 .icon-img {
     margin: auto;
     padding-left: 4px;
-    height: 13px;
-    width: 13px;
+    height: 15px;
+    width: 15px;
     margin-bottom: 2px;
     box-sizing: content-box;
+
+    transform: translate(0, 5px);
 }
 
 .spacer {
@@ -44,6 +46,6 @@
 
 @media only screen and (max-width: 750px) {
     .footer {
-        max-width: 90vw;
+        width: 85vw;
     }
 }
