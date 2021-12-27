@@ -72,7 +72,7 @@ const Controls = ({
 
         setRunningModel(true)
 
-        const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "https://letterboxd.samlearner.com";
+        const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "https://letterboxd-recommendations.herokuapp.com";
         const response = await fetch(
             `${url}/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
             {

@@ -198,7 +198,8 @@ input:checked + .slider:before {
     }
 
     .data_opt_in_control label {
-        gap: 1rem;
+        gap: 5px;
+        color: rgba(0,0,0,0.8);
     }
 
     .slider-wrapper {
