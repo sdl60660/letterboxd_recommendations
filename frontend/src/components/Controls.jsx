@@ -73,8 +73,11 @@ const Controls = ({
 
         setRunningModel(true)
 
+        console.log('here', );
+
+        const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "http://letterboxd.samlearner.com";
         const response = await fetch(
-            `http://127.0.0.1:5453/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
+            `${url}/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
             {
                 method: 'GET',
             }
