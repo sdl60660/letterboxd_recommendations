@@ -37,16 +37,22 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
     else:
         db_name = os.environ.get('MONGO_DB', '')
 
+    serverless_connection = True
     if config:
-        connection_url = config["CONNECTION_URL"]
+        if config["CONNECTION_URL"]:
+            connection_url = config["CONNECTION_URL"]
+        else:
+            connection_url = f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority'
+            serverless_connection = False
+
     else:
         connection_url = os.environ.get('CONNECTION_URL', '')
 
     
-    if "CONNECTION_URL" in config.keys():
+    if serverless_connection:
         client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi('1'))
     else:
-        client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+        client = pymongo.MongoClient(connection_url)
 
     db = client[db_name]
 
