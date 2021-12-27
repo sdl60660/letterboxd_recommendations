@@ -1,0 +1,59 @@
+
+#recommendation-list {
+    font-size: 18px;
+    padding-left: 30px;
+    margin-top: 0;
+}
+
+.movie-rec {
+    min-width: 250px;
+    min-height: 100px;
+    padding: 15px 15px;
+    background-color: rgba(173, 216, 230, 0.3);
+    /* border: 1px solid black; */
+    border-radius: 10px;
+    margin: 10px 8px;
+    font-size: 17px;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    // grid-template-columns: 10% 75% 15%;
+    align-items: center;
+
+    box-sizing: border-box;
+}
+
+.poster-container {
+    justify-self: center;
+}
+
+.predicted-rating-score {
+    padding: 8px;
+    font-size: 20px;
+    font-weight: bold;
+    max-width: 70px;
+    background-color: white;
+    text-align: center;
+    justify-self: center;
+}
+
+.title-link {
+    padding: 0px 8px;
+    justify-self: left;
+    width: 100%;
+    text-align: left;
+}
+
+.movie-poster {
+    max-height: 70px;
+    width: auto;
+}
+
+@media only screen and (max-width: 700px) {
+    .grid-item.title-link {
+        padding-left: 5px;
+        font-size: 0.9rem;
+        text-align: left;
+    }
+}
