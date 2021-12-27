@@ -5,20 +5,26 @@ import {
 } from '@mui/material'
 
 import Result from "./Result";
+import ListFilters from "./ListFilters";
 import { exportCSV } from '../util/util';
 
 
+const colorScale = scaleLinear().domain([1,5.5,9,10]).range(["red","#fde541","green","#1F3D0C"]);
+
 const Results = ({ results }) => {
     const [ listDownloaded, setListDownloaded ] = useState(false);
+    const [ filteredGenres, setFilteredGenres ] = useState(null);
 
-    const colorScale = scaleLinear().domain([1,5.5,9,10]).range(["red","#fde541","green","#1F3D0C"]);
+    const displayedResults = results
+        ?.filter(d => filteredGenres ? filteredGenres.some( genre => d.movie_data.genres?.includes(genre)) : true)
+        .slice(0, 50) || [];
 
     return (
         <>
             { results && 
                 <div id="download-container">
                     <Button variant="outlined" id="download-button" onClick={() => {
-                        exportCSV(results);
+                        exportCSV(displayedResults);
                         setListDownloaded(true);
                     }}>Download Recommendations</Button>
                 { listDownloaded === true &&
@@ -26,9 +32,10 @@ const Results = ({ results }) => {
                 }
                 </div>
             }
+            { results && <ListFilters results={results} setFilteredGenres={setFilteredGenres} /> }
             <div id="results">
                 <ol id="recommendation-list">
-                    { results && results.slice(0, 50).map((d, i) => (<Result key={d.movie_id} textColor={colorScale(d.predicted_rating)} {...d}/>)) }
+                    { results && displayedResults.map((d, i) => (<Result key={d.movie_id} textColor={colorScale(d.predicted_rating)} {...d}/>)) }
                 </ol>
             </div>
         </>

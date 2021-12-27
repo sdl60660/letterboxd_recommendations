@@ -13,7 +13,7 @@
 
 .movie-rec {
     min-width: 250px;
-    min-height: 100px;
+    min-height: 120px;
     padding: 15px 15px;
     background-color: rgba(173, 216, 230, 0.3);
     /* border: 1px solid black; */
@@ -28,6 +28,20 @@
     align-items: center;
 
     box-sizing: border-box;
+    position: relative;
+}
+
+.movie-rec .genre-display {
+    position: absolute;
+    bottom: 10px;
+    left: 4.5rem;
+    display: flex;
+    gap: 8px;
+    flex-direction: row;
+}
+
+.movie-rec .genre-display div span {
+
 }
 
 .poster-container {
