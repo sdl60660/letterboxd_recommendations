@@ -7,10 +7,12 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
 
     return (
         <li>
-            <div className="movie-rec">
-                <a className="grid-item poster-container" target="_blank" rel="noreferrer" href={`https://letterboxd.com/film/${movie_data.movie_id}/`}><img className="movie-poster" src={imageURL} alt={`Movie poster for ${movie_data.movie_title}`}/></a>
-                <a className="grid-item title-link" target="_blank" rel="noreferrer" href={`https://letterboxd.com/film/${movie_data.movie_id}/`}>{movie_data.movie_title} ({yearReleased})</a>
-                <div className="grid-item predicted-rating-score" style={{color: textColor}}>{predicted_rating.toFixed(2)}</div>
+            <div className={"movie-rec-wrapper"}>
+                <div className="movie-rec">
+                    <a className="grid-item poster-container" target="_blank" rel="noreferrer" href={`https://letterboxd.com/film/${movie_data.movie_id}/`}><img className="movie-poster" src={imageURL} alt={`Movie poster for ${movie_data.movie_title}`}/></a>
+                    <a className="grid-item title-link" target="_blank" rel="noreferrer" href={`https://letterboxd.com/film/${movie_data.movie_id}/`}>{movie_data.movie_title} ({yearReleased})</a>
+                    <div className="grid-item predicted-rating-score" style={{color: textColor}}>{predicted_rating.toFixed(2)}</div>
+                </div>
             </div>
         </li>
     )

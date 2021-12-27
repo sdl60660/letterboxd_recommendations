@@ -44,7 +44,6 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
         else:
             connection_url = f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority'
             serverless_connection = False
-
     else:
         connection_url = os.environ.get('CONNECTION_URL', '')
 

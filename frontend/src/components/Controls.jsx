@@ -180,7 +180,7 @@ const Controls = ({
 
             <FormGroup className={'submit-button'}>
                 <Button
-                    variant="outlined"
+                    variant="contained"
                     type="submit"
                     disabled={
                         !/^[A-Za-z0-9_]*$/.test(username) ||
