@@ -59,8 +59,6 @@ const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
     };
 
     const handleYearChange = (event, newValue) => {
-        console.log(newValue);
-
         setYearRange(newValue);
         setFilteredYearRange(newValue);
     }
