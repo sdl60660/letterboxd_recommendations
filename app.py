@@ -80,7 +80,7 @@ def create_app(test_config=None):
         else:
             popularity_threshold = None
 
-        num_items = 50
+        num_items = 400
 
         ordered_queues = sorted(queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count)
         print([(q, DeferredJobRegistry(queue=q).count) for q in ordered_queues])

@@ -1,0 +1,47 @@
+
+#recommendation-list {
+    font-size: 18px;
+    padding-left: 32px;
+}
+
+.movie-rec {
+    min-width: 250px;
+    min-height: 100px;
+    padding: 15px 15px;
+    background-color: rgba(173, 216, 230, 0.3);
+    /* border: 1px solid black; */
+    border-radius: 10px;
+    margin: 10px 8px;
+    font-size: 17px;
+
+    display: grid;
+    grid-template-columns: 10% 75% 15%;
+    align-items: center;
+
+    box-sizing: border-box;
+}
+
+.poster-container {
+    justify-self: center;
+}
+
+.predicted-rating-score {
+    padding: 8px;
+    font-size: 20px;
+    font-weight: bold;
+    max-width: 70px;
+    background-color: white;
+    text-align: center;
+    justify-self: center;
+}
+
+.title-link {
+    padding: 0px 8px;
+    justify-self: left;
+}
+
+.movie-poster {
+    max-height: 70px;
+    width: auto;
+    margin-right: 10px;
+}
