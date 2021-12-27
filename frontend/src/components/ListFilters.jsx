@@ -40,8 +40,9 @@ function getStyles(name, personName, theme) {
 const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
 
     const allGenres = [...new Set(results.map(d => d.movie_data.genres).flat().filter(d => d && d !== ""))];
-    const [genres, setGenres] = useState(allGenres);
     const allYears = [Math.min(...results.map(d => d.movie_data.year_released)), Math.max(...results.map(d => d.movie_data.year_released))]
+
+    const [genres, setGenres] = useState(allGenres);
     const [yearRange, setYearRange] = useState(allYears);
 
     const theme = useTheme();
@@ -55,7 +56,7 @@ const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
         const newGenreVal = typeof value === 'string' ? value.split(',') : value;
 
         setGenres(newGenreVal);
-        setFilteredGenres(newGenreVal);
+        setFilteredGenres(newGenreVal.length === allGenres.length ? null : newGenreVal);
     };
 
     const handleYearChange = (event, newValue) => {
