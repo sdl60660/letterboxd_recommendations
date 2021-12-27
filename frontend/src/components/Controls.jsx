@@ -81,8 +81,6 @@ const Controls = ({
         )
         const data = await response.json()
 
-        console.log(data)
-
         poll({
             fn: getRecData,
             data: {

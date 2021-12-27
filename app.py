@@ -56,13 +56,13 @@ def create_app(test_config=None):
     # queue_pool = [Queue(channel, connection=conn) for channel in ['high']]
     popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
 
-    @app.before_request
-    def redirect_to_new_domain():
-        urlparts = urlparse(request.url)
-        if urlparts.netloc == FROM_DOMAIN:
-            urlparts_list = list(urlparts)
-            urlparts_list[1] = TO_DOMAIN
-            return redirect(urlunparse(urlparts_list), code=301)
+    # @app.before_request
+    # def redirect_to_new_domain():
+    #     urlparts = urlparse(request.url)
+    #     if urlparts.netloc == FROM_DOMAIN:
+    #         urlparts_list = list(urlparts)
+    #         urlparts_list[1] = TO_DOMAIN
+    #         return redirect(urlunparse(urlparts_list), code=301)
 
     @app.route('/')
     def homepage():
