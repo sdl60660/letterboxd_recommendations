@@ -20,10 +20,7 @@ import pymongo
 try:
     from .db_config import config
 except ImportError:
-    config = {
-        'MONGO_DB': os.getenv('MONGO_DB', ''),
-        'CONNECTION_URL': os.getenv('CONNECTION_URL', '')
-    }
+    pass
 
 
 def get_top_n(predictions, n=20):
@@ -35,10 +32,19 @@ def get_top_n(predictions, n=20):
 
 def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
      # Connect to MongoDB Client
-    db_name = config["MONGO_DB"]
+    if config and config["MONGO_DB"]:
+        db_name = config["MONGO_DB"]
+    else:
+        db_name = os.environ.get('MONGO_DB', '')
 
+    if config and config["CONNECTION_URL"]:
+        connection_url = config["CONNECTION_URL"]
+    else:
+        connection_url = os.environ.get('CONNECTION_URL', '')
+
+    
     if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+        client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi('1'))
     else:
         client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
