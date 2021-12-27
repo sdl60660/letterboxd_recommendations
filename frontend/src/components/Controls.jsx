@@ -121,7 +121,7 @@ const Controls = ({
                     pattern="^[A-Za-z0-9_]*$"
                     onInput={(e) => setUsername(e.target.value)}
                     helperText={
-                        'Please provide a valid Letterboxd username (letters, numbers, and underscores only)'
+                        'Please provide a valid Letterboxd username'
                     }
                     label="Letterboxd Username"
                     variant="standard"
