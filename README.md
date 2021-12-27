@@ -22,7 +22,7 @@ The web crawling/data processing portion of this project (everything that isn't 
 
 At that point, if you'd like to run the crawl on your own, you can just run the first three scripts listed in `data_processing/run_scripts.sh` (`get_users.py`, `get_ratings.py`, `get_movies.py`). If you download the data from Kaggle, you'll just need to import each CSV into your Mongo database as its own collection. The other three python scripts (`create_training_data.py`, `build_model.py`, `run_model.py`) will build and run the SVD model for you.
 
-If you'd like to run the web server with the front-end locally, you'll need to run a local Redis instance, as well. You can then run `worker.py` to activate the Redis worker in the background and run `app.py` to start the web server for the front-end.
+If you'd like to run the web server with the front-end locally, you'll need to run a local Redis instance, as well. You can then run `worker.py` to activate the Redis worker in the background and run `app.py` to start the web server. Navigate into the `frontend` directory and run `npm install` to install packages and then `npm start` to start the frontend React app.
 
 
 ### Built With
