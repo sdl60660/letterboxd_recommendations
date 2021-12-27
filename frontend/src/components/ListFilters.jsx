@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -10,6 +10,7 @@ import Select from '@mui/material/Select';
 import Chip from '@mui/material/Chip';
 import ListItemText from '@mui/material/ListItemText';
 import Checkbox from '@mui/material/Checkbox';
+import Slider from '@mui/material/Slider';
 
 import "../styles/ListFilters.scss";
 
@@ -39,12 +40,15 @@ function getStyles(name, personName, theme) {
 const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
 
     const allGenres = [...new Set(results.map(d => d.movie_data.genres).flat().filter(d => d && d !== ""))];
-    const theme = useTheme();
-    const [genres, setGenres] = React.useState(allGenres);
+    const [genres, setGenres] = useState(allGenres);
+    const allYears = [Math.min(...results.map(d => d.movie_data.year_released)), Math.max(...results.map(d => d.movie_data.year_released))]
+    const [yearRange, setYearRange] = useState(allYears);
 
-    const handleChange = (event) => {
+    const theme = useTheme();
+
+    const handleGenreChange = (event) => {
         const {
-        target: { value },
+            target: { value },
         } = event;
 
         // On autofill we get a stringified value.
@@ -54,7 +58,39 @@ const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
         setFilteredGenres(newGenreVal);
     };
 
-    return (
+    const handleYearChange = (event, newValue) => {
+        console.log(newValue);
+
+        setYearRange(newValue);
+        setFilteredYearRange(newValue);
+    }
+
+    return (<div className="list-filter-controls">
+        
+
+      <FormControl>
+            <Box sx={{ width: 400, maxWidth: "90vw" }}>
+                <InputLabel
+                    id="year-filter-label"
+                    shrink={true}
+                >
+                    Year Released
+                </InputLabel>
+                <Slider
+                    labelId="year-filter-label"
+                    id="year-filter"
+                    getAriaLabel={() => 'Year Released filter'}
+                    value={yearRange}
+                    onChange={handleYearChange}
+                    valueLabelDisplay="auto"
+                    getAriaValueText={(value) => value}
+                    min={allYears[0]}
+                    max={allYears[1]}
+                    step={1}
+                />
+            </Box>
+        </FormControl>
+
         <FormControl sx={{ m: 1, width: 400, maxWidth: "90vw" }}>
             <InputLabel id="genre-filter-label">Genres</InputLabel>
             <Select
@@ -62,7 +98,8 @@ const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
                 id="genre-filter"
                 multiple
                 value={genres}
-                onChange={handleChange}
+                onChange={handleGenreChange}
+                getAriaLabel={() => 'Genre filter'}
                 input={<OutlinedInput id="select-multiple-chip" label="Genres" />}
                 renderValue={(selected) => (
                     selected.length === allGenres.length ?
@@ -87,7 +124,7 @@ const ListFilters = ({ results, setFilteredGenres, setFilteredYearRange }) => {
             ))}
             </Select>
       </FormControl>
-    )
+    </div>)
 }
 
 export default ListFilters;

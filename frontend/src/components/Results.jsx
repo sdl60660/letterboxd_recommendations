@@ -8,16 +8,22 @@ import Result from "./Result";
 import ListFilters from "./ListFilters";
 import { exportCSV } from '../util/util';
 
+import "../styles/Results.scss";
+
 
 const colorScale = scaleLinear().domain([1,5.5,9,10]).range(["red","#fde541","green","#1F3D0C"]);
 
 const Results = ({ results }) => {
     const [ listDownloaded, setListDownloaded ] = useState(false);
-    const [ filteredGenres, setFilteredGenres ] = useState(null);
 
-    const displayedResults = results
-        ?.filter(d => filteredGenres ? filteredGenres.some( genre => d.movie_data.genres?.includes(genre)) : true)
-        .slice(0, 50) || [];
+    const [ filteredGenres, setFilteredGenres ] = useState(null);
+    const [ filteredYearRange, setFilteredYearRange ] = useState(null);
+
+    const displayedResults = !results ? [] :
+        results
+            .filter(d => filteredGenres ? filteredGenres.some( genre => d.movie_data.genres?.includes(genre)) : true)
+            .filter(d => filteredYearRange ? d.movie_data.year_released >= filteredYearRange[0] && d.movie_data.year_released <= filteredYearRange[1] : true)
+            .slice(0, 50);
 
     return (
         <>
@@ -32,10 +38,11 @@ const Results = ({ results }) => {
                 }
                 </div>
             }
-            { results && <ListFilters results={results} setFilteredGenres={setFilteredGenres} /> }
+            { results && <ListFilters results={results} setFilteredGenres={setFilteredGenres} setFilteredYearRange={setFilteredYearRange} /> }
             <div id="results">
                 <ol id="recommendation-list">
                     { results && displayedResults.map((d, i) => (<Result key={d.movie_id} textColor={colorScale(d.predicted_rating)} {...d}/>)) }
+                    { results && displayedResults.length === 0 && <div className="no-item-message">No Items Matching Filters</div>}
                 </ol>
             </div>
         </>

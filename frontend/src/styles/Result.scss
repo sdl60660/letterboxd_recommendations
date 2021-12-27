@@ -59,7 +59,7 @@
 }
 
 .title-link {
-    padding: 0px 8px;
+    padding: 0px 8px 10px;
     justify-self: left;
     width: 100%;
     text-align: left;
@@ -72,6 +72,7 @@
 
 @media only screen and (max-width: 700px) {
     .grid-item.title-link {
+        padding: 0px 8px;
         padding-left: 5px;
         font-size: 0.9rem;
         text-align: left;
