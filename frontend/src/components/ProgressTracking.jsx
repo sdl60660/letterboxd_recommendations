@@ -34,7 +34,7 @@ const formatRatingGatherText = ({ queryData, redisData }) => {
                 <a
                     target="_blank"
                     rel="noreferrer"
-                    href="https://letterboxd.com/${username}/films/ratings/"
+                    href={`https://letterboxd.com/${queryData.username}/films/ratings/`}
                 >
                     profile
                 </a>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import '../styles/Controls.scss'
 
 import {
@@ -49,7 +49,6 @@ const Controls = ({
     requestProgressStep,
     setRequestProgressStep,
     setRedisData,
-    setUserRatings,
     setResults
 }) => {
     const POLL_INTERVAL = 1000
@@ -73,9 +72,8 @@ const Controls = ({
 
         setRunningModel(true)
 
-        console.log('here', );
-
         const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "http://letterboxd.samlearner.com";
+        console.log('here', process.env.NODE_ENV, url);
         const response = await fetch(
             `${url}/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
             {

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import './styles/App.scss';
 
@@ -15,7 +15,7 @@ function App() {
   const [requestProgressStep, setRequestProgressStep] = useState(0);
   const [redisData, setRedisData] = useState(null);
 
-  const [userRatings, setUserRatings] = useState(null);
+  // const [userRatings, setUserRatings] = useState(null);
   const [results, setResults] = useState(null);
 
   
@@ -30,7 +30,6 @@ function App() {
           requestProgressStep={requestProgressStep}
           setRequestProgressStep={setRequestProgressStep}
           setRedisData={setRedisData}
-          setUserRatings={setUserRatings}
           setResults={setResults}
         />
 
