@@ -180,7 +180,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
-    chunk_size = 16
+    chunk_size = 3
     total_chunks = math.ceil(len(usernames) / chunk_size)
 
     pbar = tqdm(range(total_chunks))

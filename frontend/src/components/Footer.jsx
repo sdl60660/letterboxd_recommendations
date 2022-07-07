@@ -53,7 +53,7 @@ const Footer = (props) => {
                 </p>
             </section>
             <section>
-                <p>Last Updated: December 2021</p>
+                <p>Last Updated: July 2022</p>
             </section>
         </div>
     )
