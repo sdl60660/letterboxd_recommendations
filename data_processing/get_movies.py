@@ -156,8 +156,10 @@ async def get_rich_data(movie_list, db_cursor, mongo_db):
         # print("Starting Scrape", time.time() - start)
 
         tasks = []
+        movie_list = [x for x in movie_list if x['tmdb_id']]
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
+            # print(base_url.format(movie["tmdb_id"], tmdb_key))
             task = asyncio.ensure_future(fetch_tmdb_data(base_url.format(movie["tmdb_id"], tmdb_key), session, movie, {"movie_id": movie["movie_id"]}))
             tasks.append(task)
 
@@ -193,7 +195,7 @@ def main(data_type="letterboxd"):
         all_movies = [x for x in list(movies.find({ "genres": { "$eq": None }, "tmdb_id": {"$ne": ""}, "tmdb_id": { "$exists": True }}))]
     
     loop = asyncio.get_event_loop()
-    chunk_size = 500
+    chunk_size = 1
     num_chunks = len(all_movies) // chunk_size + 1
 
     print("Total Movies to Scrape:", len(all_movies))
@@ -201,13 +203,13 @@ def main(data_type="letterboxd"):
     print("==========================\n")
 
     pbar = tqdm(range(num_chunks))
-    for chunk in pbar:
-        pbar.set_description(f"Scraping chunk {chunk+1} of {num_chunks}")
+    for chunk_i in pbar:
+        pbar.set_description(f"Scraping chunk {chunk_i+1} of {num_chunks}")
 
-        if chunk == num_chunks - 1:
-            chunk = all_movies[chunk*chunk_size:]
+        if chunk_i == num_chunks - 1:
+            chunk = all_movies[chunk_i*chunk_size:]
         else:
-            chunk = all_movies[chunk*chunk_size:(chunk+1)*chunk_size]
+            chunk = all_movies[chunk_i*chunk_size:(chunk_i+1)*chunk_size]
 
         for attempt in range(5):
             try:
@@ -222,7 +224,7 @@ def main(data_type="letterboxd"):
             else:
                 break
         else:
-            print(f"Count not complete requests for chunk {chunk+1}")
+            print(f"Count not complete requests for chunk {chunk_i+1}")
         
     return
 
