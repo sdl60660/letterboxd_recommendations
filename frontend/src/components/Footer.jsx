@@ -7,7 +7,7 @@ const Footer = (props) => {
             <hr />
             <section>
                 <p style={{fontWeight: "bold"}}>Project by <a target="_blank" rel="noreferrer" href="https://www.samlearner.com/">Sam Learner</a> |
-                    <a target="_blank" rel="noreferrer" href="mailto:learnersd@gmail.com"><img className="icon-img" src="images/email.svg" alt="email link" /></a> |
+                    <a target="_blank" rel="noreferrer" href="mailto:learnersd+letterboxd-recs@gmail.com"><img className="icon-img" src="images/email.svg" alt="email link" /></a> |
                     <a target="_blank" rel="noreferrer" href="https://twitter.com/sam_learner"><img className="icon-img" src="images/twitter.svg" alt="twitter link" /></a> |
                     <a target="_blank" rel="noreferrer" href="https://github.com/sdl60660"><img className="icon-img" src="images/github.svg" alt="github link" /></a> |
                     <a target="_blank" rel="noreferrer" href="https://letterboxd.com/samlearner/"><img className="icon-img" src="images/letterboxd.svg" alt="letterboxd link" /></a>
