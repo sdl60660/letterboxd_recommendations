@@ -13,7 +13,6 @@ numpy >= 1.19.4
 pandas >= 1.1.4
 waitress >= 2.0.0
 tqdm >= 4.50.2
-urlparse
 
 flask
 flask-cors

@@ -1,5 +1,5 @@
 import os
-import urlparse
+from urllib.parse import urlparse
 import redis
 # from redis import Redis
 from rq import Worker, Queue, Connection
