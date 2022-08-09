@@ -11,6 +11,7 @@ listen = ['high', 'default', 'low']
 # redis_url = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 redis_url = 'redis://localhost:6379'
 if os.getenv('REDISCLOUD_URL'):
+    print('inside here:', os.getenv('REDISCLOUD_URL'))
     redis_url = urlparse(os.getenv('REDISCLOUD_URL'))
 
 print('here', redis_url, os.getenv('REDISCLOUD_URL'))
