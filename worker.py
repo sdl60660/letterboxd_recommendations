@@ -13,6 +13,8 @@ redis_url = 'redis://localhost:6379'
 if os.getenv('REDISTOGO_URL'):
     redis_url = urlparse.urlparse(os.getenv('REDISCLOUD_URL'))
 
+print('here', redis_url, os.getenv('REDISCLOUD_URL'))
+
 conn = redis.from_url(redis_url)
 
 if __name__ == '__main__':
