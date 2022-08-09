@@ -26,9 +26,9 @@ FROM_DOMAIN = "letterboxd-recommendations.herokuapp.com"
 TO_DOMAIN = "letterboxd.samlearner.com"
 
 
-def create_app(test_config=None):
+def create_app(__name__, instance_relative_config=True, test_config=None):
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__, instance_relative_config=instance_relative_config)
 
     csp = {
         'default-src': ['*', "'unsafe-inline'", "'unsafe-eval'"]
@@ -137,11 +137,11 @@ def create_app(test_config=None):
     return app
 
 
-app = create_app()
-SECRET_KEY = os.getenv('SECRET_KEY', '12345')
-app.secret_key = SECRET_KEY
-
+def main(__name__, instance_relative_config=True):
+    app = create_app(__name__, instance_relative_config)
+    SECRET_KEY = os.getenv('SECRET_KEY', '12345')
+    app.secret_key = SECRET_KEY
+    app.run(port=5453, debug=True)
 
 if __name__ == "__main__":
-    app = create_app()
-    app.run(port=5453, debug=True)
+    main(__name__, True)
