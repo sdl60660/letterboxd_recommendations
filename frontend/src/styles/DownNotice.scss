@@ -1,0 +1,17 @@
+
+
+div.down-notice {
+  background-color: rgba(218, 218, 174, 0.5);
+  border: 1px solid rgba(20,20,20, 0.8);
+  border-radius: 3px;
+
+  max-width: 650px;
+  box-sizing: border-box;
+  padding: 1rem 2rem;
+
+  margin: 1rem auto 1rem;
+
+  p {
+    text-align: left;
+  }
+}
