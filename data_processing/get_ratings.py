@@ -207,7 +207,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
-    chunk_size = 10
+    chunk_size = 5
     total_chunks = math.ceil(len(usernames) / chunk_size)
 
     for chunk_index in range(total_chunks):

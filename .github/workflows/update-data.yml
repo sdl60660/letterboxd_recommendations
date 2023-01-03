@@ -1,13 +1,14 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
+
 name: Python application
 
 on:
   push:
-    branches: [ "test-workflows" ]
-  # schedule:
-  #   - cron: '0 * * * *' # runs every hour
+    branches: [ "test-workflows", "main" ]
+  schedule:
+    - cron: '0 0 * * 2' # runs once per week at midnight on tuesday
 
 permissions:
   contents: write
@@ -44,38 +45,39 @@ jobs:
       if: steps.cache-pipenv.outputs.cache-hit != 'true'
       run: pipenv install --deploy --dev
       
-    - name: Switch to data_processing directory
-      run: cd data_processing
-    
-    - name: Crawl users data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-      run: pipenv run python get_users.py
+    # - name: Crawl users data
+    #   env:
+    #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+    #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #   run: cd data_processing && pipenv run python get_users.py
 
-    - name: Crawl ratings data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-      run: pipenv run python get_ratings.py
+    # - name: Crawl ratings data
+    #   env:
+    #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+    #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #   run: cd data_processing && pipenv run python get_ratings.py
 
     - name: Get movie data
       env:
         CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
         MONGO_DB: ${{ secrets.MONGO_DB }}
-      run: pipenv run python get_movies.py
+        TMDB_KEY: ${{ secrets.TMDB_KEY }}
+      run: cd data_processing && pipenv run python get_movies.py
 
     - name: Create new training data sample file
       env:
         CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
         MONGO_DB: ${{ secrets.MONGO_DB }}
-      run: pipenv run python create_training_data.py
+      run: cd data_processing && pipenv run python create_training_data.py
+
+    - name: Update last updated date
+      run: cd data_processing && pipenv run python update_last_updated.py
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
         # Optional. Commit message for the created commit.
         # Defaults to "Apply automatic changes"
-        commit_message: Weekly automatic data update
+        commit_message: Automated data update
 
         # Optional. Local and remote branch name where commit is going to be pushed
         #  to. Defaults to the current branch.

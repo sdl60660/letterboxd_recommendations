@@ -18,10 +18,6 @@ import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-# This is a MongoDB connection URL and a TMDB API key imported from a file in the .gitignore
-from db_config import config, tmdb_key
-
-
 async def fetch(url, session, input_data={}):
     async with session.get(url) as r:
         response = await r.read()
@@ -149,7 +145,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
-async def get_rich_data(movie_list, db_cursor, mongo_db):
+async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
 
     async with ClientSession() as session:
@@ -178,7 +174,8 @@ async def get_rich_data(movie_list, db_cursor, mongo_db):
 def main(data_type="letterboxd"):
     # Connect to MongoDB client
     try:
-        from db_config import config
+        # This is a MongoDB connection URL and a TMDB API key imported from a file in the .gitignore
+        from db_config import config, tmdb_key
 
         db_name = config["MONGO_DB"]
         if "CONNECTION_URL" in config.keys():
@@ -191,6 +188,7 @@ def main(data_type="letterboxd"):
         import os
         db_name = os.environ['MONGO_DB']
         client = pymongo.MongoClient(os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+        tmdb_key = os.environ['TMDB_KEY']
 
     db = client[db_name]
     movies = db.movies
@@ -225,7 +223,7 @@ def main(data_type="letterboxd"):
                 if data_type == "letterboxd":
                     future = asyncio.ensure_future(get_movies(chunk, movies, db))
                 else:
-                    future = asyncio.ensure_future(get_rich_data(chunk, movies, db))
+                    future = asyncio.ensure_future(get_rich_data(chunk, movies, db, tmdb_key))
                 loop.run_until_complete(future)
             except Exception as e:
                 print(f"Error: {e}")

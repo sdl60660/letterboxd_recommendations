@@ -9,8 +9,6 @@ from numpy import savetxt
 import pickle
 
 import pymongo
-from db_config import config
-
 
 def get_sample(cursor, iteration_size):
     while True:
