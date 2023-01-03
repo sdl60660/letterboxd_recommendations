@@ -16,7 +16,7 @@ permissions:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v3
@@ -57,12 +57,12 @@ jobs:
     #     MONGO_DB: ${{ secrets.MONGO_DB }}
     #   run: cd data_processing && pipenv run python get_ratings.py
 
-    - name: Get movie data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-        TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      run: cd data_processing && pipenv run python get_movies.py
+    # - name: Get movie data
+    #   env:
+    #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+    #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #     TMDB_KEY: ${{ secrets.TMDB_KEY }}
+    #   run: cd data_processing && pipenv run python get_movies.py
 
     - name: Create new training data sample file
       env:
