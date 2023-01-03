@@ -4,6 +4,7 @@ import requests
 import time
 from tqdm import tqdm
 import math
+import os
 from itertools import chain
 
 import asyncio
@@ -206,7 +207,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
-    chunk_size = 5
+    chunk_size = 10
     total_chunks = math.ceil(len(usernames) / chunk_size)
 
     for chunk_index in range(total_chunks):
@@ -264,21 +265,24 @@ def print_status(start, chunk_size, chunk_index, total_operations, total_records
 
 
 def main():
-    import os
-    if os.getcwd().endswith("data_processing"):
-        from db_config import config
-    else:
-        from data_processing.db_config import config
+    # Connect to MongoDB client
+    try:
+        if os.getcwd().endswith("data_processing"):
+            from db_config import config
+        else:
+            from data_processing.db_config import config
 
-    # Connect to MongoDB Client
-    db_name = config["MONGO_DB"]
+        db_name = config["MONGO_DB"]
+        if "CONNECTION_URL" in config.keys():
+            client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+        else:
+            client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
-    if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
-    else:
-        # client = motor.motor_asyncio.AsyncIOMotorClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/?retryWrites=true&w=majority')
-        client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
-
+    except ModuleNotFoundError:
+        # If not running locally, since db_config data is not committed to git
+        db_name = os.environ['MONGO_DB']
+        client = pymongo.MongoClient(os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+   
     # Find letterboxd database and user collection
     db = client[db_name]
     users = db.users

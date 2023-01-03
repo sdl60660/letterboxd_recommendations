@@ -6,18 +6,25 @@ from bs4 import BeautifulSoup
 
 import pymongo
 from pymongo.errors import BulkWriteError
-from db_config import config
 
 from pprint import pprint
 from tqdm import tqdm
 
+try:
+    from db_config import config
 
-db_name = config["MONGO_DB"]
+    db_name = config["MONGO_DB"]
+    if "CONNECTION_URL" in config.keys():
+        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+    else:
+        client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
 
-if "CONNECTION_URL" in config.keys():
-    client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
-else:
-    client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+except ModuleNotFoundError:
+    # If not running locally, since db_config data is not committed to git
+    import os
+    db_name = os.environ['MONGO_DB']
+    client = pymongo.MongoClient(os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+
 
 db = client[db_name]
 users = db.users

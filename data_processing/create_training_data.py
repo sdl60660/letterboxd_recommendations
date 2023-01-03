@@ -62,13 +62,21 @@ def create_movie_data_sample(db_client, movie_list):
     return movie_df
 
 if __name__ == "__main__":
-    # Connect to MongoDB Client
-    db_name = config["MONGO_DB"]
+    # Connect to MongoDB client
+    try:
+        from db_config import config
 
-    if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
-    else:
-        client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+        db_name = config["MONGO_DB"]
+        if "CONNECTION_URL" in config.keys():
+            client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+        else:
+            client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+
+    except ModuleNotFoundError:
+        # If not running locally, since db_config data is not committed to git
+        import os
+        db_name = os.environ['MONGO_DB']
+        client = pymongo.MongoClient(os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
 
     db = client[db_name]
 

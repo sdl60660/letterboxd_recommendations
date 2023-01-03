@@ -176,12 +176,21 @@ async def get_rich_data(movie_list, db_cursor, mongo_db):
 
 
 def main(data_type="letterboxd"):
-    db_name = config["MONGO_DB"]
+    # Connect to MongoDB client
+    try:
+        from db_config import config
 
-    if "CONNECTION_URL" in config.keys():
-        client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
-    else:
-        client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+        db_name = config["MONGO_DB"]
+        if "CONNECTION_URL" in config.keys():
+            client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+        else:
+            client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
+
+    except ModuleNotFoundError:
+        # If not running locally, since db_config data is not committed to git
+        import os
+        db_name = os.environ['MONGO_DB']
+        client = pymongo.MongoClient(os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
 
     db = client[db_name]
     movies = db.movies
@@ -195,7 +204,7 @@ def main(data_type="letterboxd"):
         all_movies = [x for x in list(movies.find({ "genres": { "$eq": None }, "tmdb_id": {"$ne": ""}, "tmdb_id": { "$exists": True }}))]
     
     loop = asyncio.get_event_loop()
-    chunk_size = 1
+    chunk_size = 10
     num_chunks = len(all_movies) // chunk_size + 1
 
     print("Total Movies to Scrape:", len(all_movies))
