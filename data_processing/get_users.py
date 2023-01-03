@@ -34,7 +34,6 @@ for page in pbar:
     table = soup.find("table", attrs={"class": "person-table"})
     rows = table.findAll("td", attrs={"class": "table-person"})
     
-
     update_operations = []
     for row in rows:
         link = row.find("a")["href"]

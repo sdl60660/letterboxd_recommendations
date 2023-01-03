@@ -24,7 +24,10 @@ else:
 
 async def fetch(url, session, input_data={}):
     async with session.get(url) as response:
-        return await response.read(), input_data
+        try:
+            return await response.read(), input_data
+        except:
+            return None, None
             
 
 async def get_page_counts(usernames, users_cursor):
@@ -37,6 +40,7 @@ async def get_page_counts(usernames, users_cursor):
             tasks.append(task)
         
         responses = await asyncio.gather(*tasks)
+        responses = [x for x in responses if x]
 
         update_operations = []
         for i, response in enumerate(responses):
@@ -47,12 +51,31 @@ async def get_page_counts(usernames, users_cursor):
             except IndexError:
                 num_pages = 1
 
-            # users_cursor.update_one({"username": response[1]['username']}, {"$set": {"num_ratings_pages": num_pages}})   
+            user = users_cursor.find_one({"username": response[1]['username']})
+
+            try:
+                previous_num_pages = user["num_ratings_pages"]
+                if not previous_num_pages:
+                    previous_num_pages = 0
+            except KeyError:
+                previous_num_pages = 0
+            
+            # To avoid re-scraping a bunch of reviews already hit, we'll only scrape new pages
+            # To be safe, and because pagination is funky, we'll do one more than the difference
+            # ...between previously scraped page count and current page count, but then cap it at total
+            # ...pages in case there were zero previously scraped pages or only a single page, etc
+            new_pages = min(num_pages, num_pages - previous_num_pages + 1)
+
+            # Also, pages cap at 128, so if they've got 128 pages and we've scraped most of them before, we'll
+            # ...just do the most recent 10 pages
+            if num_pages >= 128 and new_pages < 10:
+                new_pages = 10    
+
             update_operations.append(
                 UpdateOne({
                     "username": response[1]['username']
                     },
-                    {"$set": {"num_ratings_pages": num_pages}},
+                    {"$set": {"num_ratings_pages": num_pages, "recent_page_count": new_pages}},
                     upsert=True
                 )
             )
@@ -138,7 +161,11 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     if not num_pages:
         # Find them in the MongoDB database and grab the number of ratings pages
         user = db_cursor.find_one({"username": username})
-        num_pages = user["num_ratings_pages"]
+        # num_pages = user["num_ratings_pages"]
+
+        # We're trying to limit the number of pages we crawl instead of wasting tons of time on
+        # gathering ratings we've already hit (see comment in get_page_counts)
+        num_pages = user["recent_page_count"]
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
@@ -151,7 +178,8 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
 
         # Gather all ratings page responses
         scrape_responses = await asyncio.gather(*tasks)
-        
+        scrape_responses = [x for x in scrape_responses if x]
+
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
     tasks = []
     for response in scrape_responses:
@@ -175,16 +203,13 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
 
 
 async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True):
-    start = time.time()
-
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
-    chunk_size = 3
+    chunk_size = 5
     total_chunks = math.ceil(len(usernames) / chunk_size)
 
-    pbar = tqdm(range(total_chunks))
-    for chunk_index in pbar:
+    for chunk_index in range(total_chunks):
         tasks = []
         db_ratings_operations = []
         db_movies_operations = []
@@ -193,7 +218,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
         end_index = chunk_size*chunk_index + chunk_size
         username_chunk = usernames[start_index:end_index]
 
-        pbar.set_description(f"Scraping ratings data for user group {chunk_index+1} of {total_chunks}")
+        # pbar.set_description(f"Scraping ratings data for user group {chunk_index+1} of {total_chunks}")
 
         # For a given chunk, scrape each user's ratings and form an array of database upsert operations
         for i, username in enumerate(username_chunk):
@@ -220,8 +245,6 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
             except BulkWriteError as bwe:
                 pprint(bwe.details)
         
-        # print_status(start, chunk_size, chunk_index, len(db_ratings_operations), len(usernames))
-
 
 def print_status(start, chunk_size, chunk_index, total_operations, total_records):
     total_time = round((time.time() - start), 2)
@@ -262,17 +285,25 @@ def main():
     all_users = users.find({})
     all_usernames = [x['username'] for x in all_users]
 
-    loop = asyncio.get_event_loop()
+    large_chunk_size = 100
+    num_chunks = math.ceil(len(all_usernames) / large_chunk_size)
 
-    # Find number of ratings pages for each user and add to their Mongo document (note: max of 128 scrapable pages)
-    # future = asyncio.ensure_future(get_page_counts(all_usernames, users))
-    # future = asyncio.ensure_future(get_page_counts([], users))
-    # loop.run_until_complete(future)
+    pbar = tqdm(range(num_chunks))
+    for chunk in pbar:
+        pbar.set_description(f"Scraping ratings data for user group {chunk+1} of {num_chunks}")
+        username_set = all_usernames[chunk*large_chunk_size:(chunk+1)*large_chunk_size]
 
-    # Find and store ratings for each user
-    future = asyncio.ensure_future(get_ratings(all_usernames, users, db))
-    # future = asyncio.ensure_future(get_ratings(["samlearner"], users, db))
-    loop.run_until_complete(future)
+        loop = asyncio.get_event_loop()
+
+        # Find number of ratings pages for each user and add to their Mongo document (note: max of 128 scrapable pages)
+        future = asyncio.ensure_future(get_page_counts(username_set, users))
+        # future = asyncio.ensure_future(get_page_counts([], users))
+        loop.run_until_complete(future)
+
+        # Find and store ratings for each user
+        future = asyncio.ensure_future(get_ratings(username_set, users, db))
+        # future = asyncio.ensure_future(get_ratings(["samlearner"], users, db))
+        loop.run_until_complete(future)
 
 
 if __name__ == "__main__":
