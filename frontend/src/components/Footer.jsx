@@ -1,7 +1,11 @@
 import React from 'react';
+
+import metaData from '../data/meta.json';
 import '../styles/Footer.scss';
 
 const Footer = (props) => {
+    const lastUpdatedDate = new Date(metaData.last_updated);
+    
     return (
         <div className="container footer">
             <hr />
@@ -53,7 +57,7 @@ const Footer = (props) => {
                 </p>
             </section>
             <section>
-                <p>Last Updated: July 2022</p>
+                <p>Last Updated: {lastUpdatedDate.toUTCString().slice(8,16)}</p>
             </section>
         </div>
     )

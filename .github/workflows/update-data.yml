@@ -51,11 +51,11 @@ jobs:
         MONGO_DB: ${{ secrets.MONGO_DB }}
       run: cd data_processing && pipenv run python get_users.py
 
-    - name: Crawl ratings data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-      run: cd data_processing && pipenv run python get_ratings.py
+    # - name: Crawl ratings data
+    #   env:
+    #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+    #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #   run: cd data_processing && pipenv run python get_ratings.py
 
     - name: Get movie data
       env:
@@ -73,7 +73,7 @@ jobs:
       with:
         # Optional. Commit message for the created commit.
         # Defaults to "Apply automatic changes"
-        commit_message: Weekly automatic data update
+        commit_message: Automated data update
 
         # Optional. Local and remote branch name where commit is going to be pushed
         #  to. Defaults to the current branch.
