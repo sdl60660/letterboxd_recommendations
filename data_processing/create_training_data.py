@@ -27,7 +27,7 @@ def create_training_data(db_client, sample_size=200000):
     all_ratings = []
     unique_records = 0
     while unique_records < sample_size:
-        rating_sample = get_sample(ratings, 100000)
+        rating_sample = get_sample(ratings, 10000)
         all_ratings += rating_sample
         unique_records = len(set([(x['movie_id'] + x['user_id']) for x in all_ratings]))
         print(unique_records)
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     db = client[db_name]
 
     # Generate training data sample
-    training_df, threshold_movie_list = create_training_data(db, 1500000)
+    training_df, threshold_movie_list = create_training_data(db, 750000)
 
     # Create review counts dataframe
     review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).count().reset_index()
