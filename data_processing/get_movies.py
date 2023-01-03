@@ -145,7 +145,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
-async def get_rich_data(movie_list, db_cursor, mongo_db):
+async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
 
     async with ClientSession() as session:
@@ -223,7 +223,7 @@ def main(data_type="letterboxd"):
                 if data_type == "letterboxd":
                     future = asyncio.ensure_future(get_movies(chunk, movies, db))
                 else:
-                    future = asyncio.ensure_future(get_rich_data(chunk, movies, db))
+                    future = asyncio.ensure_future(get_rich_data(chunk, movies, db, tmdb_key))
                 loop.run_until_complete(future)
             except Exception as e:
                 print(f"Error: {e}")
