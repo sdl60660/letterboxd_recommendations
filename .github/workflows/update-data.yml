@@ -6,9 +6,9 @@ name: Python application
 
 on:
   push:
-    branches: [ "test-workflows" ]
-  # schedule:
-  #   - cron: '0 * * * *' # runs every hour
+    branches: [ "test-workflows", "main" ]
+  schedule:
+    - cron: '0 0 * * 2' # runs once per week at midnight on tuesday
 
 permissions:
   contents: write
@@ -45,11 +45,11 @@ jobs:
       if: steps.cache-pipenv.outputs.cache-hit != 'true'
       run: pipenv install --deploy --dev
       
-    - name: Crawl users data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-      run: cd data_processing && pipenv run python get_users.py
+    # - name: Crawl users data
+    #   env:
+    #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+    #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #   run: cd data_processing && pipenv run python get_users.py
 
     # - name: Crawl ratings data
     #   env:
