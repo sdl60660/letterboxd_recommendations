@@ -1,7 +1,8 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python application
+
+name: Weekly data update
 
 on:
   push:
@@ -48,12 +49,14 @@ jobs:
     #   env:
     #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
     #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #     TMDB_KEY: ${{ secrets.TMDB_KEY }}
     #   run: cd data_processing && pipenv run python get_users.py
 
     # - name: Crawl ratings data
     #   env:
     #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
     #     MONGO_DB: ${{ secrets.MONGO_DB }}
+    #     TMDB_KEY: ${{ secrets.TMDB_KEY }}
     #   run: cd data_processing && pipenv run python get_ratings.py
 
     # - name: Get movie data
@@ -67,6 +70,7 @@ jobs:
       env:
         CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
         MONGO_DB: ${{ secrets.MONGO_DB }}
+        TMDB_KEY: ${{ secrets.TMDB_KEY }}
       run: cd data_processing && pipenv run python create_training_data.py
 
     - name: Update last updated date
