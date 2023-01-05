@@ -83,7 +83,7 @@ def get_recs(username: str, training_data_size: int, popularity_filter: int, dat
     })
 
 @app.get("/results")
-async def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
+def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
     job_ids = {
         "redis_build_model_job_id": redis_build_model_job_id,
         "redis_get_user_data_job_id": redis_get_user_data_job_id
