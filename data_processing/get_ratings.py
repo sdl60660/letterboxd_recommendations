@@ -5,7 +5,6 @@ import time
 from tqdm import tqdm
 import math
 import datetime
-import random
 from itertools import chain
 
 import asyncio
@@ -14,7 +13,6 @@ from bs4 import BeautifulSoup
 
 from pprint import pprint
 
-import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
