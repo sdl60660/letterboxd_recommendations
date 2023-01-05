@@ -164,7 +164,6 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     if not num_pages:
         # Find them in the MongoDB database and grab the number of ratings pages
         user = db_cursor.find_one({"username": username})
-        # num_pages = user["num_ratings_pages"]
 
         # We're trying to limit the number of pages we crawl instead of wasting tons of time on
         # gathering ratings we've already hit (see comment in get_page_counts)
@@ -209,7 +208,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
-    chunk_size = 5
+    chunk_size = 8
     total_chunks = math.ceil(len(usernames) / chunk_size)
 
     for chunk_index in range(total_chunks):
@@ -276,7 +275,7 @@ def main():
     all_users = users.find({})
     all_usernames = [x['username'] for x in all_users]
 
-    large_chunk_size = 100
+    large_chunk_size = 80
     num_chunks = math.ceil(len(all_usernames) / large_chunk_size)
 
     pbar = tqdm(range(num_chunks))
