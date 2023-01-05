@@ -19,7 +19,7 @@ db = client[db_name]
 users = db.users
 
 # base_url = "https://letterboxd.com/members/popular/page/{}"
-base_url = "https://letterboxd.com/members/popular/this/month/page/{}/"
+base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
 
 total_pages = 128
 pbar = tqdm(range(1, total_pages+1))
