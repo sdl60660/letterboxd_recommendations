@@ -12,6 +12,8 @@ import pymongo
 from pymongo import UpdateOne, ReplaceOne
 from pymongo.errors import BulkWriteError
 
+import datetime
+
 from pprint import pprint
 
 import os
@@ -71,7 +73,8 @@ def send_to_db(username, display_name, user_ratings):
         user = {
             "username": username,
             "display_name": display_name,
-            "num_reviews": len(user_ratings)
+            "num_reviews": len(user_ratings),
+            "last_updated": datetime.datetime.now()
         }
 
         users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)

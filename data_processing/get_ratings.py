@@ -1,10 +1,10 @@
 #!/usr/local/bin/python3.9
 
-import requests
 import time
 from tqdm import tqdm
 import math
-import os
+import datetime
+import random
 from itertools import chain
 
 import asyncio
@@ -78,7 +78,7 @@ async def get_page_counts(usernames, users_cursor):
                 UpdateOne({
                     "username": response[1]['username']
                     },
-                    {"$set": {"num_ratings_pages": num_pages, "recent_page_count": new_pages}},
+                    {"$set": {"num_ratings_pages": num_pages, "recent_page_count": new_pages, "last_updated": datetime.datetime.now()}},
                     upsert=True
                 )
             )
@@ -208,7 +208,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
-    chunk_size = 8
+    chunk_size = 10
     total_chunks = math.ceil(len(usernames) / chunk_size)
 
     for chunk_index in range(total_chunks):
@@ -272,10 +272,15 @@ def main():
     # Find letterboxd database and user collection
     db = client[db_name]
     users = db.users
-    all_users = users.find({})
+
+    # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's
+    # ratings every time. We'll select the group that's at least more than two months since last update
+    # (or which doesn't have a last_updated time yet) and then grab the 1000 records which are least recently updated
+    two_months_old = datetime.datetime.now() - datetime.timedelta(days=60)
+    all_users = list(users.find({"$or":[ {"last_updated": {"$lt": two_months_old} }, {"last_updated": {"$exists": False} } ]}).sort("last_updated", -1).limit(1000))
     all_usernames = [x['username'] for x in all_users]
 
-    large_chunk_size = 80
+    large_chunk_size = 100
     num_chunks = math.ceil(len(all_usernames) / large_chunk_size)
 
     pbar = tqdm(range(num_chunks))
