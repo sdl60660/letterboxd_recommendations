@@ -38,16 +38,10 @@ def create_training_data(db_client, sample_size=200000):
     df = df[["user_id", "movie_id", "rating_val"]]
     df.drop_duplicates(inplace=True)
     df = df.head(sample_size)
+
     print(df.head())
 
-    min_review_threshold = 5
-
-    grouped_df = df.groupby(by=["movie_id"]).count().reset_index()
-    print(grouped_df.head())
-    grouped_df = grouped_df.loc[grouped_df['rating_val'] > min_review_threshold]
-    full_movie_list = grouped_df["movie_id"].to_list()
-
-    return df, full_movie_list
+    return df
 
 
 def create_movie_data_sample(db_client, movie_list):
@@ -64,20 +58,22 @@ def create_movie_data_sample(db_client, movie_list):
 if __name__ == "__main__":
     # Connect to MongoDB client
     db_name, client, tmdb_key = connect_to_db()
-
     db = client[db_name]
 
+    min_review_threshold = 15
+
     # Generate training data sample
-    training_df, threshold_movie_list = create_training_data(db, 1500000)
+    training_df = create_training_data(db, 1500000)
 
     # Create review counts dataframe
-    review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).count().reset_index()
-    # We'll pull review counts from the full DB dataset, but then only include those in the threshold list in the final dataframe
-    # This is because only those on the threshold list will make it into the model anyway, so filtering the dataframe now avoids processing later
-    # But we start with the full dataset so as to get more accurate review counts, rather than using review counts from a smaller sample
-    review_counts_df = review_counts_df[review_counts_df['movie_id'].isin(threshold_movie_list)]
-    review_counts_df["count"] = review_counts_df["_id"]
-    review_counts_df = review_counts_df[["movie_id", "count"]]
+    review_count = db.ratings.aggregate([
+        { "$group": { "_id": "$movie_id", "review_count": { "$sum": 1 } } },
+        { "$match": { "review_count": { "$gte": min_review_threshold } } }
+    ])
+    review_counts_df = pd.DataFrame(list(review_count))
+    review_counts_df.rename(columns={"_id": "movie_id", "review_count": "count"}, inplace=True)
+
+    threshold_movie_list = review_counts_df['movie_id'].to_list()
     
     # Generate movie data CSV
     movie_df = create_movie_data_sample(db, threshold_movie_list)
@@ -88,9 +84,7 @@ if __name__ == "__main__":
     # This virtually always means it's a collection of more popular movies (such as the LOTR trilogy) and we don't want it included in recs
     retain_list = movie_df.loc[(movie_df['year_released'].notna() & movie_df['year_released'] != 0.0)]['movie_id'].to_list()
     
-    # print(len(threshold_movie_list))
     threshold_movie_list = [x for x in threshold_movie_list if x in retain_list]
-    # print(len(threshold_movie_list))
 
     # Store Data
     with open('models/threshold_movie_list.txt', 'wb') as fp:
