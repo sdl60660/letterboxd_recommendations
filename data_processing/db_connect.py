@@ -1,3 +1,5 @@
+#!/usr/local/bin/python3.11
+
 def connect_to_db():
     import os
     import pymongo

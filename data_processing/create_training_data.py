@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.9
+#!/usr/local/bin/python3.11
 
 import pandas as pd
 
@@ -50,8 +50,8 @@ def create_movie_data_sample(db_client, movie_list):
     
     movie_df = pd.DataFrame(list(included_movies))
     movie_df = movie_df[['movie_id', 'image_url', 'movie_title', 'year_released']]
-    movie_df['image_url'] = movie_df['image_url'].str.replace('https://a.ltrbxd.com/resized/', '', regex=False)
-    movie_df['image_url'] = movie_df['image_url'].str.replace('https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png', '', regex=False)
+    movie_df['image_url'] = movie_df['image_url'].fillna('').str.replace('https://a.ltrbxd.com/resized/', '', regex=False)
+    movie_df['image_url'] = movie_df['image_url'].fillna('').str.replace('https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png', '', regex=False)
     
     return movie_df
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     db_name, client, tmdb_key = connect_to_db()
     db = client[db_name]
 
-    min_review_threshold = 15
+    min_review_threshold = 20
 
     # Generate training data sample
     training_df = create_training_data(db, 1500000)

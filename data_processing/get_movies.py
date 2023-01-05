@@ -1,6 +1,6 @@
-#!/usr/local/bin/python3.9
+#!/usr/local/bin/python3.11
 
-import requests
+import datetime
 from bs4 import BeautifulSoup
 
 import asyncio
@@ -19,7 +19,7 @@ from pymongo.errors import BulkWriteError
 
 from db_connect import connect_to_db
 
-async def fetch(url, session, input_data={}):
+async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
         response = await r.read()
 
@@ -38,21 +38,6 @@ async def fetch(url, session, input_data={}):
             year = int(movie_header.find('small', attrs={'class': 'number'}).find('a').text)
         except AttributeError:
             year = None
-
-        try:
-            image_url = soup.find('div', attrs={'class': 'film-poster'}).find('img')['src'].split('?')[0]
-            image_url = image_url.replace('https://a.ltrbxd.com/resized/', '').split('.jpg')[0]
-            if 'https://s.ltrbxd.com/static/img/empty-poster' in image_url:
-                image_url = ''
-        except AttributeError:
-            image_url = ''
-        
-        # JS Component
-        # try:
-        #     watches = soup.find('ul', attrs={'class': 'film-stats'}).find('li', attrs={'class', 'filmstat-watches'}).find('a')['data-original-title']
-        #     watches = int(watches.strip('Watched by ').strip(' members').replace(',', ''))
-        # except:
-        #     watches = None
 
         soup.find("span", attrs={"class": "rating"})
 
@@ -73,7 +58,6 @@ async def fetch(url, session, input_data={}):
         movie_object = {
                     "movie_id": input_data["movie_id"],
                     "movie_title": movie_title,
-                    "image_url": image_url,
                     "year_released": year,
                     "imdb_link": imdb_link,
                     "tmdb_link": tmdb_link,
@@ -88,6 +72,43 @@ async def fetch(url, session, input_data={}):
                 "$set": movie_object
             }, upsert=True)
 
+
+        return update_operation
+
+
+async def fetch_poster(url, session, input_data={}):
+    async with session.get(url) as r:
+        response = await r.read()
+
+        # Parse poster standalone page
+        soup = BeautifulSoup(response, "lxml")
+
+        try:
+            image_url = soup.find('div', attrs={'class': 'film-poster'}).find('img')['src'].split('?')[0]
+            print(image_url)
+            image_url = image_url.replace('https://a.ltrbxd.com/resized/', '').split('.jpg')[0]
+            if 'https://s.ltrbxd.com/static/img/empty-poster' in image_url:
+                image_url = ''
+        except AttributeError:
+            image_url = ''
+
+        print(image_url)
+        
+        movie_object = {
+                    "movie_id": input_data["movie_id"],
+                }
+
+        if image_url != "":
+            movie_object["image_url"] = image_url
+        
+        movie_object['last_updated'] = datetime.datetime.now()
+
+        update_operation = UpdateOne({
+                "movie_id": input_data["movie_id"]
+            },
+            {
+                "$set": movie_object
+            }, upsert=True)
 
         return update_operation
 
@@ -111,6 +132,8 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
                 movie_object[field_name] = response[field_name]
             except:
                 movie_object[field_name] = None
+        
+        movie_object['last_updated'] = datetime.datetime.now()
 
         update_operation = UpdateOne({
                 "movie_id": input_data["movie_id"]
@@ -132,7 +155,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         tasks = []
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
-            task = asyncio.ensure_future(fetch(url.format(movie), session, {"movie_id": movie}))
+            task = asyncio.ensure_future(fetch_letterboxd(url.format(movie), session, {"movie_id": movie}))
             tasks.append(task)
 
         # Gather all ratings page responses
@@ -145,6 +168,31 @@ async def get_movies(movie_list, db_cursor, mongo_db):
             movies.bulk_write(upsert_operations, ordered=False)
     except BulkWriteError as bwe:
         pprint(bwe.details)
+
+
+async def get_movie_posters(movie_list, db_cursor, mongo_db):
+    url = "https://letterboxd.com/ajax/poster/film/{}/hero/230x345"
+    
+    async with ClientSession() as session:
+        # print("Starting Scrape", time.time() - start)
+
+        tasks = []
+        # Make a request for each ratings page and add to task queue
+        for movie in movie_list:
+            task = asyncio.ensure_future(fetch_poster(url.format(movie), session, {"movie_id": movie}))
+            tasks.append(task)
+
+        # Gather all ratings page responses
+        upsert_operations = await asyncio.gather(*tasks)
+
+    try:
+        if len(upsert_operations) > 0:
+            # Create/reference "ratings" collection in db
+            movies = mongo_db.movies
+            movies.bulk_write(upsert_operations, ordered=False)
+    except BulkWriteError as bwe:
+        pprint(bwe.details)
+
 
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
@@ -181,19 +229,23 @@ def main(data_type="letterboxd"):
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
-    # all_movies = [x['movie_id'] for x in list(movies.find({ "year_released": { "$exists": False }, "movie_title": { "$exists": False}}))]
     if data_type == "letterboxd":
-        all_movies = [x['movie_id'] for x in list(movies.find({ "tmdb_id": { "$exists": False }}))]
+        newly_added = [x['movie_id'] for x in list(movies.find({ "tmdb_id": { "$exists": False }}))]
+        needs_update = [x['movie_id'] for x in list(movies.find({ "tmdb_id": { "$exists": True}}).sort("last_updated", -1).limit(6000))]
+        all_movies = needs_update + newly_added
+    elif data_type == "poster":
+        two_months_ago = datetime.datetime.now() - datetime.timedelta(days=60)
+        all_movies = [x['movie_id'] for x in list(movies.find({"$or":[  {"image_url": {"$exists": False} },  {"last_updated": {"$lte": two_months_ago} } ]}))]
     else:
-        all_movies = [x for x in list(movies.find({ "genres": { "$eq": None }, "tmdb_id": {"$ne": ""}, "tmdb_id": { "$exists": True }}))]
+        all_movies = [x for x in list(movies.find({ "genres": { "$exists": False }, "tmdb_id": {"$ne": ""}, "tmdb_id": { "$exists": True }}))]
     
     loop = asyncio.get_event_loop()
-    chunk_size = 10
+    chunk_size = 12
     num_chunks = len(all_movies) // chunk_size + 1
 
     print("Total Movies to Scrape:", len(all_movies))
     print('Total Chunks:', num_chunks)
-    print("==========================\n")
+    print("=======================\n")
 
     pbar = tqdm(range(num_chunks))
     for chunk_i in pbar:
@@ -208,6 +260,8 @@ def main(data_type="letterboxd"):
             try:
                 if data_type == "letterboxd":
                     future = asyncio.ensure_future(get_movies(chunk, movies, db))
+                elif data_type == "poster":
+                    future = asyncio.ensure_future(get_movie_posters(chunk, movies, db))
                 else:
                     future = asyncio.ensure_future(get_rich_data(chunk, movies, db, tmdb_key))
                 loop.run_until_complete(future)
@@ -223,4 +277,5 @@ def main(data_type="letterboxd"):
 
 if __name__ == "__main__":
     main("letterboxd")
+    main("poster")
     main("tmdb")
