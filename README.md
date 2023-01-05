@@ -27,7 +27,7 @@ If you'd like to run the web server with the front-end locally, you'll need to r
 ### Built With
 * Python (requests/BeautifulSoup/asyncio/aiohttp) to scrape review data
 * MongoDB (pymongo) to store user/rating/movie data
-* Fast API as a web server
+* FastAPI as a python web server
 * HTML/CSS/Javascript/React/MaterialUI on the front-end
 * Redis/redis queue for managing queued tasks (scraping user data, building/running the model)
 * Heroku/Vercel for hosting
