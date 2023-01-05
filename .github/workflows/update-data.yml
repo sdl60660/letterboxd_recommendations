@@ -1,12 +1,11 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-
 name: Automated data update
 
 on:
   push:
-    branches: [ "test-workflows" ]
+    branches: [ "test-workflows", "main" ]
   schedule:
     - cron: '0 0 */3 * *' # runs once every three days
 
