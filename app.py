@@ -1,3 +1,8 @@
+"""
+THIS FILE IS NOW OUTDATED, USING FASTAPI IN main.py INSTEAD OF FLASK
+WILL DELETE IT IN THE NEAR FUTURE AND CLEAR OUT SOME OTHER OUTDATE FILES
+"""
+
 from flask import Flask, render_template, request, jsonify, redirect
 from flask_talisman import Talisman
 from flask_cors import CORS
