@@ -6,9 +6,9 @@ name: Python application
 
 on:
   push:
-    branches: [ "test-workflows", "main" ]
-  schedule:
-    - cron: '0 0 * * 2' # runs once per week at midnight on tuesday
+    branches: [ "test-workflows"]
+  # schedule:
+    # - cron: '0 0 * * 2' # runs once per week at midnight on tuesday
 
 permissions:
   contents: write
