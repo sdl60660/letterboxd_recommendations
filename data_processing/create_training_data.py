@@ -10,6 +10,8 @@ import pickle
 
 import pymongo
 
+from db_connect import connect_to_db
+
 def get_sample(cursor, iteration_size):
     while True:
         try:
@@ -27,7 +29,7 @@ def create_training_data(db_client, sample_size=200000):
     all_ratings = []
     unique_records = 0
     while unique_records < sample_size:
-        rating_sample = get_sample(ratings, 10000)
+        rating_sample = get_sample(ratings, 100000)
         all_ratings += rating_sample
         unique_records = len(set([(x['movie_id'] + x['user_id']) for x in all_ratings]))
         print(unique_records)
@@ -61,25 +63,12 @@ def create_movie_data_sample(db_client, movie_list):
 
 if __name__ == "__main__":
     # Connect to MongoDB client
-    try:
-        from db_config import config
-
-        db_name = config["MONGO_DB"]
-        if "CONNECTION_URL" in config.keys():
-            client = pymongo.MongoClient(config["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
-        else:
-            client = pymongo.MongoClient(f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority')
-
-    except ModuleNotFoundError:
-        # If not running locally, since db_config data is not committed to git
-        import os
-        db_name = os.environ['MONGO_DB']
-        client = pymongo.MongoClient(os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi('1'))
+    db_name, client, tmdb_key = connect_to_db()
 
     db = client[db_name]
 
     # Generate training data sample
-    training_df, threshold_movie_list = create_training_data(db, 750000)
+    training_df, threshold_movie_list = create_training_data(db, 1500000)
 
     # Create review counts dataframe
     review_counts_df = pd.DataFrame(list(db.ratings.find({}))).groupby(by=["movie_id"]).count().reset_index()
