@@ -34,14 +34,13 @@
 .movie-rec .genre-display {
     position: absolute;
     bottom: 12px;
-    left: 4.5rem;
+    left: 72px;
     display: flex;
     gap: 8px;
     flex-direction: row;
-}
 
-.movie-rec .genre-display div span {
-
+    max-width: calc(100% - 160px);
+    overflow-x: scroll;
 }
 
 .poster-container {
@@ -84,5 +83,9 @@
     
     #recommendation-list li::marker {
         font-size: 14px;
+    }
+
+    .movie-rec .genre-display {
+        bottom: 8px;
     }
 }
