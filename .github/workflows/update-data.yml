@@ -6,9 +6,9 @@ name: Weekly data update
 
 on:
   push:
-    branches: [ "main", "test-workflows" ]
-  # schedule:
-    # - cron: '0 0 * * 2' # runs once per week at midnight on tuesday
+    branches: [ "test-workflows" ]
+  schedule:
+    - cron: '0 0 */3 * *' # runs once every three days
 
 permissions:
   contents: write
