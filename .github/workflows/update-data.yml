@@ -5,7 +5,7 @@ name: Automated data update
 
 on:
   push:
-    branches: [ "test-workflows", "main" ]
+    branches: [ "test-workflows" ]
   schedule:
     - cron: '0 0 */3 * *' # runs once every three days
 
