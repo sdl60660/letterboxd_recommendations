@@ -34,7 +34,7 @@ const Results = ({ results }) => {
                         setListDownloaded(true);
                     }}>Download Recommendations</Button>
                 { listDownloaded === true &&
-                    <div>Import downloaded file <a target="_blank" rel="noreferrer" href="https://letterboxd.com/list/new/">here</a> to create a Letterboxd list</div>
+                    <div className='import-prompt'>Import downloaded file <a target="_blank" rel="noreferrer" href="https://letterboxd.com/list/new/">here</a> to create a Letterboxd list</div>
                 }
                 </div>
             }
