@@ -276,10 +276,8 @@ def main():
     users = db.users
 
     # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's
-    # ratings every time. We'll select the group that's at least more than two months since last update
-    # (or which doesn't have a last_updated time yet) and then grab the 1000 records which are least recently updated
-    two_months_old = datetime.datetime.now() - datetime.timedelta(days=60)
-    all_users = list(users.find({"$or":[ {"last_updated": {"$lt": two_months_old} }, {"last_updated": {"$exists": False} } ]}).sort("last_updated", -1).limit(1000))
+    # ratings every time. We'll just grab the 1000 records which are least recently updated
+    all_users = list(users.find({}).sort("last_updated", -1).limit(1000))
     all_usernames = [x['username'] for x in all_users]
 
     large_chunk_size = 100
