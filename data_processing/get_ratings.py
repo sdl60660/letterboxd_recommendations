@@ -17,7 +17,10 @@ import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-from db_connect import connect_to_db
+if os.getcwd().endswith("data_processing"):
+    from db_connect import connect_to_db
+else:
+    from data_processing.db_connect import connect_to_db
 
 if __name__ == "__main__":
     from utils import utils
