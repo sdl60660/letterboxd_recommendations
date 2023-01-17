@@ -6,8 +6,7 @@ import pickle
 from surprise import Dataset
 from surprise import Reader
 from surprise import SVD
-from surprise import KNNBasic
-# from surprise.model_selection import GridSearchCV
+
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
 
