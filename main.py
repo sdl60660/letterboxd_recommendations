@@ -73,9 +73,9 @@ def get_recs(username: str, training_data_size: int, popularity_filter: int, dat
     q = ordered_queues[0]
 
     job_get_user_data = q.enqueue(get_client_user_data, args=(
-        username, data_opt_in,), description=f"Scraping user data for {username} (sample: {training_data_size}, popularity_filter: {popularity_threshold}, data_opt_in: {data_opt_in})", result_ttl=45, ttl=300)
+        username, data_opt_in,), description=f"Scraping user data for {username} (sample: {training_data_size}, popularity_filter: {popularity_threshold}, data_opt_in: {data_opt_in})", result_ttl=45, ttl=200)
     job_build_model = q.enqueue(build_client_model, args=(username, training_data_size, popularity_threshold, num_items,), depends_on=job_get_user_data,
-                                description=f"Building model for {username} (sample: {training_data_size}, popularity_filter: {popularity_threshold})", result_ttl=30, ttl=300)
+                                description=f"Building model for {username} (sample: {training_data_size}, popularity_filter: {popularity_threshold})", result_ttl=30, ttl=200)
 
     return JSONResponse({
         "redis_get_user_data_job_id": job_get_user_data.get_id(),
