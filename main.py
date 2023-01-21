@@ -55,7 +55,7 @@ popularity_thresholds_500k_samples = [
 
 @app.get('/', response_class=HTMLResponse)
 def homepage():
-    return templates.TemplateResponse("index.html")
+    return templates.TemplateResponse("index.html", {})
 
 @app.get('/get_recs')
 def get_recs(username: str, training_data_size: int, popularity_filter: int, data_opt_in: bool):
