@@ -60,7 +60,7 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
 
     predictions = algo.test(prediction_set)
     top_n = get_top_n(predictions, num_recommendations)
-    movie_fields = ["image_url", "movie_id", "movie_title", "year_released", "genres", "original_language", "overview", "popularity", "runtime", "release_date"]
+    movie_fields = ["image_url", "movie_id", "movie_title", "year_released", "genres", "original_language", "popularity", "runtime", "release_date"]
     movie_data = {x["movie_id"]: {k:v for k,v in x.items() if k in movie_fields} for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})}
 
     # Print the recommended items for user
