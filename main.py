@@ -48,10 +48,8 @@ queue_pool = [Queue(channel, connection=conn) for channel in ["high", "default",
 popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
 
 
-# FROM_DOMAIN = "letterboxd-recommendations.herokuapp.com"
-# TO_DOMAIN = "letterboxd.samlearner.com"
-
-
+# A direct link to the heroku site will redirect to new domain
+# Should take care of stale link issue
 @app.get("/", response_class=HTMLResponse)
 def homepage():
     return RedirectResponse("https://letterboxd.samlearner.com")
