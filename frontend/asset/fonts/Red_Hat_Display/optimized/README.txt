@@ -1,0 +1,1 @@
+Converted using tools/instructions here: https://dev.to/benjaminblack/converting-ttf-fonts-to-woff2-and-woff-3f5b

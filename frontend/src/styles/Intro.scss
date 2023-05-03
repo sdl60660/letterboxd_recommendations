@@ -1,7 +1,7 @@
-
+@import './settings.scss';
 
 #intro-container {
-    text-align:left;
+    text-align: left;
     max-width: 650px;
     margin-top: 2rem;
 }
@@ -12,27 +12,45 @@
 
 #intro-container .row.intro-paragraph {
     text-align: left;
-}
+    max-width: 580px;
 
-.intro-paragraph {
-	font-size: 1rem;
-    margin-bottom: 2rem;
+    margin: 32px auto 40px;
+    font-family: 'Yantramanav', 'aktiv-grotesk', Inconsolata, Monaco;
+
+    p {
+        font-size: 18px;
+        line-height: 130%;
+    }
 }
 
 #intro-container h1 {
-    font-size: 2.2rem;
-    font-family: "aktiv-grotesk", Inconsolata, Monaco;
+    font-size: 44px;
+    line-height: 44px;
+    font-family: 'Red Hat Display', 'aktiv-grotesk', Inconsolata, Monaco;
     font-weight: 500;
 }
 
 @media only screen and (max-width: 700px) {
-
-    .intro-paragraph {
-        // font-size: 0.9rem;
-    }
-
     #intro-container {
-        max-width: 80vw;
+        max-width: 85vw;
+
+        .row.intro-paragraph {
+            margin: 24px auto 32px;
+
+            width: 90%;
+            max-width: 500px;
+
+            p {
+                font-size: 16px;
+                line-height: 130%;
+            }
+        }
+
+        h1 {
+            font-size: 32px;
+            line-height: 32px;
+            font-family: 'Red Hat Display', 'aktiv-grotesk', Inconsolata, Monaco;
+            font-weight: 500;
+        }
     }
 }
-
