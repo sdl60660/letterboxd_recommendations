@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin_password # Change this to a secure password
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin_password # Same password as set for MongoDB
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    depends_on:
+      - mongodb
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  redis_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    container_name: redis_worker
+    restart: unless-stopped
+
+  uvicorn_app:
+    build:
+      context: .
+      dockerfile: Dockerfile-uvicorn
+    container_name: uvicorn_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+volumes:
+  mongodb_data:
+    driver: local
