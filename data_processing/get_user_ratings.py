@@ -17,12 +17,10 @@ import datetime
 from pprint import pprint
 
 import os
-if os.getcwd().endswith("data_processing"):
+if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
-    from db_connect import connect_to_db
 else:
     from data_processing.get_ratings import get_user_ratings
-    from data_processing.db_connect import connect_to_db
 
 
 def get_page_count(username):
@@ -63,56 +61,58 @@ def get_user_data(username, data_opt_in=False):
     return future.result(), "success"
 
 def send_to_db(username, display_name, user_ratings):
+   database_url = os.getenv('DATABASE_URL', None)
 
-    db_name, client, tmdb_key = connect_to_db()
-    db = client[db_name]
-    users = db.users
-    ratings = db.ratings
-    movies = db.movies
+   if database_url:
+        client = pymongo.MongoClient(database_url, server_api=pymongo.server_api.ServerApi('1'))
+        db = client["letterboxd"]
+        users = db.users
+        ratings = db.ratings
+        movies = db.movies
 
-    user = {
-        "username": username,
-        "display_name": display_name,
-        "num_reviews": len(user_ratings),
-        "last_updated": datetime.datetime.now()
-    }
+        user = {
+            "username": username,
+            "display_name": display_name,
+            "num_reviews": len(user_ratings),
+            "last_updated": datetime.datetime.now()
+        }
 
-    users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
+        users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
 
-    upsert_ratings_operations = []
-    upsert_movies_operations = []
-
-    for rating in user_ratings:
-        upsert_ratings_operations.append(
-            ReplaceOne({
-                "user_id": username,
-                "movie_id": rating["movie_id"]
-            },
-            rating,
-            upsert=True)
-        )
-
-        upsert_movies_operations.append(UpdateOne({
-                "movie_id": rating["movie_id"]
-            },
-            {
-                "$set": {
+        upsert_ratings_operations = []
+        upsert_movies_operations = []
+        # print(len(user_ratings))
+        for rating in user_ratings:
+            upsert_ratings_operations.append(
+                ReplaceOne({
+                    "user_id": username,
                     "movie_id": rating["movie_id"]
-                }
-            },
-                upsert=True
+                },
+                rating,
+                upsert=True)
             )
-        )
 
-    try:
-        if len(upsert_ratings_operations) > 0:
-            ratings.bulk_write(upsert_ratings_operations, ordered=False)
-        if len(upsert_movies_operations) > 0:
-            movies.bulk_write(upsert_movies_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+            upsert_movies_operations.append(UpdateOne({
+                    "movie_id": rating["movie_id"]
+                },
+                {
+                    "$set": {
+                        "movie_id": rating["movie_id"]
+                    }
+                },
+                    upsert=True
+                )
+            )
 
-    return
+        try:
+            if len(upsert_ratings_operations) > 0:
+                ratings.bulk_write(upsert_ratings_operations, ordered=False)
+            if len(upsert_movies_operations) > 0:
+                movies.bulk_write(upsert_movies_operations, ordered=False)
+        except BulkWriteError as bwe:
+            pprint(bwe.details)
+
+        return
 
 
 if __name__ == "__main__":

@@ -10,4 +10,5 @@ COPY frontend ./frontend
 COPY static ./static
 COPY templates ./templates
 ENV REDISCLOUD_URL=redis://redis:6379
+ENV DATABASE_URL=mongodb://mongodb:27017/
 
