@@ -39,7 +39,9 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
 
     serverless_connection = True
     if config:
-        if config["CONNECTION_URL"]:
+        if config["MONGO_DOCKER_URL"]:
+            connection_url = config["MONGO_DOCKER_URL"]
+        elif config["CONNECTION_URL"]:
             connection_url = config["CONNECTION_URL"]
         else:
             connection_url = f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority'
