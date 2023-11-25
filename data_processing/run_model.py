@@ -47,7 +47,6 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
     else:
         connection_url = os.environ.get('CONNECTION_URL', '')
 
-    
     if serverless_connection:
         client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi('1'))
     else:
@@ -85,5 +84,5 @@ if __name__ == "__main__":
 
     algo = load("models/mini_model.pkl")[1]
 
-    recs = run_model("samlearner", algo, user_watched_list, threshold_movie_list, 25)
+    recs = run_model("pedropereira0", algo, user_watched_list, threshold_movie_list, 25)
     print(recs)
