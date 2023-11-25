@@ -26,6 +26,12 @@ origins = [
     "http://localhost",
     "https://localhost",
     "http://localhost:8000",
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://letterboxd-recommendations.herokuapp.com",
+    "https://letterboxd-recommendations.herokuapp.com",
+    "http://letterboxd.samlearner.com",
+    "https://letterboxd.samlearner.com",
 ]
 
 app.add_middleware(
@@ -47,9 +53,9 @@ popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150
 # Should take care of stale link issue
 @app.get("/", response_class=HTMLResponse)
 def homepage():
-    #return RedirectResponse("https://letterboxd.samlearner.com")
-    request = Request({"type": "http", "base_url": "https://letterboxd.samlearner.com"})
-    return templates.TemplateResponse("index.html", {"request": request})
+    return RedirectResponse("https://letterboxd.samlearner.com")
+    #request = Request({"type": "http", "base_url": "https://letterboxd.samlearner.com"})
+    #return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/get_recs")

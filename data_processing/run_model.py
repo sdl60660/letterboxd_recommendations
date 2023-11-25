@@ -86,5 +86,5 @@ if __name__ == "__main__":
 
     algo = load("models/mini_model.pkl")[1]
 
-    recs = run_model("pedropereira0", algo, user_watched_list, threshold_movie_list, 25)
+    recs = run_model("samlearner", algo, user_watched_list, threshold_movie_list, 25)
     print(recs)

@@ -81,7 +81,7 @@ def send_to_db(username, display_name, user_ratings):
 
     upsert_ratings_operations = []
     upsert_movies_operations = []
-    # print(len(user_ratings))
+
     for rating in user_ratings:
         upsert_ratings_operations.append(
             ReplaceOne({
