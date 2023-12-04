@@ -21,7 +21,7 @@ if os.getcwd().endswith("data_processing"):
 else:
     from data_processing.db_connect import connect_to_db
 
-if __name__ == "__main__":
+if __name__ == "__main__" or os.getcwd().endswith("data_processing"):
     from utils import utils
 else:
     from data_processing.utils import utils
@@ -33,7 +33,7 @@ async def fetch(url, session, input_data={}):
             return await response.read(), input_data
         except:
             return None, None
-            
+
 
 async def get_page_counts(usernames, users_cursor):
     url = "https://letterboxd.com/{}/films/"
@@ -41,9 +41,11 @@ async def get_page_counts(usernames, users_cursor):
 
     async with ClientSession() as session:
         for username in usernames:
-            task = asyncio.ensure_future(fetch(url.format(username), session, {"username": username}))
+            task = asyncio.ensure_future(
+                fetch(url.format(username), session, {"username": username})
+            )
             tasks.append(task)
-        
+
         responses = await asyncio.gather(*tasks)
         responses = [x for x in responses if x]
 
@@ -52,11 +54,11 @@ async def get_page_counts(usernames, users_cursor):
             soup = BeautifulSoup(response[0], "lxml")
             try:
                 page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
-                num_pages = int(page_link.find("a").text.replace(',', ''))
+                num_pages = int(page_link.find("a").text.replace(",", ""))
             except IndexError:
                 num_pages = 1
 
-            user = users_cursor.find_one({"username": response[1]['username']})
+            user = users_cursor.find_one({"username": response[1]["username"]})
 
             try:
                 previous_num_pages = user["num_ratings_pages"]
@@ -64,7 +66,7 @@ async def get_page_counts(usernames, users_cursor):
                     previous_num_pages = 0
             except KeyError:
                 previous_num_pages = 0
-            
+
             # To avoid re-scraping a bunch of reviews already hit, we'll only scrape new pages
             # To be safe, and because pagination is funky, we'll do one more than the difference
             # ...between previously scraped page count and current page count, but then cap it at total
@@ -74,14 +76,19 @@ async def get_page_counts(usernames, users_cursor):
             # Also, pages cap at 128, so if they've got 128 pages and we've scraped most of them before, we'll
             # ...just do the most recent 10 pages
             if num_pages >= 128 and new_pages < 10:
-                new_pages = 10    
+                new_pages = 10
 
             update_operations.append(
-                UpdateOne({
-                    "username": response[1]['username']
+                UpdateOne(
+                    {"username": response[1]["username"]},
+                    {
+                        "$set": {
+                            "num_ratings_pages": num_pages,
+                            "recent_page_count": new_pages,
+                            "last_updated": datetime.datetime.now(),
+                        }
                     },
-                    {"$set": {"num_ratings_pages": num_pages, "recent_page_count": new_pages, "last_updated": datetime.datetime.now()}},
-                    upsert=True
+                    upsert=True,
                 )
             )
 
@@ -93,7 +100,6 @@ async def get_page_counts(usernames, users_cursor):
 
 
 async def generate_ratings_operations(response, send_to_db=True, return_unrated=False):
-    
     # Parse ratings page response for each rating/review, use lxml parser for speed
     soup = BeautifulSoup(response[0], "lxml")
     reviews = soup.findAll("li", attrs={"class": "poster-container"})
@@ -104,7 +110,9 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
 
     # For each review, parse data from scraped page and append an UpdateOne operation for bulk execution or a rating object
     for review in reviews:
-        movie_id = review.find('div', attrs={"class", "film-poster"})['data-target-link'].split('/')[-2]
+        movie_id = review.find("div", attrs={"class", "film-poster"})[
+            "data-target-link"
+        ].split("/")[-2]
 
         rating = review.find("span", attrs={"class": "rating"})
         if not rating:
@@ -113,22 +121,20 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
             else:
                 rating_val = -1
         else:
-            rating_class = rating['class'][-1]
-            rating_val = int(rating_class.split('-')[-1])
+            rating_class = rating["class"][-1]
+            rating_val = int(rating_class.split("-")[-1])
 
         rating_object = {
-                    "movie_id": movie_id,
-                    "rating_val": rating_val,
-                    "user_id": response[1]["username"]
-                }
-        
+            "movie_id": movie_id,
+            "rating_val": rating_val,
+            "user_id": response[1]["username"],
+        }
+
         # We're going to eventually send a bunch of upsert operations for movies with just IDs
         # For movies already in the database, this won't impact anything
         # But this will allow us to easily figure out which movies we need to scraped data on later,
         # Rather than scraping data for hundreds of thousands of movies everytime there's a broader data update
-        skeleton_movie_object = {
-            "movie_id": movie_id
-        }
+        skeleton_movie_object = {"movie_id": movie_id}
 
         # If returning objects, just append the object to return list
         if not send_to_db:
@@ -136,33 +142,33 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
 
         # Otherwise return an UpdateOne operation to bulk execute
         else:
-            ratings_operations.append(UpdateOne({
-                    "user_id": response[1]["username"],
-                    "movie_id": movie_id
-                },
-                {
-                    "$set": rating_object
-                },
-                    upsert=True
+            ratings_operations.append(
+                UpdateOne(
+                    {"user_id": response[1]["username"], "movie_id": movie_id},
+                    {"$set": rating_object},
+                    upsert=True,
                 )
             )
 
-            movie_operations.append(UpdateOne({
-                    "movie_id": movie_id
-                },
-                {
-                    "$set": skeleton_movie_object
-                },
-                    upsert=True
+            movie_operations.append(
+                UpdateOne(
+                    {"movie_id": movie_id}, {"$set": skeleton_movie_object}, upsert=True
                 )
             )
-    
+
     return ratings_operations, movie_operations
-    
 
-async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=True, num_pages=None, return_unrated=False):
+
+async def get_user_ratings(
+    username,
+    db_cursor=None,
+    mongo_db=None,
+    store_in_db=True,
+    num_pages=None,
+    return_unrated=False,
+):
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
-    
+
     if not num_pages:
         # Find them in the MongoDB database and grab the number of ratings pages
         user = db_cursor.find_one({"username": username})
@@ -177,7 +183,9 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
-            task = asyncio.ensure_future(fetch(url.format(username, i+1), session, {"username": username}))
+            task = asyncio.ensure_future(
+                fetch(url.format(username, i + 1), session, {"username": username})
+            )
             tasks.append(task)
 
         # Gather all ratings page responses
@@ -187,13 +195,19 @@ async def get_user_ratings(username, db_cursor=None, mongo_db=None, store_in_db=
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
     tasks = []
     for response in scrape_responses:
-        task = asyncio.ensure_future(generate_ratings_operations(response, send_to_db=store_in_db, return_unrated=return_unrated))
+        task = asyncio.ensure_future(
+            generate_ratings_operations(
+                response, send_to_db=store_in_db, return_unrated=return_unrated
+            )
+        )
         tasks.append(task)
-    
+
     parse_responses = await asyncio.gather(*tasks)
 
     if store_in_db == False:
-        parse_responses = list(chain.from_iterable(list(chain.from_iterable(parse_responses))))
+        parse_responses = list(
+            chain.from_iterable(list(chain.from_iterable(parse_responses)))
+        )
         return parse_responses
 
     # Concatenate each response's upsert operations/output dicts
@@ -218,8 +232,8 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
         db_ratings_operations = []
         db_movies_operations = []
 
-        start_index = chunk_size*chunk_index
-        end_index = chunk_size*chunk_index + chunk_size
+        start_index = chunk_size * chunk_index
+        end_index = chunk_size * chunk_index + chunk_size
         username_chunk = usernames[start_index:end_index]
 
         # pbar.set_description(f"Scraping ratings data for user group {chunk_index+1} of {total_chunks}")
@@ -227,7 +241,14 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
         # For a given chunk, scrape each user's ratings and form an array of database upsert operations
         for i, username in enumerate(username_chunk):
             # print((chunk_size*chunk_index)+i, username)
-            task = asyncio.ensure_future(get_user_ratings(username, db_cursor=db_cursor, mongo_db=mongo_db, store_in_db=store_in_db))
+            task = asyncio.ensure_future(
+                get_user_ratings(
+                    username,
+                    db_cursor=db_cursor,
+                    mongo_db=mongo_db,
+                    store_in_db=store_in_db,
+                )
+            )
             tasks.append(task)
 
         # Gather all ratings page responses, concatenate all db upsert operatons for use in a bulk write
@@ -242,17 +263,17 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
                 if len(db_ratings_operations) > 0:
                     # Bulk write all upsert operations into ratings collection in db
                     ratings_collection.bulk_write(db_ratings_operations, ordered=False)
-                
+
                 if len(db_movies_operations) > 0:
                     movies_collection.bulk_write(db_movies_operations, ordered=False)
 
             except BulkWriteError as bwe:
                 pprint(bwe.details)
-        
+
 
 def print_status(start, chunk_size, chunk_index, total_operations, total_records):
     total_time = round((time.time() - start), 2)
-    completed_records = (chunk_size*chunk_index)
+    completed_records = chunk_size * chunk_index
     time_per_user = round(total_time / completed_records, 2)
     remaining_estimate = round(time_per_user * (total_records - completed_records), 2)
 
@@ -270,7 +291,7 @@ def print_status(start, chunk_size, chunk_index, total_operations, total_records
 def main():
     # Connect to MongoDB client
     db_name, client, tmdb_key = connect_to_db()
-   
+
     # Find letterboxd database and user collection
     db = client[db_name]
     users = db.users
@@ -278,15 +299,19 @@ def main():
     # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's
     # ratings every time. We'll just grab the 1000 records which are least recently updated
     all_users = list(users.find({}).sort("last_updated", -1).limit(1200))
-    all_usernames = [x['username'] for x in all_users]
+    all_usernames = [x["username"] for x in all_users]
 
     large_chunk_size = 100
     num_chunks = math.ceil(len(all_usernames) / large_chunk_size)
 
     pbar = tqdm(range(num_chunks))
     for chunk in pbar:
-        pbar.set_description(f"Scraping ratings data for user group {chunk+1} of {num_chunks}")
-        username_set = all_usernames[chunk*large_chunk_size:(chunk+1)*large_chunk_size]
+        pbar.set_description(
+            f"Scraping ratings data for user group {chunk+1} of {num_chunks}"
+        )
+        username_set = all_usernames[
+            chunk * large_chunk_size : (chunk + 1) * large_chunk_size
+        ]
 
         loop = asyncio.get_event_loop()
 
