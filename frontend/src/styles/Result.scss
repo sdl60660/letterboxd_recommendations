@@ -57,9 +57,15 @@
     // max-width: 100%;
     overflow-x: scroll;
 
-    @media only screen and (max-width: 780px) {
+    @media only screen and (max-width: 660px) {
         display: none;
         flex: 0;
+    }
+
+    // On mid-size tablet devices, we can display the genres,
+    // but the max-width needs to be a little lower
+    @media only screen and (min-width: 661px) and (min-width: 950px) {
+        max-width: 340px;
     }
 
     -ms-overflow-style: none; /* IE and Edge */
