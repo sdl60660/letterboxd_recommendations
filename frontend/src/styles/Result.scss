@@ -15,7 +15,6 @@
 
     display: flex;
     align-items: center;
-    // justify-content: stretch;
     justify-content: space-between;
 
     div.recommendation-movie-data-wrapper {
@@ -32,16 +31,13 @@
     min-height: 120px;
     padding: 16px;
     background-color: rgba(173, 216, 230, 0.3);
-    /* border: 1px solid black; */
     border-radius: 10px;
     margin: 4px 8px;
     font-size: 17px;
 
     display: flex;
-    // justify-content: space-between;
     justify-content: stretch;
     gap: 16px;
-    // grid-template-columns: 10% 75% 15%;
     align-items: center;
 
     box-sizing: border-box;
@@ -54,7 +50,6 @@
     flex-direction: row;
 
     max-width: 410px;
-    // max-width: 100%;
     overflow-x: scroll;
 
     @media only screen and (max-width: 660px) {
@@ -74,14 +69,6 @@
     &::-webkit-scrollbar {
         display: none;
     }
-
-    // & > div {
-    //     flex-basis: 0;
-
-    //     &:nth-child(-n + 3) {
-    //         flex-basis: auto;
-    //     }
-    // }
 }
 
 .poster-container {
@@ -99,7 +86,6 @@
 }
 
 .title-link {
-    // padding: 0px 8px 10px;
     justify-self: left;
     width: 100%;
     text-align: left;
