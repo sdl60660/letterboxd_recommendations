@@ -49,16 +49,18 @@
 }
 
 .movie-rec .genre-display {
-    // position: absolute;
-    // bottom: 12px;
-    // left: 72px;
     display: flex;
     gap: 8px;
     flex-direction: row;
 
-    // max-width: calc(100% - 160px);
-    max-width: 100%;
+    max-width: 410px;
+    // max-width: 100%;
     overflow-x: scroll;
+
+    @media only screen and (max-width: 780px) {
+        display: none;
+        flex: 0;
+    }
 
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
@@ -67,13 +69,13 @@
         display: none;
     }
 
-    & > div {
-        flex-basis: 0;
+    // & > div {
+    //     flex-basis: 0;
 
-        &:nth-child(-n + 3) {
-            flex-basis: auto;
-        }
-    }
+    //     &:nth-child(-n + 3) {
+    //         flex-basis: auto;
+    //     }
+    // }
 }
 
 .poster-container {
