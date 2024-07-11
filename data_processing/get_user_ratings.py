@@ -31,7 +31,12 @@ def get_page_count(username):
     soup = BeautifulSoup(r.text, "lxml")
 
     body = soup.find("body")
-    if "error" in body["class"]:
+
+    try:
+        if "error" in body["class"]:
+            return -1, None
+    except KeyError:
+        print(body)
         return -1, None
 
     try:
