@@ -12,8 +12,9 @@ const ContributionAsk = ({}) => {
                     target="_blank"
                     rel="noreferrer"
                 >
-                    here.
+                    here
                 </a>
+                .
             </p>
         </div>
     )
