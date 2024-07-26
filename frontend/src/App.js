@@ -9,6 +9,7 @@ import ProgressTracking from "./components/ProgressTracking";
 import Results from "./components/Results";
 import Footer from "./components/Footer";
 // import DownNotice from "./components/DownNotice";
+import ContributionAsk from './components/ContributionAsk';
 
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
     <div className="App">
       <Header />
       {/* <DownNotice/> */}
+      <ContributionAsk />
       <Intro />
 
       <div className="container" id="body-content-container">
