@@ -25,7 +25,7 @@ function App() {
     <div className="App">
       <Header />
       {/* <DownNotice/> */}
-      <ContributionAsk />
+      {/* <ContributionAsk /> */}
       <Intro />
 
       <div className="container" id="body-content-container">

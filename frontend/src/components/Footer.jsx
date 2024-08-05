@@ -2,6 +2,7 @@ import React from 'react'
 
 import metaData from '../data/meta.json'
 import '../styles/Footer.scss'
+import '../styles/KoFi.scss'
 
 const Footer = (props) => {
     const lastUpdatedDate = new Date(metaData.last_updated)
@@ -68,7 +69,9 @@ const Footer = (props) => {
                         />
                     </a>
                 </p>
-                <p>
+                <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
+
+                {/* <p>
                     Maintaining this project is not free! Please consider
                     chipping in{' '}
                     <a
@@ -79,7 +82,27 @@ const Footer = (props) => {
                         here
                     </a>
                     .
-                </p>
+                </p> */}
+                <div class="btn-container">
+                    <a
+                        title="Support this project"
+                        class="kofi-button"
+                        style={{ backgroundColor: '#000000' }}
+                        href="https://ko-fi.com/J3J74VGK6"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        {' '}
+                        <span class="kofitext">
+                            <img
+                                src="https://storage.ko-fi.com/cdn/cup-border.png"
+                                alt="Ko-fi donations"
+                                class="kofiimg"
+                            />
+                            Support this project
+                        </span>
+                    </a>
+                </div>
                 <p>
                     Code and data for this project lives{' '}
                     <a
