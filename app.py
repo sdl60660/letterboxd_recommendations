@@ -127,8 +127,11 @@ def create_app(test_config=None):
         try:
             user_job = Job.fetch(
                 job_ids['redis_get_user_data_job_id'], connection=conn)
-            execution_data |= {"num_user_ratings": user_job.meta.get(
-                'num_user_ratings'), "user_status": user_job.meta.get('user_status')}
+            execution_data |= {
+                "num_user_ratings": user_job.meta.get('num_user_ratings'),
+                "user_watchlist": user_job.meta.get("user_watchlist"),
+                "user_status": user_job.meta.get('user_status')
+                }
         except NoSuchJobError:
             pass
 
