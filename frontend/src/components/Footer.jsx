@@ -128,7 +128,7 @@ const Footer = (props) => {
                     model for predicted scores and the items with the top
                     predicted scores are returned. Due to constraints in time
                     and computing power, the maxiumum sample size that a user is
-                    allowed to select is 500,000 samples, though there are over
+                    allowed to select is 900,000 samples, though there are over
                     five million ratings in the full dataset from the top 4000
                     Letterboxd users alone.
                 </p>
