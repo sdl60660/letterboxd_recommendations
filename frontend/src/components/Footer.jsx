@@ -83,21 +83,21 @@ const Footer = (props) => {
                     </a>
                     .
                 </p> */}
-                <div class="btn-container">
+                <div className="btn-container">
                     <a
                         title="Support this project"
-                        class="kofi-button"
+                        className="kofi-button"
                         style={{ backgroundColor: '#000000' }}
                         href="https://ko-fi.com/J3J74VGK6"
                         target="_blank"
                         rel="noreferrer"
                     >
                         {' '}
-                        <span class="kofitext">
+                        <span className="kofitext">
                             <img
                                 src="https://storage.ko-fi.com/cdn/cup-border.png"
                                 alt="Ko-fi donations"
-                                class="kofiimg"
+                                className="kofiimg"
                             />
                             Support this project
                         </span>
