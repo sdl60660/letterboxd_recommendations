@@ -28,10 +28,13 @@
             text-align: left;
 
             margin: 0 auto 32px;
+            font-size: 16px;
+            line-height: 16px;
 
             .icon-img {
-                height: 14px;
+                height: 16px;
                 width: auto;
+                transform: translateY(5px);
             }
         }
     }
@@ -75,6 +78,7 @@
                 .icon-img {
                     height: 14px;
                     width: auto;
+                    transform: translateY(4px);
                 }
             }
         }
