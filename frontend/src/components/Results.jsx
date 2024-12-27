@@ -20,7 +20,7 @@ const Results = ({ results, redisData }) => {
     const [filteredYearRange, setFilteredYearRange] = useState(null);
     const [excludeWatchlist, setExcludeWatchlist] = useState(true);
 
-    console.log('testing', userWatchlist);
+    console.log('testing', userWatchlist, results);
 
     const displayedResults = !results
         ? []
