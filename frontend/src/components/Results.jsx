@@ -38,7 +38,7 @@ const Results = ({ results, redisData }) => {
                         d.movie_data.year_released <= filteredYearRange[1]
                       : true
               )
-              // .filter(d => excludeWatchlist === false || !userWatchlist.includes(d.movie_data.id))
+              .filter(d => excludeWatchlist === false || !userWatchlist.includes(d.movie_data.movie_id))
               .slice(0, 50)
 
     return (
@@ -100,4 +100,4 @@ const Results = ({ results, redisData }) => {
     )
 }
 
-export default Results
+export default React.memo(Results)
