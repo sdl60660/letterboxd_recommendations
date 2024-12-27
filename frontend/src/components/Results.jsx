@@ -12,8 +12,7 @@ const colorScale = scaleLinear()
     .domain([1, 5.5, 9, 10])
     .range(['red', '#fde541', 'green', '#1F3D0C'])
 
-const Results = ({ results, redisData }) => {
-    const { user_watchlist: userWatchlist = []} = redisData?.execution_data || {};
+const Results = ({ results, userWatchlist }) => {
     const [listDownloaded, setListDownloaded] = useState(false);
 
     const [filteredGenres, setFilteredGenres] = useState(null);
