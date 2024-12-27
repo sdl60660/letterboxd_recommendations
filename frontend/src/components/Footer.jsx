@@ -71,18 +71,6 @@ const Footer = (props) => {
                 </p>
                 <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
 
-                {/* <p>
-                    Maintaining this project is not free! Please consider
-                    chipping in{' '}
-                    <a
-                        href="https://ko-fi.com/samlearner"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        here
-                    </a>
-                    .
-                </p> */}
                 <div className="btn-container">
                     <a
                         title="Support this project"

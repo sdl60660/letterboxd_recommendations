@@ -3,46 +3,79 @@
 #intro-container {
     text-align: left;
     max-width: 650px;
-    margin-top: 2rem;
-}
+    margin-top: 96px;
 
-#intro-container .row {
-    text-align: center;
-}
+    .row {
+        text-align: center;
+        max-width: 580px;
 
-#intro-container .row.intro-paragraph {
-    text-align: left;
-    max-width: 580px;
+        &.intro-paragraph {
+            text-align: left;
 
-    margin: 32px auto 40px;
-    font-family: 'Yantramanav', 'aktiv-grotesk', Inconsolata, Monaco;
+            margin: 32px auto 24px;
+            font-family: 'Yantramanav', 'aktiv-grotesk', Inconsolata, Monaco;
 
-    p {
-        font-size: 18px;
-        line-height: 130%;
+            p {
+                font-size: 18px;
+                line-height: 130%;
+            }
+        }
+
+        &.byline {
+            max-width: 580px;
+
+            font-style: italic;
+            text-align: left;
+
+            margin: 0 auto 32px;
+
+            .icon-img {
+                height: 14px;
+                width: auto;
+            }
+        }
     }
-}
 
-#intro-container h1 {
-    font-size: 44px;
-    line-height: 44px;
-    font-family: 'Red Hat Display', 'aktiv-grotesk', Inconsolata, Monaco;
-    font-weight: 500;
+    h1 {
+        font-size: 44px;
+        line-height: 44px;
+        font-family: 'Red Hat Display', 'aktiv-grotesk', Inconsolata, Monaco;
+        font-weight: 500;
+    }
+
+    span.bolded {
+        font-weight: 600;
+    }
 }
 
 @media only screen and (max-width: 700px) {
     #intro-container {
         max-width: 85vw;
+        margin-top: 64px;
 
-        .row.intro-paragraph {
-            margin: 24px auto 32px;
+        .row {
+            &.intro-paragraph {
+                margin: 32px auto 24px;
 
-            width: 90%;
-            max-width: 500px;
+                width: 90%;
+                max-width: 500px;
 
-            p {
-                font-size: 16px;
-                line-height: 130%;
+                p {
+                    font-size: 16px;
+                    line-height: 130%;
+                }
+            }
+
+            &.byline {
+                width: 90%;
+                max-width: 500px;
+
+                margin: 0 auto 24px;
+
+                .icon-img {
+                    height: 14px;
+                    width: auto;
+                }
             }
         }
 

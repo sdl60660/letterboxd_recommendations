@@ -2,14 +2,14 @@ import React, { useState } from 'react'
 
 import './styles/App.scss'
 
-import Header from './components/Header'
+// import Header from './components/Header'
 import Intro from './components/Intro'
 import Controls from './components/Controls'
 import ProgressTracking from './components/ProgressTracking'
 import Results from './components/Results'
 import Footer from './components/Footer'
 // import DownNotice from "./components/DownNotice";
-import ContributionAsk from './components/ContributionAsk'
+// import ContributionAsk from './components/ContributionAsk'
 
 function App() {
     const [queryData, setQueryData] = useState(null)
@@ -24,7 +24,7 @@ function App() {
 
     return (
         <div className="App">
-            <Header />
+            {/* <Header /> */}
             {/* <DownNotice/> */}
             {/* <ContributionAsk /> */}
             <Intro />
