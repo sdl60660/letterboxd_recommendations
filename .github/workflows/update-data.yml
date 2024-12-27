@@ -26,10 +26,10 @@ jobs:
         timezoneMacos: "America/New_York"
         timezoneWindows: "Eastern Standard Time"
     
-    - name: Set up Python 3.11.1
+    - name: Set up Python 3.11.9
       uses: actions/setup-python@v3
       with:
-        python-version: "3.11.1"
+        python-version: "3.11.9"
         
     - name: Install pipenv
       run: python -m pip install --upgrade pipenv wheel
