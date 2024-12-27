@@ -65,7 +65,7 @@ def get_recs(
     else:
         popularity_threshold = None
 
-    num_items = 1400
+    num_items = 2000
 
     ordered_queues = sorted(
         queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count

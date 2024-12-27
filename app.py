@@ -88,12 +88,10 @@ def create_app(test_config=None):
         else:
             popularity_threshold = None
 
-        num_items = 1200
+        num_items = 2000
 
-        ordered_queues = sorted(
-            queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count)
-        print([(q, DeferredJobRegistry(queue=q).count)
-              for q in ordered_queues])
+        ordered_queues = sorted(queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count)
+        print([(q, DeferredJobRegistry(queue=q).count) for q in ordered_queues])
         q = ordered_queues[0]
 
         job_get_user_data = q.enqueue(get_client_user_data, args=(

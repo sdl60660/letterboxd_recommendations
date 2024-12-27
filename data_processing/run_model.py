@@ -31,7 +31,7 @@ def get_top_n(predictions, n=20):
 
 
 def run_model(username, algo, user_watched_list, threshold_movie_list, num_recommendations=20):
-     # Connect to MongoDB Client
+    # Connect to MongoDB Client
     if config:
         db_name = config["MONGO_DB"]
     else:

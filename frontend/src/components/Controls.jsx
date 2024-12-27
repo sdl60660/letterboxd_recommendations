@@ -54,7 +54,7 @@ const Controls = ({
     const POLL_INTERVAL = 1000
 
     const [username, setUsername] = useState('')
-    const [modelStrength, setModelStrength] = useState(400000)
+    const [modelStrength, setModelStrength] = useState(500000)
     const [popularityFilter, setPopularityFilter] = useState(-1)
     const [dataOptIn, setDataOptIn] = useState(false)
 
@@ -137,8 +137,8 @@ const Controls = ({
                     value={modelStrength}
                     onChange={(e) => setModelStrength(e.target.value)}
                     step={100000}
-                    min={300000}
-                    max={900000}
+                    min={400000}
+                    max={1000000}
                     valueLabelDisplay="off"
                     marks={true}
                     labels={['Faster Results', 'Better Results']}
