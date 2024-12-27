@@ -1,3 +1,4 @@
+$mobile-breakpoint: 660px;
 
 #recommendation-list {
     font-size: 18px;
@@ -11,20 +12,34 @@
     width: 100%;
 }
 
+.recommendation-data-wrapper {
+    flex-grow: 1;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    div.recommendation-movie-data-wrapper {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
 .movie-rec {
     min-width: 250px;
     min-height: 120px;
-    padding: 15px 15px;
+    padding: 16px;
     background-color: rgba(173, 216, 230, 0.3);
-    /* border: 1px solid black; */
     border-radius: 10px;
     margin: 4px 8px;
     font-size: 17px;
 
     display: flex;
-    justify-content: space-between;
-    gap: 5px;
-    // grid-template-columns: 10% 75% 15%;
+    justify-content: stretch;
+    gap: 16px;
     align-items: center;
 
     box-sizing: border-box;
@@ -32,15 +47,31 @@
 }
 
 .movie-rec .genre-display {
-    position: absolute;
-    bottom: 12px;
-    left: 72px;
     display: flex;
     gap: 8px;
     flex-direction: row;
 
-    max-width: calc(100% - 160px);
+    max-width: 410px;
     overflow-x: scroll;
+
+    @media only screen and (max-width: $mobile-breakpoint) {
+        display: none;
+        flex: 0;
+        max-width: 0;
+    }
+
+    // On mid-size tablet devices, we can display the genres,
+    // but the max-width needs to be a little lower
+    @media only screen and (min-width: 661px) and (min-width: 950px) {
+        max-width: 340px;
+    }
+
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 .poster-container {
@@ -58,7 +89,6 @@
 }
 
 .title-link {
-    padding: 0px 8px 10px;
     justify-self: left;
     width: 100%;
     text-align: left;
@@ -69,18 +99,18 @@
     width: auto;
 }
 
-@media only screen and (max-width: 700px) {
+@media only screen and (max-width: $mobile-breakpoint) {
     .grid-item.title-link {
         padding: 0px 8px;
         padding-left: 5px;
-        font-size: 0.9rem;
+        font-size: 1rem;
         text-align: left;
     }
 
     #recommendation-list {
         padding-left: 26px;
     }
-    
+
     #recommendation-list li::marker {
         font-size: 14px;
     }
