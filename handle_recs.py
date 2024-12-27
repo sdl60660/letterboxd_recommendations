@@ -6,6 +6,7 @@ from rq.job import Job
 from rq.registry import FinishedJobRegistry
 
 from data_processing.get_user_ratings import get_user_data
+from data_processing.get_user_watchlist import get_watchlist_data
 from data_processing.build_model import build_model
 from data_processing.run_model import run_model
 
@@ -34,10 +35,12 @@ def filter_threshold_list(threshold_movie_list, review_count_threshold=2000):
 
 def get_client_user_data(username, data_opt_in):
     user_data = get_user_data(username, data_opt_in)
+    user_watchlist = get_watchlist_data(username)
     
     current_job = get_current_job(conn)
     current_job.meta['user_status'] = user_data[1]
     current_job.meta['num_user_ratings'] = len(user_data[0])
+    current_job.meta['user_watchlist'] = user_watchlist
     current_job.save()
 
     return user_data[0]
