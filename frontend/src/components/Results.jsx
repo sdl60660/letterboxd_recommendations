@@ -19,8 +19,6 @@ const Results = ({ results, userWatchlist }) => {
     const [filteredYearRange, setFilteredYearRange] = useState(null);
     const [excludeWatchlist, setExcludeWatchlist] = useState(true);
 
-    console.log('testing', userWatchlist, results);
-
     const displayedResults = !results
         ? []
         : results
