@@ -102,16 +102,10 @@ def get_page_count(username):
     try:
         page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
         num_pages = int(page_link.find("a").text.replace(",", ""))
-        display_name = (
-            body.find("section", attrs={"class": "profile-header"})
-            .find("h1", attrs={"class": "title-3"})
-            .text.strip()
-        )
     except IndexError:
         num_pages = 1
-        display_name = None
 
-    return num_pages, display_name
+    return num_pages
 
 
 def get_watchlist_data(username):
