@@ -40,7 +40,7 @@ def get_client_user_data(username, data_opt_in):
     current_job = get_current_job(conn)
     current_job.meta['user_status'] = user_data[1]
     current_job.meta['num_user_ratings'] = len(user_data[0])
-    current_job.meta['user_watchlist'] = user_watchlist
+    current_job.meta['user_watchlist'] = user_watchlist[0]
     current_job.save()
 
     return user_data[0]
