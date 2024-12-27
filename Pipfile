@@ -31,4 +31,4 @@ uvicorn = {extras = ["standard"], version = "*"}
 [dev-packages]
 
 [requires]
-python_full_version = "3.11.1"
+python_full_version = "3.11.9"
