@@ -46,6 +46,7 @@ function App() {
 
         <Results
           results={results}
+          redisData={redisData}
         />
       </div>
 

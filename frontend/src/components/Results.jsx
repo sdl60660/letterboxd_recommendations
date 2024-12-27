@@ -38,6 +38,7 @@ const Results = ({ results, redisData }) => {
                         d.movie_data.year_released <= filteredYearRange[1]
                       : true
               )
+              // .filter(d => excludeWatchlist === false || !userWatchlist.includes(d.movie_data.id))
               .slice(0, 50)
 
     return (
