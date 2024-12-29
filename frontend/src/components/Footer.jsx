@@ -11,7 +11,7 @@ const Footer = (props) => {
         <div className="container footer">
             <hr />
             <section>
-                <p style={{ fontWeight: 'bold' }}>
+                {/* <p style={{ fontWeight: 'bold' }}>
                     Project by{' '}
                     <a
                         target="_blank"
@@ -68,7 +68,7 @@ const Footer = (props) => {
                             alt="letterboxd link"
                         />
                     </a>
-                </p>
+                </p> */}
                 <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
 
                 <div className="btn-container">
