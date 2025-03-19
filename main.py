@@ -4,11 +4,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 
-from typing import Union
+from typing import Union, List, Dict, Any, Optional
+from pydantic import BaseModel
 
 from urllib.parse import urlparse, urlunparse
 
 import pandas as pd
+import pickle
 
 from rq import Queue
 from rq.exceptions import NoSuchJobError
@@ -18,6 +20,12 @@ from rq.registry import DeferredJobRegistry
 from worker import conn
 
 from handle_recs import get_client_user_data, build_client_model
+from handle_llm import (
+    create_chat_session,
+    get_chat_sessions,
+    get_chat_history,
+    get_llm_recommendations
+)
 
 
 app = FastAPI()
@@ -46,6 +54,26 @@ templates = Jinja2Templates(directory="templates")
 
 queue_pool = [Queue(channel, connection=conn) for channel in ["high", "default", "low"]]
 popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
+
+
+# Pydantic models for chat API
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+    timestamp: Optional[float] = None
+
+
+class ChatRequest(BaseModel):
+    user_id: str
+    message: str
+    session_id: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    error: Optional[str] = None
+    session_id: str
 
 
 # A direct link to the heroku site will redirect to new domain
@@ -148,3 +176,72 @@ def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
             status_code=202,
             content={"statuses": job_statuses, "execution_data": execution_data},
         )
+
+
+@app.post("/chat/start_session")
+def start_chat_session(user_id: str):
+    """Start a new chat session"""
+    session_id = create_chat_session(user_id)
+    return JSONResponse(
+        status_code=200,
+        content={"session_id": session_id}
+    )
+
+
+@app.get("/chat/sessions")
+def list_chat_sessions(user_id: str):
+    """List all chat sessions for a user"""
+    sessions = get_chat_sessions(user_id)
+    return JSONResponse(
+        status_code=200,
+        content={"sessions": sessions}
+    )
+
+
+@app.get("/chat/history")
+def get_conversation_history(user_id: str, session_id: str):
+    """Get the history of a chat session"""
+    history = get_chat_history(user_id, session_id)
+    return JSONResponse(
+        status_code=200,
+        content={"history": history}
+    )
+
+
+@app.post("/chat/message", response_model=ChatResponse)
+async def send_chat_message(request: ChatRequest):
+    """Send a message and get LLM-based recommendations"""
+    # If no session_id is provided, create a new one
+    session_id = request.session_id
+    if not session_id:
+        session_id = create_chat_session(request.user_id)
+    
+    # Get current user ratings and watchlist data if available
+    try:
+        # Attempt to get the user's data from Redis
+        user_data_key = f"user_data:{request.user_id}"
+        user_ratings = None
+        user_watchlist = None
+        
+        # Try to retrieve user data from Redis
+        user_data_bytes = conn.get(user_data_key)
+        if user_data_bytes:
+            user_data = pickle.loads(user_data_bytes)
+            user_ratings = user_data.get("ratings")
+            user_watchlist = user_data.get("watchlist")
+        
+        response = get_llm_recommendations(
+            request.user_id,
+            session_id,
+            request.message,
+            user_ratings,
+            user_watchlist
+        )
+        
+        return response
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "session_id": session_id
+        }
