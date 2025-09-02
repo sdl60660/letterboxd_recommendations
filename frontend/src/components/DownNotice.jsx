@@ -5,7 +5,7 @@ const DownNotice = () => {
     return (
         <div className={'site-message down-notice'}>
             <p>
-                NOTE: As of August 9, 2022, some site dependencies have changed
+                NOTE: As of August 31, 2025, some site dependencies have changed
                 and the site is currently not functioning as intended.
             </p>
             <p>
