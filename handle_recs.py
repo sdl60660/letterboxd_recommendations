@@ -42,6 +42,24 @@ def get_client_user_data(username, data_opt_in):
     current_job.meta['num_user_ratings'] = len(user_data[0])
     current_job.meta['user_watchlist'] = user_watchlist[0]
     current_job.save()
+    
+    # Save user data for LLM integration
+    # In a production system, this should be saved to a proper database
+    # For this example, we'll use Redis to store user data
+    if user_data[1] == "success":
+        user_ratings = user_data[0]
+        user_watchlist_ids = user_watchlist[0]
+        
+        # Create a dictionary for the user's data
+        user_llm_data = {
+            "username": username,
+            "ratings": user_ratings,
+            "watchlist": user_watchlist_ids
+        }
+        
+        # Save to Redis for LLM to use later
+        conn.set(f"user_data:{username}", pickle.dumps(user_llm_data))
+        conn.expire(f"user_data:{username}", 60 * 60 * 24)  # Expire after 24 hours
 
     return user_data[0]
 
