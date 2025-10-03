@@ -60,7 +60,7 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
 
     predictions = algo.test(prediction_set)
     top_n = get_top_n(predictions, num_recommendations)
-    movie_fields = ["image_url", "movie_id", "movie_title", "year_released", "genres", "original_language", "popularity", "runtime", "release_date"]
+    movie_fields = ["image_url", "movie_id", "movie_title", "year_released", "genres", "original_language", "popularity", "runtime", "release_date", "tmdb_link"]
     movie_data = {x["movie_id"]: {k:v for k,v in x.items() if k in movie_fields} for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})}
 
     # Print the recommended items for user
@@ -74,7 +74,21 @@ def run_model(username, algo, user_watched_list, threshold_movie_list, num_recom
             return_object[i]['unclipped_rating'] = float(algo.predict(username, prediction["movie_id"], clip=False).est)
 
     return_object.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
-    return return_object
+    
+    # create new empty list to hold ONLY movies
+    filtered_recs = []
+
+    # loop through each rec in the original list
+    for rec in return_object:
+        # get the tmdb_link from movie_data
+        tmdb_link = rec['movie_data'].get('tmdb_link')
+    
+        # check if link exists & movie
+        if tmdb_link and '/movie/' in tmdb_link:
+            # if it is, add to filtered list
+            filtered_recs.append(rec)
+
+    return filtered_recs
 
 if __name__ == "__main__":
     with open("models/user_watched.txt", "rb") as fp:
