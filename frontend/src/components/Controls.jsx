@@ -13,32 +13,27 @@ import {
 import LabeledSlider from './ui/LabeledSlider'
 import { poll, getRecData } from '../util/util'
 
-const validateData = (
-    data,
-    progressStep,
-    setProgressStep,
-    setRedisData
-) => {
+const validateData = (data, progressStep, setProgressStep, setRedisData) => {
     setRedisData(data)
 
-    const userJobStatus = data.statuses.redis_get_user_data_job_status;
+    const userJobStatus = data.statuses.redis_get_user_data_job_status
 
     if (
-        (userJobStatus === 'finished' || userJobStatus === "failed") &&
+        (userJobStatus === 'finished' || userJobStatus === 'failed') &&
         progressStep === 0
     ) {
-        setProgressStep(1);
+        setProgressStep(1)
     }
 
     if (
         data.execution_data.build_model_stage === 'running_model' &&
         progressStep === 1
     ) {
-        setProgressStep(2);
+        setProgressStep(2)
     }
 
     if (data.statuses.redis_build_model_job_status === 'finished') {
-        setProgressStep(3);
+        setProgressStep(3)
     }
 
     return data.statuses.redis_build_model_job_status === 'finished'
@@ -49,7 +44,7 @@ const Controls = ({
     requestProgressStep,
     setRequestProgressStep,
     setRedisData,
-    setResults
+    setResults,
 }) => {
     const POLL_INTERVAL = 1000
 
@@ -72,8 +67,11 @@ const Controls = ({
 
         setRunningModel(true)
 
-        // const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "https://letterboxd-recommendations.herokuapp.com";
-        const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://letterboxd-recommendations.herokuapp.com";
+        const url =
+            process.env.NODE_ENV === 'development'
+                ? 'http://127.0.0.1:5453'
+                : 'https://letterboxd-recommendations.herokuapp.com'
+        // const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://letterboxd-recommendations.herokuapp.com";
 
         const response = await fetch(
             `${url}/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
@@ -95,18 +93,18 @@ const Controls = ({
             interval: POLL_INTERVAL,
             maxAttempts: 300,
         })
-        .then((response) => {
-            // setUserRatings(response.user_ratings);
-            setResults(response.result);
-        })
-        .catch((error) => {
-            // Replace task list with error message
-            setQueryData({ error })
-        })
-        .finally(() => {
-            // Re-enable submit button
-            setRunningModel(false);
-        })
+            .then((response) => {
+                // setUserRatings(response.user_ratings);
+                setResults(response.result)
+            })
+            .catch((error) => {
+                // Replace task list with error message
+                setQueryData({ error })
+            })
+            .finally(() => {
+                // Re-enable submit button
+                setRunningModel(false)
+            })
     }
 
     return (
@@ -122,9 +120,7 @@ const Controls = ({
                     value={username}
                     pattern="^[A-Za-z0-9_]*$"
                     onInput={(e) => setUsername(e.target.value)}
-                    helperText={
-                        'Please provide a valid Letterboxd username'
-                    }
+                    helperText={'Please provide a valid Letterboxd username'}
                     label="Letterboxd Username"
                     variant="standard"
                 />
