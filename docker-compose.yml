@@ -1,12 +1,13 @@
 services:
   mongo:
     image: mongo:7
+    command: ["mongod", "--quiet", "--logpath", "/dev/null"]
     ports:
-      - "27017:27017"          # host access if you want to inspect with mongosh
+      - "27017:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 100s
       timeout: 5s
       retries: 10
@@ -21,16 +22,22 @@ services:
     environment:
       # Ensure the port your app binds to inside the container
       PORT: 8000
+    ports: ["8000:8000"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       - redis
       - mongo
-    ports: ["8000:8000"]
 
   worker:
     build:
       context: .
     command: ["python", "worker.py"]
     env_file: .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       - redis
       - mongo
