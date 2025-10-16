@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.11
+#!/usr/local/bin/python3.13
 
 from re import U
 from bs4 import BeautifulSoup
@@ -70,18 +70,13 @@ async def get_user_watchlist(
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
     tasks = []
     for response in scrape_responses:
-        task = asyncio.ensure_future(
-            parse_watchlist_page(
-                response
-            )
-        )
+        task = asyncio.ensure_future(parse_watchlist_page(response))
         tasks.append(task)
 
     parse_responses = await asyncio.gather(*tasks)
     parse_responses = list(chain.from_iterable(parse_responses))
-    
-    return parse_responses
 
+    return parse_responses
 
 
 def get_page_count(username):

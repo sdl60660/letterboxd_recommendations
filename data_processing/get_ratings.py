@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.11
+#!/usr/local/bin/python3.13
 
 import os
 import time

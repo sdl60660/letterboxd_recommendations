@@ -1,0 +1,12 @@
+.git
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.env
+.venv
+venv/
+node_modules/
+frontend/node_modules/
+dist/
+build/

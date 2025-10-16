@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.11
+#!/usr/local/bin/python3.13
 
 from re import U
 from bs4 import BeautifulSoup
@@ -88,6 +88,7 @@ def send_to_db(username, display_name, user_ratings):
         client = pymongo.MongoClient(
             database_url, server_api=pymongo.server_api.ServerApi("1")
         )
+
         db = client["letterboxd"]
         users = db.users
         ratings = db.ratings

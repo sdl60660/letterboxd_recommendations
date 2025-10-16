@@ -24,8 +24,8 @@ export const poll = async ({ fn, data, validate, interval, maxAttempts }) => {
 export const getRecData = async (redisIDs) => {
     const paramString = new URLSearchParams(redisIDs).toString();
 
-    const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "https://letterboxd-recommendations.herokuapp.com";
-    // const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://letterboxd-recommendations.herokuapp.com";
+    // const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:5453" : "https://letterboxd-recommendations.herokuapp.com";
+    const url = process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://letterboxd-recommendations.herokuapp.com";
 
     const response = await fetch(`${url}/results?${paramString}`, {
         method: 'GET'
