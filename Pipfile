@@ -41,4 +41,4 @@ scikit-surprise = {git = "https://github.com/sdl60660/surprise-fork.git", ref = 
 [dev-packages]
 
 [requires]
-python_full_version = "3.12.6"
+python_full_version = "3.12"
