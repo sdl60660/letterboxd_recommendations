@@ -95,7 +95,6 @@ async def fetch_poster(url, session, input_data={}):
                 .find("img")["src"]
                 .split("?")[0]
             )
-            print(image_url)
             image_url = image_url.replace("https://a.ltrbxd.com/resized/", "").split(
                 ".jpg"
             )[0]
@@ -283,6 +282,7 @@ def main(data_type="letterboxd"):
                 movies.find(
                     {
                         "$or": [
+                            {"image_url": {"$in": ["", None]}},
                             {"image_url": {"$exists": False}},
                             {"last_updated": {"$lte": two_months_ago}},
                         ]
