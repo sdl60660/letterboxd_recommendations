@@ -6,9 +6,10 @@ from tqdm import tqdm
 import math
 import datetime
 from itertools import chain
+import random
 
 import asyncio
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from bs4 import BeautifulSoup
 
 from pprint import pprint
@@ -26,12 +27,23 @@ else:
     from data_processing.utils import utils
     from data_processing.http_utils import BROWSER_HEADERS
 
-async def fetch(url, session, input_data={}):
-    async with session.get(url) as response:
+async def fetch(url, session, input_data={}, *, retries=3):
+    for attempt in range(retries):
         try:
-            return await response.read(), input_data
-        except:
-            return None, None
+            async with session.get(
+                url,
+                timeout=ClientTimeout(total=20)
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.read(), input_data
+                # backoff on transient blocks
+                if resp.status in (429, 503, 520, 521, 522):
+                    await asyncio.sleep(1.5 * (attempt + 1) + random.random())
+                    continue
+                return None, None
+        except Exception:
+            await asyncio.sleep(1.0 * (attempt + 1) + random.random())
+    return None, None
 
 
 async def get_page_counts(usernames, users_cursor):
@@ -46,7 +58,7 @@ async def get_page_counts(usernames, users_cursor):
             tasks.append(task)
 
         responses = await asyncio.gather(*tasks)
-        responses = [x for x in responses if x]
+        responses = [x for x in responses if x and x[0]]
 
         update_operations = []
         for i, response in enumerate(responses):
@@ -96,8 +108,15 @@ async def get_page_counts(usernames, users_cursor):
 
 
 async def generate_ratings_operations(response, send_to_db=True, return_unrated=False):
+    if not response or not response[0]:
+        return [], []
+
     # Parse ratings page response for each rating/review, use lxml parser for speed
-    soup = BeautifulSoup(response[0], "lxml")
+    try:
+        soup = BeautifulSoup(response[0], "lxml")
+    except Exception:
+        return [], []
+
     reviews = soup.find_all("li", class_="griditem")
 
     # Create empty array to store list of bulk operations or rating objects
