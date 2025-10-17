@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from pymongo.operations import ReplaceOne
 import requests
 from itertools import chain
+import os
 
 import asyncio
 from aiohttp import ClientSession, TCPConnector
@@ -13,18 +14,10 @@ import pymongo
 from pymongo import UpdateOne, ReplaceOne
 from pymongo.errors import BulkWriteError
 
-
-from pprint import pprint
-
-
-BROWSER_HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/126.0.0.0 Safari/537.36"),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-}
-
+if os.getcwd().endswith("/data_processing"):
+    from http_utils import BROWSER_HEADERS
+else:
+    from data_processing.http_utils import BROWSER_HEADERS
 
 async def fetch(url, session, input_data={}):
     async with session.get(url) as response:
@@ -37,16 +30,19 @@ async def fetch(url, session, input_data={}):
 async def parse_watchlist_page(response):
     # Parse ratings page response for each watchlist item, use lxml parser for speed
     soup = BeautifulSoup(response[0], "lxml")
-    watchlist_movies = soup.findAll("li", attrs={"class": "poster-container"})
+    watchlist_movies = soup.find_all("li", class_="griditem")
 
     # Create empty array to store list of watchlist movie IDs
     movie_ids = []
 
     # For each review, parse data from scraped page and append ID to output array
     for watchlist_movie in watchlist_movies:
-        movie_id = watchlist_movie.find("div", attrs={"class", "film-poster"})[
-            "data-target-link"
-        ].split("/")[-2]
+        rc = watchlist_movie.select_one("div.react-component")
+        movie_id = rc.get("data-item-slug") if rc else None
+
+        if not movie_id:
+            continue
+
         movie_ids.append(movie_id)
 
     return movie_ids
@@ -86,28 +82,21 @@ async def get_user_watchlist(
 
 
 def get_page_count(username):
-    url = "https://letterboxd.com/{}/watchlist"
-    r = requests.get(url.format(username))
+    url = f"https://letterboxd.com/{username}/watchlist"
+    r = requests.get(url, headers=BROWSER_HEADERS, timeout=20)
 
     soup = BeautifulSoup(r.text, "lxml")
-
     body = soup.find("body")
 
     try:
-        if "error" in body["class"]:
+        if body and "error" in body.get("class", []):
             return -1
-    except KeyError:
-        print(body)
+    except Exception:
         return -1
 
-    try:
-        page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
-        num_pages = int(page_link.find("a").text.replace(",", ""))
-    except IndexError:
-        num_pages = 1
-
+    links = soup.select("li.paginate-page a")
+    num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
     return num_pages
-
 
 def get_watchlist_data(username):
     num_pages = get_page_count(username)

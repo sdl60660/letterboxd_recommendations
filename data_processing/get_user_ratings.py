@@ -20,17 +20,11 @@ import os
 
 if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
+    from http_utils import BROWSER_HEADERS
+
 else:
     from data_processing.get_ratings import get_user_ratings
-
-
-BROWSER_HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/126.0.0.0 Safari/537.36"),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-}
+    from data_processing.http_utils import BROWSER_HEADERS
 
 
 def get_page_count(username):
@@ -38,7 +32,6 @@ def get_page_count(username):
     r = requests.get(url.format(username), headers=BROWSER_HEADERS)
 
     soup = BeautifulSoup(r.text, "lxml")
-
     body = soup.find("body")
 
     try:
@@ -49,14 +42,15 @@ def get_page_count(username):
         return -1, None
 
     try:
-        page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
-        num_pages = int(page_link.find("a").text.replace(",", ""))
-        display_name = (
-            body.find("section", attrs={"class": "profile-header"})
-            .find("h1", attrs={"class": "title-3"})
-            .text.strip()
-        )
-    except IndexError:
+        links = soup.select("li.paginate-page a")
+        if links:
+            num_pages = int(links[-1].get_text(strip=True).replace(",", ""))
+        else:
+            num_pages = 1
+
+        header = soup.select_one("section.profile-header h1.title-3")
+        display_name = header.get_text(strip=True) if header else None
+    except Exception:
         num_pages = 1
         display_name = None
 
@@ -65,7 +59,6 @@ def get_page_count(username):
 
 def get_user_data(username, data_opt_in=False):
     num_pages, display_name = get_page_count(username)
-
     if num_pages == -1:
         return [], "user_not_found"
 
