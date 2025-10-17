@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.11
+#!/usr/local/bin/python3.13
 
 import os
 import time
@@ -8,7 +8,7 @@ import datetime
 from itertools import chain
 
 import asyncio
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
 
 from pprint import pprint
@@ -18,14 +18,13 @@ from pymongo.errors import BulkWriteError
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
+    from utils import utils
+    from http_utils import BROWSER_HEADERS
+
 else:
     from data_processing.db_connect import connect_to_db
-
-if __name__ == "__main__" or os.getcwd().endswith("data_processing"):
-    from utils import utils
-else:
     from data_processing.utils import utils
-
+    from data_processing.http_utils import BROWSER_HEADERS
 
 async def fetch(url, session, input_data={}):
     async with session.get(url) as response:
@@ -39,7 +38,7 @@ async def get_page_counts(usernames, users_cursor):
     url = "https://letterboxd.com/{}/films/"
     tasks = []
 
-    async with ClientSession() as session:
+    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         for username in usernames:
             task = asyncio.ensure_future(
                 fetch(url.format(username), session, {"username": username})
@@ -52,11 +51,8 @@ async def get_page_counts(usernames, users_cursor):
         update_operations = []
         for i, response in enumerate(responses):
             soup = BeautifulSoup(response[0], "lxml")
-            try:
-                page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
-                num_pages = int(page_link.find("a").text.replace(",", ""))
-            except IndexError:
-                num_pages = 1
+            links = soup.select("li.paginate-page a")
+            num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
 
             user = users_cursor.find_one({"username": response[1]["username"]})
 
@@ -102,7 +98,7 @@ async def get_page_counts(usernames, users_cursor):
 async def generate_ratings_operations(response, send_to_db=True, return_unrated=False):
     # Parse ratings page response for each rating/review, use lxml parser for speed
     soup = BeautifulSoup(response[0], "lxml")
-    reviews = soup.findAll("li", attrs={"class": "poster-container"})
+    reviews = soup.find_all("li", class_="griditem")
 
     # Create empty array to store list of bulk operations or rating objects
     ratings_operations = []
@@ -110,19 +106,20 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
 
     # For each review, parse data from scraped page and append an UpdateOne operation for bulk execution or a rating object
     for review in reviews:
-        movie_id = review.find("div", attrs={"class", "film-poster"})[
-            "data-target-link"
-        ].split("/")[-2]
+        rc = review.select_one("div.react-component")
+        movie_id = rc.get("data-item-slug") if rc else None
 
-        rating = review.find("span", attrs={"class": "rating"})
-        if not rating:
+        rating_el = review.select_one("span.rating")
+        if not rating_el:
             if return_unrated == False:
                 continue
             else:
                 rating_val = -1
+        
         else:
-            rating_class = rating["class"][-1]
-            rating_val = int(rating_class.split("-")[-1])
+            classes = rating_el.get("class", []) if rating_el else []
+            rated = next((c for c in classes if c.startswith("rated-")), None)  # e.g. "rated-8"
+            rating_val = int(rated.split("-")[-1]) if rated else -1
 
         rating_object = {
             "movie_id": movie_id,
@@ -250,7 +247,7 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
                 )
             )
             tasks.append(task)
-
+        
         # Gather all ratings page responses, concatenate all db upsert operatons for use in a bulk write
         user_responses = await asyncio.gather(*tasks)
         for response in user_responses:

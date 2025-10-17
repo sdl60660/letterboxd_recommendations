@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.11
+#!/usr/local/bin/python3.13
 
 from re import U
 from bs4 import BeautifulSoup
@@ -20,16 +20,18 @@ import os
 
 if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
+    from http_utils import BROWSER_HEADERS
+
 else:
     from data_processing.get_ratings import get_user_ratings
+    from data_processing.http_utils import BROWSER_HEADERS
 
 
 def get_page_count(username):
     url = "https://letterboxd.com/{}/films/by/date"
-    r = requests.get(url.format(username))
+    r = requests.get(url.format(username), headers=BROWSER_HEADERS)
 
     soup = BeautifulSoup(r.text, "lxml")
-
     body = soup.find("body")
 
     try:
@@ -40,14 +42,15 @@ def get_page_count(username):
         return -1, None
 
     try:
-        page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
-        num_pages = int(page_link.find("a").text.replace(",", ""))
-        display_name = (
-            body.find("section", attrs={"class": "profile-header"})
-            .find("h1", attrs={"class": "title-3"})
-            .text.strip()
-        )
-    except IndexError:
+        links = soup.select("li.paginate-page a")
+        if links:
+            num_pages = int(links[-1].get_text(strip=True).replace(",", ""))
+        else:
+            num_pages = 1
+
+        header = soup.select_one("section.profile-header h1.title-3")
+        display_name = header.get_text(strip=True) if header else None
+    except Exception:
         num_pages = 1
         display_name = None
 
@@ -56,7 +59,6 @@ def get_page_count(username):
 
 def get_user_data(username, data_opt_in=False):
     num_pages, display_name = get_page_count(username)
-
     if num_pages == -1:
         return [], "user_not_found"
 
@@ -88,6 +90,7 @@ def send_to_db(username, display_name, user_ratings):
         client = pymongo.MongoClient(
             database_url, server_api=pymongo.server_api.ServerApi("1")
         )
+
         db = client["letterboxd"]
         users = db.users
         ratings = db.ratings

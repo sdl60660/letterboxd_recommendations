@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.11
+#!/usr/local/bin/python3.13
 
 import pandas as pd
 import pickle
@@ -13,6 +13,7 @@ from surprise.dump import dump
 import random
 import numpy as np
 
+
 def build_model(df, user_data):
     # print(df.head())
 
@@ -21,8 +22,8 @@ def build_model(df, user_data):
     my_seed = 12
     random.seed(my_seed)
     np.random.seed(my_seed)
- 
-    user_rated = [x for x in user_data if x['rating_val'] > 0]
+
+    user_rated = [x for x in user_data if x["rating_val"] > 0]
 
     user_df = pd.DataFrame(user_rated)
     df = pd.concat([df, user_df]).reset_index(drop=True)
@@ -41,19 +42,21 @@ def build_model(df, user_data):
     trainingSet = data.build_full_trainset()
     algo.fit(trainingSet)
 
-    user_watched_list = [x['movie_id'] for x in user_data]
+    user_watched_list = [x["movie_id"] for x in user_data]
 
     return algo, user_watched_list
 
+
 if __name__ == "__main__":
     import os
+
     if os.getcwd().endswith("data_processing"):
         from get_user_ratings import get_user_data
     else:
         from data_processing.get_user_ratings import get_user_data
 
     # Load ratings data
-    df = pd.read_csv('data/training_data.csv')
+    df = pd.read_csv("data/training_data.csv")
 
     user_data = get_user_data("samlearner")[0]
     algo, user_watched_list = build_model(df, user_data)

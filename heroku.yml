@@ -1,0 +1,16 @@
+setup:
+  config:
+    PORT: 8000
+
+build:
+  docker:
+    web: Dockerfile
+    worker: Dockerfile
+
+release:
+  command:
+    - python -c "print('release phase')"
+
+run:
+  web: gunicorn -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT
+  worker: python worker.py
