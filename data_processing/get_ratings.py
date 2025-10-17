@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3.12
 
 import os
-import time
+import re
 from tqdm import tqdm
 import math
 import datetime
@@ -70,7 +70,9 @@ async def get_page_counts(usernames, users_cursor):
             username = response[1]["username"] if response and response[1] else usernames[i]
             username = username.strip().lower()
 
-            user = users_cursor.find_one({"username": username})
+            user = users_cursor.find_one(
+                {"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}}
+            )
 
             # for failed crawls (user page is inactive, error, etc)
             if not response or not response[0]:
@@ -96,7 +98,6 @@ async def get_page_counts(usernames, users_cursor):
             soup = BeautifulSoup(response[0], "lxml")
             links = soup.select("li.paginate-page a")
             num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
-
 
             try:
                 previous_num_pages = user["num_ratings_pages"]
@@ -218,10 +219,13 @@ async def get_user_ratings(
     return_unrated=False,
 ):
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
+    user = None
 
     if not num_pages and db_cursor:
         users = db_cursor.users
-        user = users.find_one({"username": username})
+        user = users.find_one(
+            {"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}}
+        )
         # We're trying to limit the number of pages we crawl instead of wasting tons of time on
         # gathering ratings we've already hit (see comment in get_page_counts)
         try:
@@ -368,23 +372,6 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
 
             except BulkWriteError as bwe:
                 pprint(bwe.details)
-
-
-def print_status(start, chunk_size, chunk_index, total_operations, total_records):
-    total_time = round((time.time() - start), 2)
-    completed_records = chunk_size * chunk_index
-    time_per_user = round(total_time / completed_records, 2)
-    remaining_estimate = round(time_per_user * (total_records - completed_records), 2)
-
-    print("\n================")
-    print(f"Users Complete: {completed_records}")
-    print(f"Users Remaining: {(total_records - completed_records)}")
-    print("Chunk Database Operations:", total_operations)
-    print()
-    print("Current Time/User:", f"{time_per_user} seconds")
-    print("Elapsed Time:", utils.format_seconds(total_time))
-    print("Est. Time Remaining:", utils.format_seconds(remaining_estimate))
-    print("================\n")
 
 # I've started attaching timestamps for last_updated, as well as statuses for if a scrape fails/when to retry. This way...
 # instead of updating every user's ratings on every crawl, we can prioritize based on those with missing data or those which...
