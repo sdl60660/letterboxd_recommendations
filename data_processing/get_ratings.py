@@ -6,7 +6,6 @@ from tqdm import tqdm
 import math
 import datetime
 from itertools import chain
-import random
 
 import asyncio
 from aiohttp import ClientSession, TCPConnector, ClientTimeout
@@ -38,11 +37,11 @@ async def fetch(url, session, input_data={}, *, retries=3):
                     return await resp.read(), input_data
                 # backoff on transient blocks
                 if resp.status in (429, 503, 520, 521, 522):
-                    await asyncio.sleep(1.5 * (attempt + 1) + random.random())
+                    await asyncio.sleep(1.5 * (attempt + 1))
                     continue
                 return None, None
         except Exception:
-            await asyncio.sleep(1.0 * (attempt + 1) + random.random())
+            await asyncio.sleep(1.0 * (attempt + 1))
     return None, None
 
 
