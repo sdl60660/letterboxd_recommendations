@@ -218,10 +218,10 @@ async def get_user_ratings(
     return_unrated=False,
 ):
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
-    users = db_cursor.users
-    user = users.find_one({"username": username})
 
-    if not num_pages:
+    if not num_pages and db_cursor:
+        users = db_cursor.users
+        user = users.find_one({"username": username})
         # We're trying to limit the number of pages we crawl instead of wasting tons of time on
         # gathering ratings we've already hit (see comment in get_page_counts)
         try:
