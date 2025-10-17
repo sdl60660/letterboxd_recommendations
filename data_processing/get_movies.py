@@ -110,7 +110,7 @@ async def fetch_poster(url, session, input_data={}):
         if image_url != "":
             movie_object["image_url"] = image_url
 
-        movie_object["last_updated"] = datetime.datetime.now()
+        movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
 
         update_operation = UpdateOne(
             {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
@@ -147,7 +147,7 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
             except:
                 movie_object[field_name] = None
 
-        movie_object["last_updated"] = datetime.datetime.now()
+        movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
 
         update_operation = UpdateOne(
             {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
@@ -275,7 +275,7 @@ def main(data_type="letterboxd"):
 
         all_movies = list(update_ids)
     elif data_type == "poster":
-        two_months_ago = datetime.datetime.now() - datetime.timedelta(days=60)
+        two_months_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)
         all_movies = [
             x["movie_id"]
             for x in list(

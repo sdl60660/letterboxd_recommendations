@@ -26,6 +26,10 @@ else:
     from data_processing.utils import utils
     from data_processing.http_utils import BROWSER_HEADERS
 
+
+def get_backoff_days(fail_count, max_days = 180):
+    return min(2 ** min(fail_count, 5), max_days)
+
 async def fetch(url, session, input_data={}, *, retries=3):
     for attempt in range(retries):
         try:
@@ -49,6 +53,8 @@ async def get_page_counts(usernames, users_cursor):
     url = "https://letterboxd.com/{}/films/"
     tasks = []
     pages_by_user = {}
+    now = datetime.datetime.now(datetime.timezone.utc)
+    update_operations = []
 
     async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         for username in usernames:
@@ -58,16 +64,37 @@ async def get_page_counts(usernames, users_cursor):
             tasks.append(task)
 
         responses = await asyncio.gather(*tasks)
-        responses = [x for x in responses if x and x[0]]
+        # responses = [x for x in responses if x and x[0]]
 
-
-        update_operations = []
         for i, response in enumerate(responses):
+            username = response[1]["username"] if response and response[1] else usernames[i]
+            user = users_cursor.find_one({"username": username})
+
+            # for failed crawls (user page is inactive, error, etc)
+            if not response or not response[0]:
+                fail_count = user.get("fail_count", 0) + 1
+                backoff_days = get_backoff_days(fail_count)
+
+                next_retry = now + datetime.timedelta(days=backoff_days)
+                update_operations.append(
+                    UpdateOne(
+                        {"username": username},
+                        {"$set": {
+                            "scrape_status": "fail",
+                            "last_attempted": now,
+                            "next_retry_at": next_retry,
+                        },
+                        "$inc": {"fail_count": 1}},
+                        upsert=True,
+                    )
+                )
+                continue
+
+
             soup = BeautifulSoup(response[0], "lxml")
             links = soup.select("li.paginate-page a")
             num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
 
-            user = users_cursor.find_one({"username": response[1]["username"]})
 
             try:
                 previous_num_pages = user["num_ratings_pages"]
@@ -96,7 +123,7 @@ async def get_page_counts(usernames, users_cursor):
                         "$set": {
                             "num_ratings_pages": num_pages,
                             "recent_page_count": new_pages,
-                            "last_updated": datetime.datetime.now(),
+                            "last_updated": datetime.datetime.now(datetime.timezone.utc),
                         }
                     },
                     upsert=True,
@@ -184,17 +211,15 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
 async def get_user_ratings(
     username,
     db_cursor=None,
-    mongo_db=None,
     store_in_db=True,
     num_pages=None,
     return_unrated=False,
 ):
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
+    users = db_cursor.users
+    user = users.find_one({"username": username})
 
     if not num_pages:
-        # Find them in the MongoDB database and grab the number of ratings pages
-        user = db_cursor.find_one({"username": username})
-
         # We're trying to limit the number of pages we crawl instead of wasting tons of time on
         # gathering ratings we've already hit (see comment in get_page_counts)
         try:
@@ -240,14 +265,21 @@ async def get_user_ratings(
     upsert_movies_operations = []
     for response in parse_responses:
         upsert_ratings_operations += response[0]
-        upsert_movies_operations += response[1]
+        upsert_movies_operations += response[1] 
 
-    return upsert_ratings_operations, upsert_movies_operations
+    user_scrape_status = {
+        "username": username,
+        "ok": bool(upsert_movies_operations),
+        "fail_count": user.get("fail_count", 0) if user else 0
+    }
+
+    return upsert_ratings_operations, upsert_movies_operations, user_scrape_status
 
 
-async def get_ratings(usernames, pages_by_user, db_cursor=None, mongo_db=None, store_in_db=True):
+async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
+    users_collection = mongo_db.users
 
     chunk_size = 10
     total_chunks = math.ceil(len(usernames) / chunk_size)
@@ -256,6 +288,7 @@ async def get_ratings(usernames, pages_by_user, db_cursor=None, mongo_db=None, s
         tasks = []
         db_ratings_operations = []
         db_movies_operations = []
+        db_user_update_operations = []
 
         start_index = chunk_size * chunk_index
         end_index = chunk_size * chunk_index + chunk_size
@@ -269,8 +302,7 @@ async def get_ratings(usernames, pages_by_user, db_cursor=None, mongo_db=None, s
                 get_user_ratings(
                     username,
                     num_pages=pages_by_user.get(username, 1),
-                    db_cursor=db_cursor,
-                    mongo_db=mongo_db,
+                    db_cursor=mongo_db,
                     store_in_db=store_in_db,
                 )
             )
@@ -278,9 +310,46 @@ async def get_ratings(usernames, pages_by_user, db_cursor=None, mongo_db=None, s
         
         # Gather all ratings page responses, concatenate all db upsert operatons for use in a bulk write
         user_responses = await asyncio.gather(*tasks)
-        for response in user_responses:
-            db_ratings_operations += response[0]
-            db_movies_operations += response[1]
+
+        for ratings_op, movies_op, user_scrape_status in user_responses:
+            db_ratings_operations += ratings_op
+            db_movies_operations += movies_op
+            
+            now = datetime.datetime.now(datetime.timezone.utc)
+            # success
+            if user_scrape_status["ok"]:
+                db_user_update_operations.append(
+                    UpdateOne(
+                        {"username": user_scrape_status["username"]},
+                        {"$set": {
+                            "scrape_status": "ok",
+                            "fail_count": 0,
+                            "last_updated": now,
+                            "last_attempted": now,
+                            "next_retry_at": now,
+                        }},
+                        upsert=True,
+                    )
+                )
+            # failure
+            else:
+                fail_count = user_scrape_status.get("fail_count", 0) + 1
+                backoff_days = get_backoff_days(fail_count)
+                next_retry = now + datetime.timedelta(days=backoff_days)
+                db_user_update_operations.append(
+                    UpdateOne(
+                        {"username": user_scrape_status["username"]},
+                        {"$set": {
+                            "scrape_status": "fail",
+                            "last_attempted": now,
+                            "next_retry_at": next_retry,
+                        },
+                        "$inc": {"fail_count": 1}},
+                        upsert=True,
+                    )
+                )
+                
+
 
         if store_in_db:
             # Execute bulk upsert operations
@@ -291,6 +360,9 @@ async def get_ratings(usernames, pages_by_user, db_cursor=None, mongo_db=None, s
 
                 if len(db_movies_operations) > 0:
                     movies_collection.bulk_write(db_movies_operations, ordered=False)
+                
+                if len(db_user_update_operations) > 0:
+                    users_collection.bulk_write(db_user_update_operations, ordered=False)
 
             except BulkWriteError as bwe:
                 pprint(bwe.details)
@@ -312,6 +384,38 @@ def print_status(start, chunk_size, chunk_index, total_operations, total_records
     print("Est. Time Remaining:", utils.format_seconds(remaining_estimate))
     print("================\n")
 
+# I've started attaching timestamps for last_updated, as well as statuses for if a scrape fails/when to retry. This way...
+# instead of updating every user's ratings on every crawl, we can prioritize based on those with missing data or those which...
+# are most stale or due for a retry
+def get_users_to_update_list(users, cap_missing_fields = 1000, cap_due_for_retry = 500, cap_stale = 1000 ):
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # all_users = list(users.find({}).sort("last_updated", 1).limit(2000))
+
+    # grab a sample of those which are missing a last_updated_date/other recently added fields
+    # it will take many cycles of updates before these are all backfilled
+    missing_fields = list(
+        users.aggregate([
+            {"$match": {"$or": [{"last_updated": {"$exists": False}}, {"last_updated": None}, {"scrape_status": {"$exists": False}}, {"scrape_status": None}]},},
+            {"$sample": {"size": cap_missing_fields}},
+            {"$project": {"username": 1, "_id": 0}},
+        ]))
+    
+    # grab a sample of those which had a failed crawl and are now due for a retry
+    due_for_retry = list(users.find(
+        {"next_retry_at": {"$lte": now}},
+        {"username": 1, "_id": 0}
+    ).sort("next_retry_at", 1).limit(cap_due_for_retry))
+
+    # grab a sample of the most "stale" entries (where the last updated date is the oldest)
+    stale = list(users.find(
+        {"last_updated": {"$exists": True}},
+        {"username": 1, "_id": 0}
+    ).sort("last_updated", 1).limit(cap_stale))
+    
+    all_users = list(set([x['username'] for x in (missing_fields + due_for_retry + stale)]))
+    return all_users
+
 
 def main():
     # Connect to MongoDB client
@@ -321,31 +425,7 @@ def main():
     db = client[db_name]
     users = db.users
 
-    # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's...
-    # ...ratings every time. We'll just grab the 2000 records which are least recently updated + those without a last_updated value
-    # all_users = list(users.find({}).sort("last_updated", 1).limit(2000))
-    no_updated_date = list(
-        users.aggregate([
-            {"$match": {
-                "$or": [
-                    {"last_updated": {"$exists": False}},
-                    {"last_updated": None},
-                ]
-            }},
-            {"$sample": {"size": 1000}},
-        ])
-    )
-
-    least_recently_updated = list(
-        users.aggregate([
-            {"$match": {"last_updated": {"$exists": True}}},
-            {"$sort": {"last_updated": 1}},
-            {"$limit": 1000},
-        ])
-    )
-    all_users = no_updated_date + least_recently_updated
-    
-    all_usernames = [x["username"] for x in all_users]
+    all_usernames = get_users_to_update_list(users)
 
     large_chunk_size = 100
     num_chunks = math.ceil(len(all_usernames) / large_chunk_size)
