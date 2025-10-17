@@ -252,41 +252,29 @@ def main(data_type="letterboxd"):
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
     if data_type == "letterboxd":
-        newly_added = [
-            x["movie_id"] for x in list(movies.find({"tmdb_id": {"$exists": False}}))
-        ]
-        needs_update = [
-            x["movie_id"]
-            for x in list(
-                movies.find({"tmdb_id": {"$exists": True}})
-                .sort("last_updated", -1)
-                .limit(6000)
-            )
-        ] + [
-            x["movie_id"]
-            for x in list(
-                movies.find({
-                    "$or": [
-                        {"movie_title": {"$exists": False}},
-                        {"movie_title": ""},
-                        {"movie_title": None}
-                    ]
-                })
-            )
-        ] + [
-            x["movie_id"]
-            for x in list(
-                movies.find({
-                    "$or": [
-                        {"tmdb_id": {"$exists": False}},
-                        {"tmdb_id": ""},
-                        {"tmdb_id": None}
-                    ]
-                })
-            )
-        ]
+        update_ids = set()
 
-        all_movies = needs_update + newly_added
+        # 6000 least recently updated items for an update
+        update_ids |= {
+            x["movie_id"]
+            for x in movies.find({}, {"movie_id": 1}).sort("last_updated", 1).limit(6000)
+        }
+
+        # anything that is newly added or missing key data
+        update_ids |= {
+            x["movie_id"]
+            for x in movies.find(
+                {"$or": [
+                    {"movie_title": {"$exists": False}},
+                    {"movie_title": {"$in": ["", None]}},
+                    {"tmdb_id": {"$exists": False}},
+                    {"tmdb_id": {"$in": ["", None]}}
+                ]},
+                {"movie_id": 1}
+            )
+        }
+
+        all_movies = list(update_ids)
     elif data_type == "poster":
         two_months_ago = datetime.datetime.now() - datetime.timedelta(days=60)
         all_movies = [
