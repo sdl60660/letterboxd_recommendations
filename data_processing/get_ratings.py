@@ -198,7 +198,7 @@ async def get_user_ratings(
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
-    async with ClientSession() as session:
+    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
