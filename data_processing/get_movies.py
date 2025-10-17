@@ -202,32 +202,6 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         pprint(bwe.details)
 
 
-async def get_movie_posters(movie_list, db_cursor, mongo_db):
-    url = "https://letterboxd.com/ajax/poster/film/{}/hero/230x345"
-
-    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
-        # print("Starting Scrape", time.time() - start)
-
-        tasks = []
-        # Make a request for each ratings page and add to task queue
-        for movie in movie_list:
-            task = asyncio.ensure_future(
-                fetch_poster(url.format(movie), session, {"movie_id": movie})
-            )
-            tasks.append(task)
-
-        # Gather all ratings page responses
-        upsert_operations = await asyncio.gather(*tasks)
-
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            movies = mongo_db.movies
-            movies.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
-
-
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
 
@@ -315,21 +289,6 @@ def main(data_type="letterboxd"):
         }
 
         all_movies = list(update_ids)
-    elif data_type == "poster":
-        all_movies = [
-            x["movie_id"]
-            for x in list(
-                movies.find(
-                    {
-                        "$or": [
-                            {"image_url": {"$in": ["", None]}},
-                            {"image_url": {"$exists": False}},
-                            {"last_updated": {"$lte": two_months_ago}},
-                        ]
-                    }
-                )
-            )
-        ]
     else:
         all_movies = [
             x
@@ -365,8 +324,6 @@ def main(data_type="letterboxd"):
             try:
                 if data_type == "letterboxd":
                     future = asyncio.ensure_future(get_movies(chunk, movies, db))
-                elif data_type == "poster":
-                    future = asyncio.ensure_future(get_movie_posters(chunk, movies, db))
                 else:
                     future = asyncio.ensure_future(
                         get_rich_data(chunk, movies, db, tmdb_key)
@@ -385,5 +342,4 @@ def main(data_type="letterboxd"):
 
 if __name__ == "__main__":
     main("letterboxd")
-    # main("poster")
     main("tmdb")
