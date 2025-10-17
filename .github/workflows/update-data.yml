@@ -1,95 +1,81 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
 name: Automated data update
 
 on:
+  workflow_dispatch: {}
   push:
-    branches: [ "test-workflows" ]
+    branches: ["test-workflows"]
   schedule:
-    - cron: '0 0 */2 * *' # runs once every two days
+    # runs once every two days
+    - cron: '0 0 */2 * *'
 
 permissions:
   contents: write
 
 jobs:
   build:
-
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "America/New_York"
-        timezoneMacos: "America/New_York"
-        timezoneWindows: "Eastern Standard Time"
-    
-    - name: Set up Python 3.11.11
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.11.11"
-        
-    - name: Install pipenv
-      run: python -m pip install --upgrade pipenv wheel
-      
-    - id: cache-pipenv
-      uses: actions/cache@v4
-      with:
-        path: ~/.local/share/virtualenvs
-        key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
-        
-    - name: Install dependencies
-      if: steps.cache-pipenv.outputs.cache-hit != 'true'
-      run: pipenv install --deploy --dev
-      
-    - name: Crawl users data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-        TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      run: cd data_processing && pipenv run python get_users.py
+      - uses: szenius/set-timezone@v1.0
+        with:
+          timezoneLinux: "America/New_York"
+          timezoneMacos: "America/New_York"
+          timezoneWindows: "Eastern Standard Time"
 
-    - name: Crawl ratings data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-        TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      run: cd data_processing && pipenv run python get_ratings.py
+      - name: Set up Python 3.12.x
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Get movie data
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-        TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      run: cd data_processing && pipenv run python get_movies.py
+      - name: Install pipenv
+        run: python -m pip install --upgrade pipenv wheel
 
-    - name: Create new training data sample file
-      env:
-        CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-        MONGO_DB: ${{ secrets.MONGO_DB }}
-        TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      run: cd data_processing && pipenv run python create_training_data.py
+      - id: cache-pipenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/virtualenvs
+          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
 
-    - name: Update last updated date
-      run: cd data_processing && pipenv run python update_last_updated.py
+      - name: Install dependencies
+        if: steps.cache-pipenv.outputs.cache-hit != 'true'
+        run: pipenv install --deploy --dev
 
-    - uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        # Optional. Commit message for the created commit.
-        # Defaults to "Apply automatic changes"
-        commit_message: Automated data update
+      - name: Crawl users data
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python get_users.py
 
-        # Optional. Local and remote branch name where commit is going to be pushed
-        #  to. Defaults to the current branch.
-        #  You might need to set `create_branch: true` if the branch does not exist.
-        branch: main
+      - name: Crawl ratings data
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python get_ratings.py
 
-        # Optional. Options used by `git-commit`.
-        # See https://git-scm.com/docs/git-commit#_options
-        commit_options: '--no-verify --signoff'
+      - name: Get movie data
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python get_movies.py
 
-        # Optional. Local file path to the repository.
-        # Defaults to the root of the repository.
-        repository: .
+      - name: Create new training data sample file
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python create_training_data.py
+
+      - name: Update last updated date
+        run: cd data_processing && pipenv run python update_last_updated.py
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Automated data update
+          branch: main
+          commit_options: '--no-verify --signoff'
+          repository: .
