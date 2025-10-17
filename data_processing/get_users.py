@@ -43,7 +43,7 @@ for page in pbar:
     update_operations = []
     for row in rows:
         link = row.find("a")["href"]
-        username = link.strip("/")
+        username = link.strip("/").lower()
         display_name = row.find("a", class_="name").text.strip()
         reviews_link = row.select_one('small.metadata a[href$="/reviews/"]')
 

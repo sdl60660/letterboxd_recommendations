@@ -68,6 +68,8 @@ async def get_page_counts(usernames, users_cursor):
 
         for i, response in enumerate(responses):
             username = response[1]["username"] if response and response[1] else usernames[i]
+            username = username.strip().lower()
+
             user = users_cursor.find_one({"username": username})
 
             # for failed crawls (user page is inactive, error, etc)
@@ -115,10 +117,10 @@ async def get_page_counts(usernames, users_cursor):
             if num_pages >= 128 and new_pages < 10:
                 new_pages = 10
 
-            pages_by_user[response[1]["username"]] = new_pages
+            pages_by_user[username] = new_pages
             update_operations.append(
                 UpdateOne(
-                    {"username": response[1]["username"]},
+                    {"username": username},
                     {
                         "$set": {
                             "num_ratings_pages": num_pages,
@@ -176,7 +178,7 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
         rating_object = {
             "movie_id": movie_id,
             "rating_val": rating_val,
-            "user_id": response[1]["username"],
+            "user_id": response[1]["username"].lower(),
         }
 
         # We're going to eventually send a bunch of upsert operations for movies with just IDs
@@ -413,7 +415,7 @@ def get_users_to_update_list(users, cap_missing_fields = 1000, cap_due_for_retry
         {"username": 1, "_id": 0}
     ).sort("last_updated", 1).limit(cap_stale))
     
-    all_users = list(set([x['username'] for x in (missing_fields + due_for_retry + stale)]))
+    all_users = list(set([x['username'].lower() for x in (missing_fields + due_for_retry + stale)]))
     return all_users
 
 
