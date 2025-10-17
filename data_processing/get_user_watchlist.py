@@ -89,10 +89,10 @@ def get_page_count(username):
 
     try:
         if "error" in body["class"]:
-            return -1, None
+            return -1
     except KeyError:
         print(body)
-        return -1, None
+        return -1
 
     try:
         page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
