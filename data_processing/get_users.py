@@ -4,7 +4,7 @@ from pymongo.operations import ReplaceOne, UpdateOne
 import requests
 from bs4 import BeautifulSoup
 import re
-import datetime
+# import datetime
 
 import pymongo
 from pymongo.errors import BulkWriteError
@@ -55,7 +55,7 @@ for page in pbar:
             "username": username,
             "display_name": display_name,
             "num_reviews": num_reviews,
-            "last_updated": datetime.datetime.now(),
+            # "last_updated": datetime.datetime.now(),
         }
 
         update_operations.append(
