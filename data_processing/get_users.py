@@ -12,6 +12,13 @@ from tqdm import tqdm
 
 from db_connect import connect_to_db
 
+import os
+
+if os.getcwd().endswith("/data_processing"):
+    from http_utils import BROWSER_HEADERS
+else:
+    from data_processing.http_utils import BROWSER_HEADERS
+
 # Connect to MongoDB client
 db_name, client, tmdb_key = connect_to_db()
 
@@ -26,16 +33,16 @@ pbar = tqdm(range(1, total_pages + 1))
 for page in pbar:
     pbar.set_description(f"Scraping page {page} of {total_pages} of top users")
 
-    r = requests.get(base_url.format(page))
+    r = requests.get(base_url.format(page), headers=BROWSER_HEADERS)
     soup = BeautifulSoup(r.text, "html.parser")
-    table = soup.find("table", attrs={"class": "person-table"})
-    rows = table.findAll("td", attrs={"class": "table-person"})
+    table = soup.find("table", class_="member-table")
+    rows = table.find_all("td", class_="table-person")
 
     update_operations = []
     for row in rows:
         link = row.find("a")["href"]
         username = link.strip("/")
-        display_name = row.find("a", attrs={"class": "name"}).text.strip()
+        display_name = row.find("a", class_="name").text.strip()
         num_reviews = int(
             row.find("small")
             .find("a")

@@ -4,7 +4,7 @@ import datetime
 from bs4 import BeautifulSoup
 
 import asyncio
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 import requests
 from pprint import pprint
 
@@ -19,6 +19,13 @@ from pymongo.errors import BulkWriteError
 
 from db_connect import connect_to_db
 
+import os
+
+if os.getcwd().endswith("/data_processing"):
+    from http_utils import BROWSER_HEADERS
+else:
+    from data_processing.http_utils import BROWSER_HEADERS
+
 
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
@@ -28,7 +35,7 @@ async def fetch_letterboxd(url, session, input_data={}):
         soup = BeautifulSoup(response, "lxml")
         # rating = review.find("span", attrs={"class": "rating"})
 
-        movie_header = soup.find("section", attrs={"id": "featured-film-header"})
+        movie_header = soup.find("section", class_="production-masthead")
 
         try:
             movie_title = movie_header.find("h1").text
@@ -37,12 +44,12 @@ async def fetch_letterboxd(url, session, input_data={}):
 
         try:
             year = int(
-                movie_header.find("small", attrs={"class": "number"}).find("a").text
+                movie_header.find("span", class_="releasedate").find("a").text
             )
         except AttributeError:
             year = None
-
-        soup.find("span", attrs={"class": "rating"})
+        
+        soup.find("span", class_="average-rating")
 
         try:
             imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
@@ -52,7 +59,7 @@ async def fetch_letterboxd(url, session, input_data={}):
             imdb_id = ""
 
         try:
-            tmdb_link = soup.find("a", attrs={"data-track-action": "TMDb"})["href"]
+            tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
             tmdb_id = tmdb_link.split("/movie")[1].strip("/").split("/")[0]
         except:
             tmdb_link = ""
@@ -84,7 +91,7 @@ async def fetch_poster(url, session, input_data={}):
 
         try:
             image_url = (
-                soup.find("div", attrs={"class": "film-poster"})
+                soup.find("div", class_="film-poster")
                 .find("img")["src"]
                 .split("?")[0]
             )
@@ -96,8 +103,6 @@ async def fetch_poster(url, session, input_data={}):
                 image_url = ""
         except AttributeError:
             image_url = ""
-
-        print(image_url)
 
         movie_object = {
             "movie_id": input_data["movie_id"],
@@ -181,7 +186,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
 async def get_movie_posters(movie_list, db_cursor, mongo_db):
     url = "https://letterboxd.com/ajax/poster/film/{}/hero/230x345"
 
-    async with ClientSession() as session:
+    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         # print("Starting Scrape", time.time() - start)
 
         tasks = []
@@ -207,7 +212,7 @@ async def get_movie_posters(movie_list, db_cursor, mongo_db):
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
 
-    async with ClientSession() as session:
+    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         # print("Starting Scrape", time.time() - start)
 
         tasks = []
@@ -257,7 +262,30 @@ def main(data_type="letterboxd"):
                 .sort("last_updated", -1)
                 .limit(6000)
             )
+        ] + [
+            x["movie_id"]
+            for x in list(
+                movies.find({
+                    "$or": [
+                        {"movie_title": {"$exists": False}},
+                        {"movie_title": ""},
+                        {"movie_title": None}
+                    ]
+                })
+            )
+        ] + [
+            x["movie_id"]
+            for x in list(
+                movies.find({
+                    "$or": [
+                        {"tmdb_id": {"$exists": False}},
+                        {"tmdb_id": ""},
+                        {"tmdb_id": None}
+                    ]
+                })
+            )
         ]
+
         all_movies = needs_update + newly_added
     elif data_type == "poster":
         two_months_ago = datetime.datetime.now() - datetime.timedelta(days=60)
