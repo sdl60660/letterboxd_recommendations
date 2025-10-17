@@ -310,17 +310,18 @@ def main():
             chunk * large_chunk_size : (chunk + 1) * large_chunk_size
         ]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Find number of ratings pages for each user
+            future = asyncio.ensure_future(get_page_counts(username_set, users))
+            loop.run_until_complete(future)
 
-        # Find number of ratings pages for each user and add to their Mongo document (note: max of 128 scrapable pages)
-        future = asyncio.ensure_future(get_page_counts(username_set, users))
-        # future = asyncio.ensure_future(get_page_counts([], users))
-        loop.run_until_complete(future)
-
-        # Find and store ratings for each user
-        future = asyncio.ensure_future(get_ratings(username_set, users, db))
-        # future = asyncio.ensure_future(get_ratings(["samlearner"], users, db))
-        loop.run_until_complete(future)
+            # Find and store ratings for each user
+            future = asyncio.ensure_future(get_ratings(username_set, users, db))
+            loop.run_until_complete(future)
+        finally:
+            loop.close()
 
 
 if __name__ == "__main__":
