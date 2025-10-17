@@ -55,7 +55,7 @@ for page in pbar:
             "username": username,
             "display_name": display_name,
             "num_reviews": num_reviews,
-            # "last_updated": datetime.datetime.now(),
+            # "last_updated": datetime.datetime.now(datetime.timezone.utc),
         }
 
         update_operations.append(

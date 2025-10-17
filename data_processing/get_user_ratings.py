@@ -100,7 +100,7 @@ def send_to_db(username, display_name, user_ratings):
             "username": username,
             "display_name": display_name,
             "num_reviews": len(user_ratings),
-            "last_updated": datetime.datetime.now(),
+            "last_updated": datetime.datetime.now(datetime.timezone.utc),
         }
 
         users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
