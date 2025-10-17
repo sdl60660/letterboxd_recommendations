@@ -59,6 +59,7 @@ async def get_page_counts(usernames, users_cursor):
         responses = await asyncio.gather(*tasks)
         responses = [x for x in responses if x and x[0]]
 
+
         update_operations = []
         for i, response in enumerate(responses):
             soup = BeautifulSoup(response[0], "lxml")
@@ -314,18 +315,26 @@ def main():
     # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's...
     # ...ratings every time. We'll just grab the 2000 records which are least recently updated + those without a last_updated value
     # all_users = list(users.find({}).sort("last_updated", 1).limit(2000))
-    all_users = list(
-        users.find(
-                {"$or": [
+    no_updated_date = list(
+        users.aggregate([
+            {"$match": {
+                "$or": [
                     {"last_updated": {"$exists": False}},
                     {"last_updated": None},
-                ]}
-            ).limit(1000)
-    ) + list(
-        users.find({"last_updated": {"$exists": True}})
-            .sort("last_updated", 1)
-            .limit(1000)
+                ]
+            }},
+            {"$sample": {"size": 1000}},
+        ])
     )
+
+    least_recently_updated = list(
+        users.aggregate([
+            {"$match": {"last_updated": {"$exists": True}}},
+            {"$sort": {"last_updated": 1}},
+            {"$limit": 1000},
+        ])
+    )
+    all_users = no_updated_date + least_recently_updated
     
     all_usernames = [x["username"] for x in all_users]
 
