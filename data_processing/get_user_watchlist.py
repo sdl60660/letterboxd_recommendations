@@ -7,17 +7,23 @@ import requests
 from itertools import chain
 
 import asyncio
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 
 import pymongo
 from pymongo import UpdateOne, ReplaceOne
 from pymongo.errors import BulkWriteError
 
-import datetime
 
 from pprint import pprint
 
-import os
+
+BROWSER_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 
 async def fetch(url, session, input_data={}):
@@ -54,7 +60,7 @@ async def get_user_watchlist(
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
-    async with ClientSession() as session:
+    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):

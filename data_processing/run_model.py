@@ -34,28 +34,13 @@ def run_model(
     username, algo, user_watched_list, threshold_movie_list, num_recommendations=20
 ):
     # Connect to MongoDB Client
-    if config:
-        db_name = config["MONGO_DB"]
-    else:
-        db_name = os.environ.get("MONGO_DB", "")
+    db_name = os.getenv("MONGO_DB", "letterboxd")
+    connection_url = os.getenv("CONNECTION_URL")
 
-    serverless_connection = True
-    if config:
-        if config["CONNECTION_URL"]:
-            connection_url = config["CONNECTION_URL"]
-        else:
-            connection_url = f'mongodb+srv://{config["MONGO_USERNAME"]}:{config["MONGO_PASSWORD"]}@cluster0.{config["MONGO_CLUSTER_ID"]}.mongodb.net/{db_name}?retryWrites=true&w=majority'
-            serverless_connection = False
-    else:
-        connection_url = os.environ.get("CONNECTION_URL", "")
+    if not connection_url and config:
+        connection_url = config.get("CONNECTION_URL")
 
-    if serverless_connection:
-        client = pymongo.MongoClient(
-            connection_url, server_api=pymongo.server_api.ServerApi("1")
-        )
-    else:
-        client = pymongo.MongoClient(connection_url)
-
+    client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi("1"))
     db = client[db_name]
 
     unwatched_movies = [x for x in threshold_movie_list if x not in user_watched_list]
