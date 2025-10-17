@@ -191,7 +191,10 @@ async def get_user_ratings(
 
         # We're trying to limit the number of pages we crawl instead of wasting tons of time on
         # gathering ratings we've already hit (see comment in get_page_counts)
-        num_pages = user["recent_page_count"]
+        try:
+            num_pages = user["recent_page_count"]
+        except KeyError:
+            num_pages = 1
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
