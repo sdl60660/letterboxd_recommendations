@@ -48,6 +48,7 @@ async def fetch(url, session, input_data={}, *, retries=3):
 async def get_page_counts(usernames, users_cursor):
     url = "https://letterboxd.com/{}/films/"
     tasks = []
+    pages_by_user = {}
 
     async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
         for username in usernames:
@@ -79,13 +80,15 @@ async def get_page_counts(usernames, users_cursor):
             # To be safe, and because pagination is funky, we'll do one more than the difference
             # ...between previously scraped page count and current page count, but then cap it at total
             # ...pages in case there were zero previously scraped pages or only a single page, etc
-            new_pages = min(num_pages, num_pages - previous_num_pages + 1)
+            new_pages = max(0, min(num_pages, num_pages - previous_num_pages + 1))
+
 
             # Also, pages cap at 128, so if they've got 128 pages and we've scraped most of them before, we'll
             # ...just do the most recent 10 pages
             if num_pages >= 128 and new_pages < 10:
                 new_pages = 10
 
+            pages_by_user[response[1]["username"]] = new_pages
             update_operations.append(
                 UpdateOne(
                     {"username": response[1]["username"]},
@@ -99,12 +102,15 @@ async def get_page_counts(usernames, users_cursor):
                     upsert=True,
                 )
             )
+            
 
         try:
             if len(update_operations) > 0:
                 users_cursor.bulk_write(update_operations, ordered=False)
         except BulkWriteError as bwe:
             pprint(bwe.details)
+        
+        return pages_by_user
 
 
 async def generate_ratings_operations(response, send_to_db=True, return_unrated=False):
@@ -239,7 +245,7 @@ async def get_user_ratings(
     return upsert_ratings_operations, upsert_movies_operations
 
 
-async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True):
+async def get_ratings(usernames, pages_by_user, db_cursor=None, mongo_db=None, store_in_db=True):
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
 
@@ -259,10 +265,10 @@ async def get_ratings(usernames, db_cursor=None, mongo_db=None, store_in_db=True
 
         # For a given chunk, scrape each user's ratings and form an array of database upsert operations
         for i, username in enumerate(username_chunk):
-            # print((chunk_size*chunk_index)+i, username)
             task = asyncio.ensure_future(
                 get_user_ratings(
                     username,
+                    num_pages=pages_by_user.get(username, 1),
                     db_cursor=db_cursor,
                     mongo_db=mongo_db,
                     store_in_db=store_in_db,
@@ -356,13 +362,8 @@ def main():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            # Find number of ratings pages for each user
-            future = asyncio.ensure_future(get_page_counts(username_set, users))
-            loop.run_until_complete(future)
-
-            # Find and store ratings for each user
-            future = asyncio.ensure_future(get_ratings(username_set, users, db))
-            loop.run_until_complete(future)
+            pages_by_user = loop.run_until_complete(get_page_counts(username_set, users))
+            loop.run_until_complete(get_ratings(username_set, pages_by_user, mongo_db=db, store_in_db=True))
         finally:
             loop.close()
 
