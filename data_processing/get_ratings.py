@@ -294,8 +294,8 @@ def main():
     users = db.users
 
     # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's
-    # ratings every time. We'll just grab the 1000 records which are least recently updated
-    all_users = list(users.find({}).sort("last_updated", -1).limit(1200))
+    # ratings every time. We'll just grab the 2000 records which are least recently updated
+    all_users = list(users.find({}).sort("last_updated", -1).limit(2000))
     all_usernames = [x["username"] for x in all_users]
 
     large_chunk_size = 100
