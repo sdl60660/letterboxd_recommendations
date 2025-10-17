@@ -22,23 +22,10 @@ from handle_recs import get_client_user_data, build_client_model
 
 app = FastAPI()
 
-origins = [
-    "http://localhost",
-    "https://localhost",
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "http://letterboxd-recommendations.herokuapp.com",
-    "https://letterboxd-recommendations.herokuapp.com",
-    "http://letterboxd.samlearner.com",
-    "https://letterboxd.samlearner.com",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origin_regex=r"^https?://(localhost(:\d+)?|letterboxd(\.samlearner\.com)?|.*herokuapp\.com)$",
+    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -55,6 +42,9 @@ def homepage():
     return RedirectResponse("https://letterboxd.samlearner.com")
     # return templates.TemplateResponse("index.html", {})
 
+@app.get("/health")
+def health():
+    return {"ok": True}
 
 @app.get("/get_recs")
 def get_recs(
