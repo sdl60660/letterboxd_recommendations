@@ -1,5 +1,5 @@
-# Use a slim Python 3.13 base
-FROM python:3.13-slim
+# Use a slim Python 3.12 base
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

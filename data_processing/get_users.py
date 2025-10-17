@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.13
+#!/usr/local/bin/python3.12
 
 from pymongo.operations import ReplaceOne, UpdateOne
 import requests

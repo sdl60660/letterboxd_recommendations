@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.13
+#!/usr/local/bin/python3.12
 
 import datetime
 from bs4 import BeautifulSoup
