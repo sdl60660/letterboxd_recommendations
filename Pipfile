@@ -9,7 +9,7 @@ cython = ">=0.29.36"
 
 # scientific stack
 numpy = ">=2.1,<3"
-pandas = ">=2.2"
+pandas = ">=2.2.3"
 scikit-learn = ">=1.6"
 
 # web / services
