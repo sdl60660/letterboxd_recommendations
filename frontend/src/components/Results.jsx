@@ -13,30 +13,34 @@ const colorScale = scaleLinear()
     .range(['red', '#fde541', 'green', '#1F3D0C'])
 
 const Results = ({ results, userWatchlist }) => {
-    const [listDownloaded, setListDownloaded] = useState(false);
+    const [listDownloaded, setListDownloaded] = useState(false)
 
-    const [filteredGenres, setFilteredGenres] = useState(null);
-    const [filteredYearRange, setFilteredYearRange] = useState(null);
-    const [excludeWatchlist, setExcludeWatchlist] = useState(true);
+    const [filteredGenres, setFilteredGenres] = useState(null)
+    const [filteredYearRange, setFilteredYearRange] = useState(null)
+    const [excludeWatchlist, setExcludeWatchlist] = useState(true)
 
     const displayedResults = !results
         ? []
         : results
-              .filter((d) =>
-                  filteredGenres
-                      ? filteredGenres.some((genre) =>
-                            d.movie_data.genres?.includes(genre)
-                        )
-                      : true
-              )
-              .filter((d) =>
-                  filteredYearRange
-                      ? d.movie_data.year_released >= filteredYearRange[0] &&
-                        d.movie_data.year_released <= filteredYearRange[1]
-                      : true
-              )
-              .filter(d => excludeWatchlist === false || !userWatchlist.includes(d.movie_data.movie_id))
-              .slice(0, 50)
+            .filter((d) =>
+                filteredGenres
+                    ? filteredGenres.some((genre) =>
+                        d.movie_data.genres?.includes(genre)
+                    )
+                    : true
+            )
+            .filter((d) =>
+                filteredYearRange
+                    ? d.movie_data.year_released >= filteredYearRange[0] &&
+                    d.movie_data.year_released <= filteredYearRange[1]
+                    : true
+            )
+            .filter(
+                (d) =>
+                    excludeWatchlist === false || userWatchlist === null ||
+                    !userWatchlist.includes(d.movie_data.movie_id)
+            )
+            .slice(0, 50)
 
     return (
         <>
