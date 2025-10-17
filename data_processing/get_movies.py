@@ -82,7 +82,7 @@ async def fetch_letterboxd(url, session, input_data={}):
         try:
             image_url = get_poster_img_link(soup)
         except:
-            image_url = None
+            image_url = ""
 
         movie_object = {
             "movie_id": input_data["movie_id"],
@@ -273,7 +273,7 @@ def main(data_type="letterboxd"):
                                 {"tmdb_id": {"$exists": False}},
                                 {"tmdb_id": {"$in": ["", None]}},
                                 {"image_url": {"$exists": False}},
-                                {"image_url": {"$in": ["", None]}},
+                                {"image_url": {"$in": [None]}},
                             ]
                         },
                         # {
