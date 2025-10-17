@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3.12
 
 import datetime
+import json
 from bs4 import BeautifulSoup
 
 import asyncio
@@ -26,6 +27,19 @@ if os.getcwd().endswith("/data_processing"):
 else:
     from data_processing.http_utils import BROWSER_HEADERS
 
+
+def get_poster_img_link(soup):
+    # find the <script type="application/ld+json"> tag
+    data_script = soup.find("script", attrs={"type": "application/ld+json"})
+    if data_script and data_script.string:
+        # clean out the /* <![CDATA[ */ and /* ]]> */ wrappers if present
+        raw_json = data_script.string.strip()
+        raw_json = raw_json.replace("/* <![CDATA[ */", "").replace("/* ]]> */", "").strip()
+
+        data = json.loads(raw_json)
+        image_url = data.get("image")
+        
+        return image_url
 
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
@@ -64,6 +78,11 @@ async def fetch_letterboxd(url, session, input_data={}):
         except:
             tmdb_link = ""
             tmdb_id = ""
+        
+        try:
+            image_url = get_poster_img_link(soup)
+        except:
+            image_url = None
 
         movie_object = {
             "movie_id": input_data["movie_id"],
@@ -73,6 +92,7 @@ async def fetch_letterboxd(url, session, input_data={}):
             "tmdb_link": tmdb_link,
             "imdb_id": imdb_id,
             "tmdb_id": tmdb_id,
+            "image_url": image_url
         }
 
         update_operation = UpdateOne(
@@ -247,35 +267,55 @@ def main(data_type="letterboxd"):
 
     db = client[db_name]
     movies = db.movies
+    two_months_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 6000 least recently updated items for an update
-        update_ids |= {
-            x["movie_id"]
-            for x in movies.find({}, {"movie_id": 1}).sort("last_updated", 1).limit(6000)
-        }
-
-        # anything that is newly added or missing key data
+        # 1000 least recently updated items, excluding anything updated in the last ~2 months
         update_ids |= {
             x["movie_id"]
             for x in movies.find(
-                {"$or": [
-                    {"movie_title": {"$exists": False}},
-                    {"movie_title": {"$in": ["", None]}},
-                    {"tmdb_id": {"$exists": False}},
-                    {"tmdb_id": {"$in": ["", None]}}
-                ]},
+                {"last_updated": {"$lte": two_months_ago}},
                 {"movie_id": 1}
+            )
+            .sort("last_updated", 1)
+            .limit(1000)
+        }
+
+        # anything newly added or missing key data (including missing poster image)
+        # …but only if it hasn’t been attempted in the past 60 days
+        update_ids |= {
+            x["movie_id"]
+            for x in movies.find(
+                {
+                    "$and": [
+                        {
+                            "$or": [
+                                {"movie_title": {"$exists": False}},
+                                {"movie_title": {"$in": ["", None]}},
+                                {"tmdb_id": {"$exists": False}},
+                                {"tmdb_id": {"$in": ["", None]}},
+                                {"image_url": {"$exists": False}},
+                                {"image_url": {"$in": ["", None]}},
+                            ]
+                        },
+                        # {
+                        #     "$or": [
+                        #         {"last_updated": {"$exists": False}},
+                        #         {"last_updated": {"$lte": two_months_ago}},
+                        #     ]
+                        # },
+                    ]
+                },
+                {"movie_id": 1},
             )
         }
 
         all_movies = list(update_ids)
     elif data_type == "poster":
-        two_months_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)
         all_movies = [
             x["movie_id"]
             for x in list(
@@ -345,5 +385,5 @@ def main(data_type="letterboxd"):
 
 if __name__ == "__main__":
     main("letterboxd")
-    main("poster")
+    # main("poster")
     main("tmdb")
