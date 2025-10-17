@@ -312,9 +312,22 @@ def main():
     db = client[db_name]
     users = db.users
 
-    # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's
-    # ratings every time. We'll just grab the 2000 records which are least recently updated
-    all_users = list(users.find({}).sort("last_updated", -1).limit(2000))
+    # Starting to attach last_updated times, so we can cycle though updates instead of updating every user's...
+    # ...ratings every time. We'll just grab the 2000 records which are least recently updated + those without a last_updated value
+    # all_users = list(users.find({}).sort("last_updated", 1).limit(2000))
+    all_users = list(
+        users.find(
+                {"$or": [
+                    {"last_updated": {"$exists": False}},
+                    {"last_updated": None},
+                ]}
+            )
+    ) + list(
+        users.find({"last_updated": {"$exists": True}})
+            .sort("last_updated", 1)
+            .limit(2000)
+    )
+    
     all_usernames = [x["username"] for x in all_users]
 
     large_chunk_size = 100
