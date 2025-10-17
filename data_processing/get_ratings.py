@@ -320,11 +320,11 @@ def main():
                     {"last_updated": {"$exists": False}},
                     {"last_updated": None},
                 ]}
-            ).limit(5000)
+            ).limit(1000)
     ) + list(
         users.find({"last_updated": {"$exists": True}})
             .sort("last_updated", 1)
-            .limit(2000)
+            .limit(1000)
     )
     
     all_usernames = [x["username"] for x in all_users]
