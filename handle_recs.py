@@ -37,8 +37,6 @@ def get_client_user_data(username, data_opt_in):
     user_data = get_user_data(username, data_opt_in)
     user_watchlist = get_watchlist_data(username)
 
-    print("HERE", user_data, user_watchlist)
-
     current_job = get_current_job(conn)
     current_job.meta["user_status"] = user_data[1]
     current_job.meta["num_user_ratings"] = len(user_data[0])
