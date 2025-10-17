@@ -3,6 +3,7 @@
 from pymongo.operations import ReplaceOne, UpdateOne
 import requests
 from bs4 import BeautifulSoup
+import re
 
 import pymongo
 from pymongo.errors import BulkWriteError
@@ -43,13 +44,11 @@ for page in pbar:
         link = row.find("a")["href"]
         username = link.strip("/")
         display_name = row.find("a", class_="name").text.strip()
-        num_reviews = int(
-            row.find("small")
-            .find("a")
-            .text.replace("\xa0", " ")
-            .split()[0]
-            .replace(",", "")
-        )
+        reviews_link = row.select_one('small.metadata a[href$="/reviews/"]')
+
+        txt = reviews_link.get_text(" ", strip=True) if reviews_link else ""
+        m = re.search(r"([\d,]+)\s*reviews", txt, flags=re.I)
+        num_reviews = int(m.group(1).replace(",", "")) if m else 0
 
         user = {
             "username": username,
