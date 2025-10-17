@@ -221,7 +221,7 @@ async def get_user_ratings(
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
     user = None
 
-    if not num_pages and db_cursor:
+    if not num_pages and db_cursor is not None:
         users = db_cursor.users
         user = users.find_one(
             {"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}}
