@@ -12,10 +12,14 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
         movie_data.year_released === 0
             ? 'N/A'
             : movie_data.year_released.toFixed(0)
-    const imageURL =
-        movie_data.image_url === ''
-            ? 'https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png'
-            : `https://a.ltrbxd.com/resized/${movie_data.image_url}.jpg`
+    let imageURL = movie_data.image_url
+
+    if (imageURL === '') {
+        imageURL =
+            'https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png'
+    } else if (!imageURL.includes('a.ltrbxd.com')) {
+        imageURL = `https://a.ltrbxd.com/resized/${movie_data.image_url}.jpg`
+    }
 
     return (
         <li>
