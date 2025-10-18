@@ -28,7 +28,7 @@ else:
     from data_processing.http_utils import BROWSER_HEADERS
 
 
-def get_poster_img_link(soup):
+def get_meta_data_from_script_tag(soup):
     # find the <script type="application/ld+json"> tag
     data_script = soup.find("script", attrs={"type": "application/ld+json"})
     if data_script and data_script.string:
@@ -38,8 +38,11 @@ def get_poster_img_link(soup):
 
         data = json.loads(raw_json)
         image_url = data.get("image")
+        rating_count = data.get("ratingCount")
+        avg_rating = data.get("ratingValue")
+        genres = data.get("genre")
         
-        return image_url
+        return {"image_url": image_url, "letterboxd_rating_count": rating_count, "letterboxd_avg_rating": avg_rating, "letterboxd_genres": genres }
 
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
@@ -47,7 +50,6 @@ async def fetch_letterboxd(url, session, input_data={}):
 
         # Parse ratings page response for each rating/review, use lxml parser for speed
         soup = BeautifulSoup(response, "lxml")
-        # rating = review.find("span", attrs={"class": "rating"})
 
         movie_header = soup.find("section", class_="production-masthead")
 
@@ -63,8 +65,6 @@ async def fetch_letterboxd(url, session, input_data={}):
         except AttributeError:
             year = None
         
-        soup.find("span", class_="average-rating")
-
         try:
             imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
             imdb_id = imdb_link.split("/title")[1].strip("/").split("/")[0]
@@ -79,11 +79,6 @@ async def fetch_letterboxd(url, session, input_data={}):
             tmdb_link = ""
             tmdb_id = ""
         
-        try:
-            image_url = get_poster_img_link(soup)
-        except:
-            image_url = ""
-
         movie_object = {
             "movie_id": input_data["movie_id"],
             "movie_title": movie_title,
@@ -92,8 +87,19 @@ async def fetch_letterboxd(url, session, input_data={}):
             "tmdb_link": tmdb_link,
             "imdb_id": imdb_id,
             "tmdb_id": tmdb_id,
-            "image_url": image_url
         }
+
+        try:
+            script_tag_data = get_meta_data_from_script_tag(soup)
+
+            for k, v in script_tag_data.items():
+                if v:
+                    movie_object[k] = v
+        except:
+            # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
+            # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
+            # so even if the script data isn't present for some reason, let's ensure that we mark this as an empty string
+            movie_object['image_url'] = ""
 
         update_operation = UpdateOne(
             {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
@@ -241,22 +247,22 @@ def main(data_type="letterboxd"):
 
     db = client[db_name]
     movies = db.movies
-    two_months_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)
+    one_month_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 1000 least recently updated items, excluding anything updated in the last ~2 months
+        # 1000 least recently updated items, excluding anything updated in the last month
         update_ids |= {
             x["movie_id"]
             for x in movies.find(
-                {"last_updated": {"$lte": two_months_ago}},
+                {"last_updated": {"$lte": one_month_ago}},
                 {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(500)
+            .limit(1000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -290,7 +296,7 @@ def main(data_type="letterboxd"):
                         {
                             "$or": [
                                 {"last_updated": {"$exists": False}},
-                                {"last_updated": {"$lte": two_months_ago}},
+                                {"last_updated": {"$lte": one_month_ago}},
                             ]
                         },
                     ]
