@@ -38,9 +38,11 @@ def get_meta_data_from_script_tag(soup):
 
         data = json.loads(raw_json)
         image_url = data.get("image")
-        rating_count = data.get("ratingCount")
-        avg_rating = data.get("ratingValue")
         genres = data.get("genre")
+
+        rating_data = data.get("aggregateRating", {})
+        rating_count = rating_data.get("ratingCount")
+        avg_rating = rating_data.get("ratingValue")
         
         return {"image_url": image_url, "letterboxd_rating_count": rating_count, "letterboxd_avg_rating": avg_rating, "letterboxd_genres": genres }
 
