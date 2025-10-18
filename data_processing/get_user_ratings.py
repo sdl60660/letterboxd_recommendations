@@ -83,7 +83,7 @@ def get_user_data(username, data_opt_in=False):
 
 
 def send_to_db(username, display_name, user_ratings):
-    database_url = os.getenv("DATABASE_URL", None)
+    database_url = os.getenv("CONNECTION_URL", None)
 
     if database_url:
         client = pymongo.MongoClient(
