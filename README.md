@@ -18,10 +18,13 @@ The web crawling/data processing portion of this project (everything that isn't 
 
 1. Start up a local MongoDB server (ideally at the default port 27017)
 2. Add a file to the data_processing subdirectory called "db_config" with some basic information on your MongoDB server. If you're running a local server on the default port, all you'd need in that file is this: `config = { 'MONGO_DB': 'letterboxd', 'CONNECTION_URL': 'mongodb://localhost:27017/'}`
+3. Add a `.env` file at the top level with `.env.example` as a guide. The `secret_key` value can be anything, the `MONGODB_URI`/`CONNECTION_URL` values should be updated based on your MongoDB connection link.
 
 At that point, if you'd like to run the crawl on your own, you can just run the first three scripts listed in `data_processing/run_scripts.sh` (`get_users.py`, `get_ratings.py`, `get_movies.py`). If you download the data from Kaggle, you'll just need to import each CSV into your Mongo database as its own collection. The other three python scripts (`create_training_data.py`, `build_model.py`, `run_model.py`) will build and run the SVD model for you.
 
 If you'd like to run the web server with the front-end locally, you'll need to run a local Redis instance, as well. You can then run `pipenv run python worker.py` to activate the Redis worker in the background and run start the web server by running `pipenv run uvicorn main:app --reload`. Navigate into the `frontend` directory and run `npm install` to install packages and then `npm start` to start the frontend React app.
+
+Alternatively, just run the backend/frontend together with `docker compose up --build`, if you have docker installed.
 
 
 ### Built With
