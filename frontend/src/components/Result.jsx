@@ -84,4 +84,4 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
     )
 }
 
-export default Result
+export default React.memo(Result);

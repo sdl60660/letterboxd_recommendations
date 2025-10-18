@@ -83,7 +83,7 @@ const Results = ({ results, userWatchlist }) => {
             <div id="results">
                 <ol id="recommendation-list">
                     {results &&
-                        displayedResults.map((d, i) => (
+                        displayedResults.map((d) => (
                             <Result
                                 key={d.movie_id}
                                 textColor={colorScale(d.predicted_rating)}
