@@ -256,11 +256,25 @@ def main(data_type="letterboxd"):
                 {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(1000)
+            .limit(500)
         }
 
         # anything newly added or missing key data (including missing poster image)
-        # …but only if it hasn’t been attempted in the past 60 days
+        update_ids |= {
+            x["movie_id"]
+            for x in movies.find(
+                {        
+                    "$or": [
+                        {"movie_title": {"$exists": False}},
+                        {"tmdb_id": {"$exists": False}},
+                        {"image_url": {"$exists": False}},
+                    ]
+                },
+                {"movie_id": 1},
+            )
+        }
+
+        # missing key data (but has been attempted before), limited to a batch of 500 per update
         update_ids |= {
             x["movie_id"]
             for x in movies.find(
@@ -268,24 +282,23 @@ def main(data_type="letterboxd"):
                     "$and": [
                         {
                             "$or": [
-                                {"movie_title": {"$exists": False}},
                                 {"movie_title": {"$in": ["", None]}},
-                                {"tmdb_id": {"$exists": False}},
                                 {"tmdb_id": {"$in": ["", None]}},
-                                {"image_url": {"$exists": False}},
-                                {"image_url": {"$in": [None]}},
+                                {"image_url": {"$in": ["", None]}},
                             ]
                         },
-                        # {
-                        #     "$or": [
-                        #         {"last_updated": {"$exists": False}},
-                        #         {"last_updated": {"$lte": two_months_ago}},
-                        #     ]
-                        # },
+                        {
+                            "$or": [
+                                {"last_updated": {"$exists": False}},
+                                {"last_updated": {"$lte": two_months_ago}},
+                            ]
+                        },
                     ]
                 },
                 {"movie_id": 1},
             )
+            .sort("last_updated", 1)
+            .limit(500) 
         }
 
         all_movies = list(update_ids)
