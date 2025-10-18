@@ -1,25 +1,30 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import '../styles/Result.scss'
 
 import { Chip } from '@mui/material'
 
+const Image = React.memo(function Image(props) {
+    return <img {...props} alt={props.alt} />
+})
+
 const Result = ({ movie_data, predicted_rating, textColor }) => {
-    const Image = React.memo(function Image(props) {
-        return <img {...props} alt={props.alt} />
-    })
+    const imageURL = useMemo(() => {
+        let url = movie_data.image_url
+
+        if (url === '') {
+            url =
+                'https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png'
+        } else if (!url.includes('a.ltrbxd.com')) {
+            url = `https://a.ltrbxd.com/resized/${movie_data.image_url}.jpg`
+        }
+
+        return url
+    }, [movie_data.image_url])
 
     const yearReleased =
         movie_data.year_released === 0
             ? 'N/A'
             : movie_data.year_released.toFixed(0)
-    let imageURL = movie_data.image_url
-
-    if (imageURL === '') {
-        imageURL =
-            'https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png'
-    } else if (!imageURL.includes('a.ltrbxd.com')) {
-        imageURL = `https://a.ltrbxd.com/resized/${movie_data.image_url}.jpg`
-    }
 
     return (
         <li>
@@ -84,4 +89,4 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
     )
 }
 
-export default React.memo(Result);
+export default React.memo(Result)
