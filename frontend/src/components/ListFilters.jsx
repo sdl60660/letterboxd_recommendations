@@ -83,7 +83,9 @@ const ListFilters = ({
     return (
         <div className="list-filter-controls">
             <FormControl>
-                <Box sx={{ width: 400, maxWidth: '90vw' }}>
+                <Box
+                    // sx={{ width: 400, maxWidth: '100%'}}
+                >
                     <InputLabel id="year-filter-label" shrink={true}>
                         Year Released
                     </InputLabel>
@@ -98,6 +100,7 @@ const ListFilters = ({
                         min={allYears[0]}
                         max={allYears[1]}
                         step={1}
+                        colorPrimary="red"
                     />
                 </Box>
             </FormControl>
