@@ -9,9 +9,6 @@ notes.txt
 # Holds the secret key for the flask app
 app_config.py
 
-# Holds MongoDB database connection URL/db name
-data_processing/db_config.py
-
 # Export used to repopulate MongoDB collection to avoid re-crawling, too large to push remote
 data_processing/data/ratings_export.csv
 
@@ -47,4 +44,6 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
 credentials
+
+# holds mongo connection URL/credentials + TMDB key and server secret key
 .env
