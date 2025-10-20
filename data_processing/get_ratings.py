@@ -376,7 +376,7 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
 # I've started attaching timestamps for last_updated, as well as statuses for if a scrape fails/when to retry. This way...
 # instead of updating every user's ratings on every crawl, we can prioritize based on those with missing data or those which...
 # are most stale or due for a retry
-def get_users_to_update_list(users, cap_missing_fields = 2000, cap_due_for_retry = 500, cap_stale = 1000 ):
+def get_users_to_update_list(users, cap_missing_fields = 4000, cap_due_for_retry = 500, cap_stale = 1000 ):
     now = datetime.datetime.now(datetime.timezone.utc)
 
     # all_users = list(users.find({}).sort("last_updated", 1).limit(2000))
