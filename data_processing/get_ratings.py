@@ -269,6 +269,7 @@ async def get_user_ratings(
     # Concatenate each response's upsert operations/output dicts
     upsert_ratings_operations = []
     upsert_movies_operations = []
+
     for response in parse_responses:
         upsert_ratings_operations += response[0]
         upsert_movies_operations += response[1] 
@@ -337,6 +338,7 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
                         upsert=True,
                     )
                 )
+            
             # failure
             else:
                 fail_count = user_scrape_status.get("fail_count", 0) + 1
@@ -379,8 +381,6 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
 def get_users_to_update_list(users, cap_missing_fields = 4000, cap_due_for_retry = 500, cap_stale = 1000 ):
     now = datetime.datetime.now(datetime.timezone.utc)
 
-    # all_users = list(users.find({}).sort("last_updated", 1).limit(2000))
-
     # grab a sample of those which are missing a last_updated_date/other recently added fields
     # it will take many cycles of updates before these are all backfilled
     missing_fields = list(
@@ -389,10 +389,10 @@ def get_users_to_update_list(users, cap_missing_fields = 4000, cap_due_for_retry
             {"$sample": {"size": cap_missing_fields}},
             {"$project": {"username": 1, "_id": 0}},
         ]))
-    
+        
     # grab a sample of those which had a failed crawl and are now due for a retry
     due_for_retry = list(users.find(
-        {"next_retry_at": {"$lte": now}},
+        {"next_retry_at": {"$lte": now}, "scrape_status": "fail"},
         {"username": 1, "_id": 0}
     ).sort("next_retry_at", 1).limit(cap_due_for_retry))
 
