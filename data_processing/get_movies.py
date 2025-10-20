@@ -27,6 +27,15 @@ if os.getcwd().endswith("/data_processing"):
 else:
     from data_processing.http_utils import BROWSER_HEADERS
 
+def format_img_link_stub(raw_link):
+    image_url = raw_link.replace("https://a.ltrbxd.com/resized/", "").split(
+                ".jpg"
+            )[0]
+    
+    if "https://s.ltrbxd.com/static/img/empty-poster" in raw_link:
+        image_url = ""
+    
+    return image_url
 
 def get_meta_data_from_script_tag(soup):
     # find the <script type="application/ld+json"> tag
@@ -37,7 +46,7 @@ def get_meta_data_from_script_tag(soup):
         raw_json = raw_json.replace("/* <![CDATA[ */", "").replace("/* ]]> */", "").strip()
 
         data = json.loads(raw_json)
-        image_url = data.get("image")
+        image_url = data.get("image", "")
         genres = data.get("genre")
 
         rating_data = data.get("aggregateRating", {})
@@ -45,6 +54,7 @@ def get_meta_data_from_script_tag(soup):
         avg_rating = rating_data.get("ratingValue")
         
         return {"image_url": image_url, "letterboxd_rating_count": rating_count, "letterboxd_avg_rating": avg_rating, "letterboxd_genres": genres }
+
 
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
@@ -95,8 +105,13 @@ async def fetch_letterboxd(url, session, input_data={}):
             script_tag_data = get_meta_data_from_script_tag(soup)
 
             for k, v in script_tag_data.items():
-                if v:
+                if v is None:
+                    continue
+                elif k == 'image_url':
+                    movie_object[k] = format_img_link_stub(v)
+                else:
                     movie_object[k] = v
+                    
         except:
             # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
             # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
@@ -108,6 +123,8 @@ async def fetch_letterboxd(url, session, input_data={}):
         )
 
         return update_operation
+
+
 
 
 async def fetch_poster(url, session, input_data={}):
