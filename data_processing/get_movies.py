@@ -243,12 +243,7 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
         pprint(bwe.details)
 
 
-def main(data_type="letterboxd"):
-    # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
-
-    db = client[db_name]
-    movies = db.movies
+def get_ids_for_update(movies_collection, data_type):
     one_month_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
@@ -259,7 +254,7 @@ def main(data_type="letterboxd"):
         # 1000 least recently updated items, excluding anything updated in the last month
         update_ids |= {
             x["movie_id"]
-            for x in movies.find(
+            for x in movies_collection.find(
                 {"last_updated": {"$lte": one_month_ago}},
                 {"movie_id": 1}
             )
@@ -270,7 +265,7 @@ def main(data_type="letterboxd"):
         # anything newly added or missing key data (including missing poster image)
         update_ids |= {
             x["movie_id"]
-            for x in movies.find(
+            for x in movies_collection.find(
                 {        
                     "$or": [
                         {"movie_title": {"$exists": False}},
@@ -285,7 +280,7 @@ def main(data_type="letterboxd"):
         # missing key data (but has been attempted before), limited to a batch of 500 per update
         update_ids |= {
             x["movie_id"]
-            for x in movies.find(
+            for x in movies_collection.find(
                 {
                     "$and": [
                         {
@@ -314,7 +309,7 @@ def main(data_type="letterboxd"):
         all_movies = [
             x
             for x in list(
-                movies.find(
+                movies_collection.find(
                     {
                         "genres": {"$exists": False},
                         "tmdb_id": {"$ne": ""},
@@ -324,11 +319,22 @@ def main(data_type="letterboxd"):
             )
         ]
 
+    return all_movies
+
+def main(data_type="letterboxd"):
+    # Connect to MongoDB client
+    db_name, client, tmdb_key = connect_to_db()
+
+    db = client[db_name]
+    movies = db.movies
+
+    movies_for_update = get_ids_for_update(movies, data_type)
+
     loop = asyncio.get_event_loop()
     chunk_size = 12
-    num_chunks = len(all_movies) // chunk_size + 1
+    num_chunks = len(movies_for_update) // chunk_size + 1
 
-    print("Total Movies to Scrape:", len(all_movies))
+    print("Total Movies to Scrape:", len(movies_for_update))
     print("Total Chunks:", num_chunks)
     print("=======================\n")
 
@@ -337,9 +343,9 @@ def main(data_type="letterboxd"):
         pbar.set_description(f"Scraping chunk {chunk_i+1} of {num_chunks}")
 
         if chunk_i == num_chunks - 1:
-            chunk = all_movies[chunk_i * chunk_size :]
+            chunk = movies_for_update[chunk_i * chunk_size :]
         else:
-            chunk = all_movies[chunk_i * chunk_size : (chunk_i + 1) * chunk_size]
+            chunk = movies_for_update[chunk_i * chunk_size : (chunk_i + 1) * chunk_size]
 
         for attempt in range(5):
             try:
