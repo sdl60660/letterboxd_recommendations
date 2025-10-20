@@ -50,6 +50,7 @@ def health():
 def get_recs(
     username: str, training_data_size: int, popularity_filter: int, data_opt_in: bool
 ):
+    username = username.strip().lower()
     if popularity_filter >= 0:
         popularity_threshold = popularity_thresholds_500k_samples[popularity_filter]
     else:

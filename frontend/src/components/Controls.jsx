@@ -44,7 +44,8 @@ const Controls = ({
     requestProgressStep,
     setRequestProgressStep,
     setRedisData,
-    setResults,
+    setResults = () => {},
+    setUserWatchlist = () => {},
 }) => {
     const POLL_INTERVAL = 1000
 
@@ -67,10 +68,6 @@ const Controls = ({
 
         setRunningModel(true)
 
-        // const url =
-        //     process.env.NODE_ENV === 'development'
-        //         ? 'http://127.0.0.1:5453'
-        //         : 'https://letterboxd-recommendations.herokuapp.com'
         const url =
             process.env.NODE_ENV === 'development'
                 ? 'http://127.0.0.1:8000'
@@ -97,7 +94,7 @@ const Controls = ({
             maxAttempts: 300,
         })
             .then((response) => {
-                // setUserRatings(response.user_ratings);
+                setUserWatchlist(response.execution_data?.user_watchlist)
                 setResults(response.result)
             })
             .catch((error) => {

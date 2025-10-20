@@ -8,7 +8,7 @@ import Controls from './components/Controls'
 import ProgressTracking from './components/ProgressTracking'
 import Results from './components/Results'
 import Footer from './components/Footer'
-import DownNotice from "./components/DownNotice";
+// import DownNotice from "./components/DownNotice";
 // import ContributionAsk from './components/ContributionAsk'
 
 function App() {
@@ -17,10 +17,8 @@ function App() {
     const [redisData, setRedisData] = useState(null)
 
     // const [userRatings, setUserRatings] = useState(null);
-    const [results, setResults] = useState(null)
-
-    const { user_watchlist: userWatchlist = [] } =
-        redisData?.execution_data || {}
+    const [results, setResults] = useState(null);
+    const [userWatchlist, setUserWatchlist] = useState(null);
 
     return (
         <div className="App">
@@ -36,6 +34,7 @@ function App() {
                     setRequestProgressStep={setRequestProgressStep}
                     setRedisData={setRedisData}
                     setResults={setResults}
+                    setUserWatchlist={setUserWatchlist}
                 />
 
                 <ProgressTracking

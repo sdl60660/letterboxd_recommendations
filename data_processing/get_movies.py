@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3.12
 
 import datetime
+import json
 from bs4 import BeautifulSoup
 
 import asyncio
@@ -27,13 +28,30 @@ else:
     from data_processing.http_utils import BROWSER_HEADERS
 
 
+def get_meta_data_from_script_tag(soup):
+    # find the <script type="application/ld+json"> tag
+    data_script = soup.find("script", attrs={"type": "application/ld+json"})
+    if data_script and data_script.string:
+        # clean out the /* <![CDATA[ */ and /* ]]> */ wrappers if present
+        raw_json = data_script.string.strip()
+        raw_json = raw_json.replace("/* <![CDATA[ */", "").replace("/* ]]> */", "").strip()
+
+        data = json.loads(raw_json)
+        image_url = data.get("image")
+        genres = data.get("genre")
+
+        rating_data = data.get("aggregateRating", {})
+        rating_count = rating_data.get("ratingCount")
+        avg_rating = rating_data.get("ratingValue")
+        
+        return {"image_url": image_url, "letterboxd_rating_count": rating_count, "letterboxd_avg_rating": avg_rating, "letterboxd_genres": genres }
+
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
         response = await r.read()
 
         # Parse ratings page response for each rating/review, use lxml parser for speed
         soup = BeautifulSoup(response, "lxml")
-        # rating = review.find("span", attrs={"class": "rating"})
 
         movie_header = soup.find("section", class_="production-masthead")
 
@@ -49,8 +67,6 @@ async def fetch_letterboxd(url, session, input_data={}):
         except AttributeError:
             year = None
         
-        soup.find("span", class_="average-rating")
-
         try:
             imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
             imdb_id = imdb_link.split("/title")[1].strip("/").split("/")[0]
@@ -64,7 +80,7 @@ async def fetch_letterboxd(url, session, input_data={}):
         except:
             tmdb_link = ""
             tmdb_id = ""
-
+        
         movie_object = {
             "movie_id": input_data["movie_id"],
             "movie_title": movie_title,
@@ -74,6 +90,18 @@ async def fetch_letterboxd(url, session, input_data={}):
             "imdb_id": imdb_id,
             "tmdb_id": tmdb_id,
         }
+
+        try:
+            script_tag_data = get_meta_data_from_script_tag(soup)
+
+            for k, v in script_tag_data.items():
+                if v:
+                    movie_object[k] = v
+        except:
+            # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
+            # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
+            # so even if the script data isn't present for some reason, let's ensure that we mark this as an empty string
+            movie_object['image_url'] = ""
 
         update_operation = UpdateOne(
             {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
@@ -110,7 +138,7 @@ async def fetch_poster(url, session, input_data={}):
         if image_url != "":
             movie_object["image_url"] = image_url
 
-        movie_object["last_updated"] = datetime.datetime.now()
+        movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
 
         update_operation = UpdateOne(
             {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
@@ -147,7 +175,7 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
             except:
                 movie_object[field_name] = None
 
-        movie_object["last_updated"] = datetime.datetime.now()
+        movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
 
         update_operation = UpdateOne(
             {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
@@ -167,32 +195,6 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         for movie in movie_list:
             task = asyncio.ensure_future(
                 fetch_letterboxd(url.format(movie), session, {"movie_id": movie})
-            )
-            tasks.append(task)
-
-        # Gather all ratings page responses
-        upsert_operations = await asyncio.gather(*tasks)
-
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            movies = mongo_db.movies
-            movies.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
-
-
-async def get_movie_posters(movie_list, db_cursor, mongo_db):
-    url = "https://letterboxd.com/ajax/poster/film/{}/hero/230x345"
-
-    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
-        # print("Starting Scrape", time.time() - start)
-
-        tasks = []
-        # Make a request for each ratings page and add to task queue
-        for movie in movie_list:
-            task = asyncio.ensure_future(
-                fetch_poster(url.format(movie), session, {"movie_id": movie})
             )
             tasks.append(task)
 
@@ -247,49 +249,67 @@ def main(data_type="letterboxd"):
 
     db = client[db_name]
     movies = db.movies
+    one_month_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 6000 least recently updated items for an update
-        update_ids |= {
-            x["movie_id"]
-            for x in movies.find({}, {"movie_id": 1}).sort("last_updated", 1).limit(6000)
-        }
-
-        # anything that is newly added or missing key data
+        # 1000 least recently updated items, excluding anything updated in the last month
         update_ids |= {
             x["movie_id"]
             for x in movies.find(
-                {"$or": [
-                    {"movie_title": {"$exists": False}},
-                    {"movie_title": {"$in": ["", None]}},
-                    {"tmdb_id": {"$exists": False}},
-                    {"tmdb_id": {"$in": ["", None]}}
-                ]},
+                {"last_updated": {"$lte": one_month_ago}},
                 {"movie_id": 1}
+            )
+            .sort("last_updated", 1)
+            .limit(1000)
+        }
+
+        # anything newly added or missing key data (including missing poster image)
+        update_ids |= {
+            x["movie_id"]
+            for x in movies.find(
+                {        
+                    "$or": [
+                        {"movie_title": {"$exists": False}},
+                        {"tmdb_id": {"$exists": False}},
+                        {"image_url": {"$exists": False}},
+                    ]
+                },
+                {"movie_id": 1},
             )
         }
 
-        all_movies = list(update_ids)
-    elif data_type == "poster":
-        two_months_ago = datetime.datetime.now() - datetime.timedelta(days=60)
-        all_movies = [
+        # missing key data (but has been attempted before), limited to a batch of 500 per update
+        update_ids |= {
             x["movie_id"]
-            for x in list(
-                movies.find(
-                    {
-                        "$or": [
-                            {"image_url": {"$in": ["", None]}},
-                            {"image_url": {"$exists": False}},
-                            {"last_updated": {"$lte": two_months_ago}},
-                        ]
-                    }
-                )
+            for x in movies.find(
+                {
+                    "$and": [
+                        {
+                            "$or": [
+                                {"movie_title": {"$in": ["", None]}},
+                                {"tmdb_id": {"$in": ["", None]}},
+                                {"image_url": {"$in": ["", None]}},
+                            ]
+                        },
+                        {
+                            "$or": [
+                                {"last_updated": {"$exists": False}},
+                                {"last_updated": {"$lte": one_month_ago}},
+                            ]
+                        },
+                    ]
+                },
+                {"movie_id": 1},
             )
-        ]
+            .sort("last_updated", 1)
+            .limit(500) 
+        }
+
+        all_movies = list(update_ids)
     else:
         all_movies = [
             x
@@ -325,8 +345,6 @@ def main(data_type="letterboxd"):
             try:
                 if data_type == "letterboxd":
                     future = asyncio.ensure_future(get_movies(chunk, movies, db))
-                elif data_type == "poster":
-                    future = asyncio.ensure_future(get_movie_posters(chunk, movies, db))
                 else:
                     future = asyncio.ensure_future(
                         get_rich_data(chunk, movies, db, tmdb_key)
@@ -345,5 +363,4 @@ def main(data_type="letterboxd"):
 
 if __name__ == "__main__":
     main("letterboxd")
-    main("poster")
     main("tmdb")

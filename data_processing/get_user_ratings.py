@@ -68,7 +68,6 @@ def get_user_data(username, data_opt_in=False):
         get_user_ratings(
             username,
             db_cursor=None,
-            mongo_db=None,
             store_in_db=False,
             num_pages=num_pages,
             return_unrated=True,
@@ -84,7 +83,7 @@ def get_user_data(username, data_opt_in=False):
 
 
 def send_to_db(username, display_name, user_ratings):
-    database_url = os.getenv("DATABASE_URL", None)
+    database_url = os.getenv("CONNECTION_URL", None)
 
     if database_url:
         client = pymongo.MongoClient(
@@ -97,10 +96,11 @@ def send_to_db(username, display_name, user_ratings):
         movies = db.movies
 
         user = {
-            "username": username,
+            "username": username.lower(),
             "display_name": display_name,
             "num_reviews": len(user_ratings),
-            "last_updated": datetime.datetime.now(),
+            "last_attempted": datetime.datetime.now(datetime.timezone.utc),
+            "last_updated": datetime.datetime.now(datetime.timezone.utc),
         }
 
         users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)

@@ -42,5 +42,24 @@ services:
       - redis
       - mongo
 
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000" # expose React dev server
+    environment:
+      NODE_ENV: development
+      BROWSER: none # <-- don't try to xdg-open
+      CHOKIDAR_USEPOLLING: "true"  # good for Docker file watching
+      WDS_SOCKET_PORT: "0"         # fixes websocket port behind Docker on CRA
+    command: ["npm", "run", "start"]
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    depends_on:
+      - web # frontend waits for backend
+    stdin_open: true
+    tty: true
+
 volumes:
   mongo-data:

@@ -17,11 +17,6 @@ import os
 
 import pymongo
 
-try:
-    from .db_config import config
-except ImportError:
-    config = None
-
 
 def get_top_n(predictions, n=20):
     top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
@@ -36,9 +31,6 @@ def run_model(
     # Connect to MongoDB Client
     db_name = os.getenv("MONGO_DB", "letterboxd")
     connection_url = os.getenv("CONNECTION_URL")
-
-    if not connection_url and config:
-        connection_url = config.get("CONNECTION_URL")
 
     client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi("1"))
     db = client[db_name]
