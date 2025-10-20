@@ -75,7 +75,7 @@ jobs:
       - name: Update last updated date
         run: cd data_processing && pipenv run python update_last_updated.py
 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Automated data update
           branch: main
