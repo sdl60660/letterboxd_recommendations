@@ -3,7 +3,7 @@ name: Automated data update
 on:
   workflow_dispatch: {}
   push:
-    branches: ["test-workflows", "main"]
+    branches: ["test-workflows"]
   schedule:
     # runs once every two days
     - cron: '0 0 */2 * *'
