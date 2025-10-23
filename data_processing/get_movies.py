@@ -84,17 +84,14 @@ async def fetch_letterboxd(url, session, input_data={}):
             imdb_link = ""
             imdb_id = ""
 
-        # try:
-        tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
-        content_type = "movie" if "movie" in tmdb_link else "tv"
-
-        print(tmdb_link, content_type, tmdb_link.split(f"/{content_type}"))
-
-        tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
-        # except:
-        #     tmdb_link = ""
-        #     tmdb_id = ""
-        #     content_type = None
+        try:
+            tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
+            content_type = "movie" if "/movie/" in tmdb_link else "tv"
+            tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
+        except:
+            tmdb_link = ""
+            tmdb_id = ""
+            content_type = None
         
         movie_object = {
             "movie_id": input_data["movie_id"],
