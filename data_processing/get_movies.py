@@ -287,12 +287,7 @@ def get_ids_for_update(movies_collection, data_type):
             x["movie_id"]
             for x in movies_collection.find(
                 {        
-                    "$or": [
-                        {"movie_title": {"$exists": False}},
-                        {"tmdb_id": {"$exists": False}},
-                        # {"content_type": {"$exists": False}},
-                        {"image_url": {"$exists": False}},
-                    ]
+                    "content_type": {"$exists": False}
                 },
                 {"movie_id": 1},
             )
@@ -307,7 +302,6 @@ def get_ids_for_update(movies_collection, data_type):
                     "$or": [
                         {"movie_title": {"$exists": False}},
                         {"tmdb_id": {"$exists": False}},
-                        # {"content_type": {"$exists": False}},
                         {"image_url": {"$exists": False}},
                     ]
                 },
