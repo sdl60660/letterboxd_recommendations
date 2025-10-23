@@ -234,12 +234,12 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/{}/{}?api_key={}"
 
     async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
-        content_type = movie["content_type"] or "movie"
-
         tasks = []
         movie_list = [x for x in movie_list if x["tmdb_id"]]
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
+            content_type = movie["content_type"] or "movie"
+
             # print(base_url.format(content_type, movie["tmdb_id"], tmdb_key))
             task = asyncio.ensure_future(
                 fetch_tmdb_data(

@@ -44,19 +44,19 @@ jobs:
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: pipenv install --deploy --dev
 
-      # - name: Crawl users data
-      #   env:
-      #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-      #     MONGO_DB: ${{ secrets.MONGO_DB }}
-      #     TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      #   run: cd data_processing && pipenv run python get_users.py
+      - name: Crawl users data
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python get_users.py
 
-      # - name: Crawl ratings data
-      #   env:
-      #     CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-      #     MONGO_DB: ${{ secrets.MONGO_DB }}
-      #     TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      #   run: cd data_processing && pipenv run python get_ratings.py
+      - name: Crawl ratings data
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python get_ratings.py
 
       - name: Get movie data
         env:
