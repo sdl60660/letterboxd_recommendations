@@ -282,6 +282,23 @@ def get_ids_for_update(movies_collection, data_type):
             .limit(1000)
         }
 
+        # backfill a chunk of the records that are missing 'content_type' (newly-added)
+        update_ids |= {
+            x["movie_id"]
+            for x in movies_collection.find(
+                {        
+                    "$or": [
+                        {"movie_title": {"$exists": False}},
+                        {"tmdb_id": {"$exists": False}},
+                        # {"content_type": {"$exists": False}},
+                        {"image_url": {"$exists": False}},
+                    ]
+                },
+                {"movie_id": 1},
+            )
+            .limit(5000)
+        }
+
         # anything newly added or missing key data (including missing poster image)
         update_ids |= {
             x["movie_id"]
@@ -290,7 +307,7 @@ def get_ids_for_update(movies_collection, data_type):
                     "$or": [
                         {"movie_title": {"$exists": False}},
                         {"tmdb_id": {"$exists": False}},
-                        {"content_type": {"$exists": False}},
+                        # {"content_type": {"$exists": False}},
                         {"image_url": {"$exists": False}},
                     ]
                 },
@@ -323,7 +340,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"movie_id": 1},
             )
             .sort("last_updated", 1)
-            .limit(500) 
+            .limit(20000) 
         }
 
         all_movies = list(update_ids)
