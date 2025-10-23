@@ -323,12 +323,12 @@ def get_ids_for_update(movies_collection, data_type):
                                 {"content_type": {"in": ["", None]}},
                             ]
                         },
-                        {
-                            "$or": [
-                                {"last_updated": {"$exists": False}},
-                                {"last_updated": {"$lte": one_month_ago}},
-                            ]
-                        },
+                        # {
+                        #     "$or": [
+                        #         {"last_updated": {"$exists": False}},
+                        #         {"last_updated": {"$lte": one_month_ago}},
+                        #     ]
+                        # },
                     ]
                 },
                 {"movie_id": 1},
