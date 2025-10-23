@@ -86,7 +86,7 @@ async def fetch_letterboxd(url, session, input_data={}):
 
         try:
             tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
-            content_type = "movie" if "movie" in tmdb_link else "tv"
+            content_type = "movie" if "/movie/" in tmdb_link else "tv"
             tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
         except:
             tmdb_link = ""
@@ -234,13 +234,11 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/{}/{}?api_key={}"
 
     async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
-        content_type = movie["content_type"] or "movie"
-
         tasks = []
         movie_list = [x for x in movie_list if x["tmdb_id"]]
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
-            # print(base_url.format(content_type, movie["tmdb_id"], tmdb_key))
+            content_type = movie["content_type"] or "movie"
             task = asyncio.ensure_future(
                 fetch_tmdb_data(
                     base_url.format(content_type, movie["tmdb_id"], tmdb_key),
@@ -282,6 +280,18 @@ def get_ids_for_update(movies_collection, data_type):
             .limit(1000)
         }
 
+        # backfill a chunk of the records that are missing 'content_type' (newly-added)
+        update_ids |= {
+            x["movie_id"]
+            for x in movies_collection.find(
+                {        
+                    "content_type": {"$exists": False}
+                },
+                {"movie_id": 1},
+            )
+            .limit(1000)
+        }
+
         # anything newly added or missing key data (including missing poster image)
         update_ids |= {
             x["movie_id"]
@@ -290,7 +300,6 @@ def get_ids_for_update(movies_collection, data_type):
                     "$or": [
                         {"movie_title": {"$exists": False}},
                         {"tmdb_id": {"$exists": False}},
-                        {"content_type": {"$exists": False}},
                         {"image_url": {"$exists": False}},
                     ]
                 },
