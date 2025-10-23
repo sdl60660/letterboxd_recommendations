@@ -9,8 +9,8 @@ from db_connect import connect_to_db
 
 
 # --- params (tune these) ---
-USER_MIN = 50               # users must have ≥ this many ratings (dense pool)
-MOVIE_MIN = 20              # movies must have ≥ this many ratings (dense pool)
+USER_MIN = 50               # users must have ≥ this many ratings to end up in sampling pool
+MOVIE_MIN = 25              # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
 
 TARGET_EDGES = 1_500_000    # aim ~this many ratings in final sample (±5–10%)
 PER_USER_CAP = 300          # at most this many ratings per sampled user
@@ -60,12 +60,14 @@ def filter_active_users(db, ratings):
       {"$out": ACTIVE_USERS_COLL}
   ], allowDiskUse=True)
 
+  db[ACTIVE_USERS_COLL].create_index([("user_id", 1)], unique=True)
+
   return db[ACTIVE_USERS_COLL]
 
-def filter_popular_movies(db, ratings):
+def filter_popular_movies(db, ratings, threshold_ratings_count):
   ratings.aggregate([
       {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
-      {"$match": {"n": {"$gte": MOVIE_MIN}}},
+      {"$match": {"n": {"$gte": threshold_ratings_count}}},
       {"$project": {"_id": 0, "movie_id": "$_id"}},  # one field: movie_id
       {"$out": POPULAR_MOVIES_COLL}
   ], allowDiskUse=True)
@@ -76,32 +78,24 @@ def filter_popular_movies(db, ratings):
 
 
 def get_sampled_users(db, active_users_coll):
-  estimated_user_count = int((TARGET_EDGES / (PER_USER_CAP / 1.25)) * 1.1)
+  target_user_count = int((TARGET_EDGES / (PER_USER_CAP / 1.25)) * 1.1)
   active_users_coll.aggregate([
-      {"$sample": {"size": estimated_user_count}},
+      {"$sample": {"size": target_user_count}},
       {"$out": SAMPLED_USERS_COLL}
   ])
 
   db[SAMPLED_USERS_COLL].create_index([("user_id", 1)], unique=True)
-  
+
   return db[SAMPLED_USERS_COLL]
 
 
 def get_final_sample(db, sampled_users, deterministic_user_cap = True):
-  # db[FINAL_SAMPLE_COLL].drop()
-  # db.create_collection(FINAL_SAMPLE_COLL)
   final_sample = ensure_empty_collection(db, FINAL_SAMPLE_COLL)
-
-  # final_sample = db[FINAL_SAMPLE_COLL]
   final_sample.create_index(
       [("user_id", ASCENDING), ("movie_id", ASCENDING)],
       unique=True,
       name="user_movie_unique"
   )
-
-  user_batch_size = 200
-  uids = list(sampled_users.find({}, {"_id": 0, "user_id": 1}).limit(user_batch_size))
-  uids = [d["user_id"] for d in uids]
 
   deterministic_cap_pipeline = [
     { "$addFields": {
@@ -118,7 +112,7 @@ def get_final_sample(db, sampled_users, deterministic_user_cap = True):
   start = time.time()
 
   pipeline = [
-    {"$match": {"user_id": {"$in": uids}}},
+    # {"$match": {"user_id": {"$in": uids}}},
     {
       "$lookup": {
         "from": "ratings",
@@ -158,8 +152,10 @@ def get_final_sample(db, sampled_users, deterministic_user_cap = True):
   sampled_users.aggregate(pipeline, allowDiskUse=True, comment="training_data_sample_build")
 
   elapsed = time.time() - start
-  written = final_sample.estimated_document_count()
-  print(f"Testing: {user_batch_size} users in {elapsed:.1f}s, wrote ~{written:,} rows ({(elapsed/user_batch_size):.2f} seconds/user)")
+  written_docs = final_sample.estimated_document_count()
+  written_users = sampled_users.estimated_document_count()
+  print(f"Added {written_docs} ratings for {written_users} filtered users in {elapsed:.1f}s ({(elapsed/written_users):.2f} seconds/user)")
+
   return final_sample
 
 
@@ -173,22 +169,30 @@ def main(use_cached_aggregations=False):
         build_fn=lambda: filter_active_users(db, ratings),
         use_cache=use_cached_aggregations
     )
-
-  popular_movies = get_or_build_collection(
-      db, POPULAR_MOVIES_COLL,
-      build_fn=lambda: filter_popular_movies(db, ratings),
-      use_cache=use_cached_aggregations
-  )
-
+  
   sampled_users = get_or_build_collection(
     db, SAMPLED_USERS_COLL, build_fn=lambda: get_sampled_users(db, active_users),
       use_cache=use_cached_aggregations
   )
 
-  print(f"active users: {active_users.estimated_document_count():,}, popular movies: {popular_movies.estimated_document_count():,}, user sample: {sampled_users.estimated_document_count():}")
+  # We need to adjust the initial threshold on the number of reviews to account for the fact...
+  # ..that we'll be taking a subsample of the full ratings collection. so if we want our...
+  # ...subsample to end up with movies with a minimum of 20 ratings, but we're only grabbing 10% of users...
+  # ...then we want to set an initial threshold of 20 * 10 = 200 ratings/movie to end up approximately in...
+  # ...the right place. I'll do a little pruning at the end too, but if it's slightly off, it's not a big issue
+  active_users_count = active_users.estimated_document_count()
+  sampled_users_count = sampled_users.estimated_document_count()
+  adjusted_movie_threshold = MOVIE_MIN * (active_users_count / sampled_users_count) * 1.05
 
+  popular_movies = get_or_build_collection(
+      db, POPULAR_MOVIES_COLL,
+      build_fn=lambda: filter_popular_movies(db, ratings, adjusted_movie_threshold),
+      use_cache=use_cached_aggregations
+  )
+
+  print(f"Active users: {active_users.estimated_document_count():,}, popular movies: {popular_movies.estimated_document_count():,}, user sample: {sampled_users.estimated_document_count():}")
   final_sample = get_final_sample(db, sampled_users, deterministic_user_cap=False)
-  print("final training data sample size:", final_sample.estimated_document_count())
+  print("Final training data sample size:", final_sample.estimated_document_count())
 
 
   # dense_ratings_pool = create_dense_ratings_pool(db, ratings)
