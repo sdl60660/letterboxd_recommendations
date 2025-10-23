@@ -340,7 +340,8 @@ def get_ids_for_update(movies_collection, data_type):
 
 def main(data_type="letterboxd"):
     # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
+    db_name, client = connect_to_db()
+    tmdb_key = os.environ["TMDB_KEY"]
 
     db = client[db_name]
     movies = db.movies

@@ -8,6 +8,5 @@ def connect_to_db():
     client = pymongo.MongoClient(
         os.environ["CONNECTION_URL"], server_api=pymongo.server_api.ServerApi("1")
     )
-    tmdb_key = os.environ["TMDB_KEY"]
 
-    return db_name, client, tmdb_key
+    return db_name, client

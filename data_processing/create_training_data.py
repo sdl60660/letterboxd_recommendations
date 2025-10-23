@@ -69,7 +69,7 @@ def create_movie_data_sample(db_client, movie_list):
 
 if __name__ == "__main__":
     # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
+    db_name, client = connect_to_db()
     db = client[db_name]
 
     min_review_threshold = 20
@@ -93,7 +93,6 @@ if __name__ == "__main__":
 
     # Generate movie data CSV
     movie_df = create_movie_data_sample(db, threshold_movie_list)
-    print(movie_df.head())
     print(movie_df.shape)
 
     # Use movie_df to remove any items from threshold_list that do not have a "year_released"

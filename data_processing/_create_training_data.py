@@ -1,8 +1,7 @@
 import pickle
 import time
-from math import ceil
 
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import CollectionInvalid
 
 from db_connect import connect_to_db
@@ -10,17 +9,23 @@ from db_connect import connect_to_db
 
 # --- params (tune these) ---
 USER_MIN = 50               # users must have ≥ this many ratings to end up in sampling pool
-MOVIE_MIN = 25              # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
-
-TARGET_EDGES = 1_500_000    # aim ~this many ratings in final sample (±5–10%)
+MOVIE_MIN = 30              # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
 PER_USER_CAP = 300          # at most this many ratings per sampled user
 
-# temp/final collection names
+# aim ~this many ratings in final sample sets (±5–10%)
+TARGET_SAMPLES = [
+  500_000,
+  1_000_000,
+  1_500_000
+] 
+
+# collection names
 ACTIVE_USERS_COLL = "active_users_tmp"
+MOVIE_COUNTS_COLL = "movie_counts"
 POPULAR_MOVIES_COLL = "popular_movies_tmp"
-DENSE_POOL_COLL = "ratings_dense_pool"
 SAMPLED_USERS_COLL = "sampled_users_tmp"
-FINAL_SAMPLE_COLL = "training_data_sample"
+RAW_TRAINING_DATA_SAMPLE_COLL = "training_data_sample_raw"
+TRAINING_DATA_SAMPLE_COLL = "training_data_sample"
 
 
 def ensure_empty_collection(db, name, wait_secs=2.0):
@@ -30,8 +35,8 @@ def ensure_empty_collection(db, name, wait_secs=2.0):
         # wait briefly for namespace to disappear
         deadline = time.time() + wait_secs
         while name in db.list_collection_names() and time.time() < deadline:
-            time.sleep(0.05)
-    # Create if absent (ignore if someone else just created it)
+            time.sleep(0.1)
+
     try:
         if name not in db.list_collection_names():
             db.create_collection(name)
@@ -39,15 +44,11 @@ def ensure_empty_collection(db, name, wait_secs=2.0):
         pass
     return db[name]
 
-def get_or_build_collection(db, name, build_fn, use_cache=False, drop_existing=True):
-  """
-  Return db[name] if it exists and use_cache=True; otherwise run build_fn()
-  to (re)build the collection and return it.
-  """
-  names = set(db.list_collection_names())
-  if not use_cache or name not in names:
-      if drop_existing and name in names:
-          db[name].drop()
+def get_or_build_collection(db, name, build_fn, use_cache=False, drop_existing=True):  
+  collections = set(db.list_collection_names())
+  if not use_cache or name not in collections:
+      if drop_existing and name in collections:
+          ensure_empty_collection(db, name)
       coll = build_fn()
       return coll if coll is not None else db[name]
   return db[name]
@@ -64,21 +65,34 @@ def filter_active_users(db, ratings):
 
   return db[ACTIVE_USERS_COLL]
 
-def filter_popular_movies(db, ratings, threshold_ratings_count):
+def create_movie_counts(db, ratings):
+  # Build (or rebuild) movie_counts
+  db[MOVIE_COUNTS_COLL].drop()
   ratings.aggregate([
-      {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
-      {"$match": {"n": {"$gte": threshold_ratings_count}}},
-      {"$project": {"_id": 0, "movie_id": "$_id"}},  # one field: movie_id
-      {"$out": POPULAR_MOVIES_COLL}
+      {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
+      {"$out": "movie_counts"},
   ], allowDiskUse=True)
 
+  # Indexes
+  db[MOVIE_COUNTS_COLL].create_index([("count", DESCENDING)])
+  db[MOVIE_COUNTS_COLL].create_index([("_id", ASCENDING)])
+
+  return db[MOVIE_COUNTS_COLL]
+
+def filter_popular_movies(db, ratings, threshold_ratings_count):
+  db[MOVIE_COUNTS_COLL].aggregate([
+      {"$match": {"count": {"$gte": threshold_ratings_count}}},
+      {"$project": {"_id": 0, "movie_id": "$_id"}},
+      {"$out": "popular_movies_tmp"},
+  ], allowDiskUse=True)
+  
   db[POPULAR_MOVIES_COLL].create_index([("movie_id", 1)], unique=True)
 
   return db[POPULAR_MOVIES_COLL]
 
 
-def get_sampled_users(db, active_users_coll):
-  target_user_count = int((TARGET_EDGES / (PER_USER_CAP / 1.25)) * 1.1)
+def get_sampled_users(db, active_users_coll, target_sample_size):
+  target_user_count = int((target_sample_size / (PER_USER_CAP / 1.25)) * 1.05)
   active_users_coll.aggregate([
       {"$sample": {"size": target_user_count}},
       {"$out": SAMPLED_USERS_COLL}
@@ -89,9 +103,9 @@ def get_sampled_users(db, active_users_coll):
   return db[SAMPLED_USERS_COLL]
 
 
-def get_final_sample(db, sampled_users, deterministic_user_cap = True):
-  final_sample = ensure_empty_collection(db, FINAL_SAMPLE_COLL)
-  final_sample.create_index(
+def get_raw_final_sample(db, collection_name, sampled_users, deterministic_user_cap = True, collection_suffix=""):
+  raw_final_sample = db[collection_name]
+  raw_final_sample.create_index(
       [("user_id", ASCENDING), ("movie_id", ASCENDING)],
       unique=True,
       name="user_movie_unique"
@@ -141,7 +155,7 @@ def get_final_sample(db, sampled_users, deterministic_user_cap = True):
     { "$replaceRoot": { "newRoot": "$r" } },
     {
       "$merge": {
-        "into": FINAL_SAMPLE_COLL,
+        "into": collection_name,
         "on": ["user_id", "movie_id"],
         "whenMatched": "keepExisting",
         "whenNotMatched": "insert"
@@ -152,27 +166,64 @@ def get_final_sample(db, sampled_users, deterministic_user_cap = True):
   sampled_users.aggregate(pipeline, allowDiskUse=True, comment="training_data_sample_build")
 
   elapsed = time.time() - start
-  written_docs = final_sample.estimated_document_count()
+  written_docs = raw_final_sample.estimated_document_count()
   written_users = sampled_users.estimated_document_count()
   print(f"Added {written_docs} ratings for {written_users} filtered users in {elapsed:.1f}s ({(elapsed/written_users):.2f} seconds/user)")
 
-  return final_sample
+  raw_final_sample.create_index([("movie_id", 1)])
 
+  return raw_final_sample
 
-def main(use_cached_aggregations=False):
-  db_name, client, tmdb_key = connect_to_db()
-  db = client[db_name]
-  ratings = db["ratings"]
+def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
+  #  this is routh, but it seems to be a decent enough ratio to make the hard-cutoff threshold about a third of the original filter pass threshold
+  adjusted_threshold = movie_threshold // 3
 
-  active_users = get_or_build_collection(
-        db, ACTIVE_USERS_COLL,
-        build_fn=lambda: filter_active_users(db, ratings),
-        use_cache=use_cached_aggregations
-    )
+  # create temp movie group collection
+  db["qualifying_movies_tmp"].drop()
+  db[src].aggregate([
+      {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
+      {"$match": {"n": {"$gte": adjusted_threshold}}},
+      {"$project": {"_id": 0, "movie_id": "$_id"}},
+      {"$out": "qualifying_movies_tmp"},
+  ], allowDiskUse=True)
+  db["qualifying_movies_tmp"].create_index([("movie_id", 1)])
   
+  pipeline = pipeline = [
+    # Start from the big collection and just *check existence* in the small set
+    {
+        "$lookup": {
+            "from": "qualifying_movies_tmp",
+            "localField": "movie_id",
+            "foreignField": "movie_id",
+            "as": "qm"
+        }
+    },
+    { "$match": { "qm.0": { "$exists": True } } },
+    { "$unset": "qm" },
+
+    # Write as we go (so you can poll progress); $merge streams inserts
+    { "$merge": {
+        "into": f"{dst}{collection_suffix}",
+        "whenMatched": "replace",
+        "whenNotMatched": "insert"
+    } }
+]
+
+  training_data_sample = db[src].aggregate(pipeline, allowDiskUse=True)
+
+  original_sample_count = db[src].estimated_document_count()
+  pruned_sample_count = db[dst].estimated_document_count()
+  print(f"Original sample count: {original_sample_count}, Pruned count: {pruned_sample_count}")
+
+  return training_data_sample
+
+
+def create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations = False):
+  print(f'Starting build for sample size: {sample_size}')
+
   sampled_users = get_or_build_collection(
-    db, SAMPLED_USERS_COLL, build_fn=lambda: get_sampled_users(db, active_users),
-      use_cache=use_cached_aggregations
+    db, SAMPLED_USERS_COLL, build_fn=lambda: get_sampled_users(db, active_users, sample_size),
+    use_cache=False
   )
 
   # We need to adjust the initial threshold on the number of reviews to account for the fact...
@@ -185,20 +236,51 @@ def main(use_cached_aggregations=False):
   adjusted_movie_threshold = MOVIE_MIN * (active_users_count / sampled_users_count) * 1.05
 
   popular_movies = get_or_build_collection(
-      db, POPULAR_MOVIES_COLL,
-      build_fn=lambda: filter_popular_movies(db, ratings, adjusted_movie_threshold),
-      use_cache=use_cached_aggregations
+    db, POPULAR_MOVIES_COLL,
+    build_fn=lambda: filter_popular_movies(db, ratings, adjusted_movie_threshold),
+    use_cache=False
   )
 
-  print(f"Active users: {active_users.estimated_document_count():,}, popular movies: {popular_movies.estimated_document_count():,}, user sample: {sampled_users.estimated_document_count():}")
-  final_sample = get_final_sample(db, sampled_users, deterministic_user_cap=False)
-  print("Final training data sample size:", final_sample.estimated_document_count())
+  raw_sample_coll_name = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+  final_sample_coll_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+
+  raw_training_data_sample = get_or_build_collection(
+    db, raw_sample_coll_name,
+    build_fn=lambda: get_raw_final_sample(db, raw_sample_coll_name, sampled_users, deterministic_user_cap=False),
+    use_cache=False
+  )
+  
+  final_training_data_sample = get_or_build_collection(
+    db, final_sample_coll_name,
+    build_fn=lambda: prune_orphan_entries(db, raw_sample_coll_name, final_sample_coll_name, MOVIE_MIN),
+    use_cache=False
+  )
+
+  print(f'Target sample size: {sample_size}. Estimated document count: {final_training_data_sample.estimated_document_count():}')
 
 
-  # dense_ratings_pool = create_dense_ratings_pool(db, ratings)
-  # dense_count = dense_ratings_pool.estimated_document_count()
-  # print(f"dense pool ratings: {dense_count:,}")
+def main(use_cached_aggregations=False):
+  db_name, client = connect_to_db()
+  db = client[db_name]
+  # db = client["aggregations"]
 
+  ratings = db["ratings"]
+
+  active_users = get_or_build_collection(
+    db, ACTIVE_USERS_COLL,
+    build_fn=lambda: filter_active_users(db, ratings),
+    use_cache=use_cached_aggregations
+  )
+
+  movie_counts = get_or_build_collection(
+    db, MOVIE_COUNTS_COLL,
+    build_fn=lambda: create_movie_counts(db, ratings),
+    use_cache=use_cached_aggregations
+  )
+
+  for sample_size in TARGET_SAMPLES:
+    create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+  
 
 if __name__ == "__main__":
   main(use_cached_aggregations=True)

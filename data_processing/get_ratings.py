@@ -408,7 +408,7 @@ def get_users_to_update_list(users, cap_missing_fields = 2000, cap_due_for_retry
 
 def main():
     # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
+    db_name, client = connect_to_db()
 
     # Find letterboxd database and user collection
     db = client[db_name]
