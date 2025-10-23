@@ -278,12 +278,13 @@ def create_movie_data_sample(db, threshold=MOVIE_MIN):
   cursor = db['movies'].aggregate(pipeline, allowDiskUse=True)
   movie_df = pd.DataFrame(list(cursor))
 
-  movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released", "ratings_count"]]
+  movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released", "ratings_count", "content_type"]]
   movie_df["image_url"] = (
       movie_df["image_url"]
       .fillna("")
       .str.replace("https://a.ltrbxd.com/resized/", "", regex=False)
   )
+  
   movie_df["image_url"] = (
       movie_df["image_url"]
       .fillna("")

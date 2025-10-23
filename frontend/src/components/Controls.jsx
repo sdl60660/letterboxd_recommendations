@@ -141,7 +141,7 @@ const Controls = ({
                 />
             </FormGroup>
 
-            <FormGroup className={'form-slider'}>
+            {/* <FormGroup className={'form-slider'}>
                 <LabeledSlider
                     aria-label="Poplularity filter slider. Increase value to only received less-watched movies."
                     defaultValue={popularityFilter}
@@ -154,7 +154,8 @@ const Controls = ({
                     marks={true}
                     labels={['All Movies', 'Less-Reviewed Movies Only']}
                 />
-            </FormGroup>
+            </FormGroup> 
+            */}
 
             <FormGroup className={'data_opt_in_control'}>
                 <FormControlLabel
