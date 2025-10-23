@@ -1,6 +1,6 @@
 
 echo "Scraping users from site and adding to database"
-pipenv run python get_users.py
+# pipenv run python get_users.py
 echo "Finished scraping users from site"
 echo
 
