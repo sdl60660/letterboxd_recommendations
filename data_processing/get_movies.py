@@ -84,14 +84,15 @@ async def fetch_letterboxd(url, session, input_data={}):
             imdb_link = ""
             imdb_id = ""
 
-        try:
-            tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
-            content_type = "movie" if "movie" in tmdb_link else "tv"
-            tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
-        except:
-            tmdb_link = ""
-            tmdb_id = ""
-            content_type = None
+        # try:
+        tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
+        content_type = "movie" if "movie" in tmdb_link else "tv"
+
+        tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
+        # except:
+        #     tmdb_link = ""
+        #     tmdb_id = ""
+        #     content_type = None
         
         movie_object = {
             "movie_id": input_data["movie_id"],
@@ -272,42 +273,42 @@ def get_ids_for_update(movies_collection, data_type):
         update_ids = set()
 
         # 1000 least recently updated items, excluding anything updated in the last month
-        update_ids |= {
-            x["movie_id"]
-            for x in movies_collection.find(
-                {"last_updated": {"$lte": one_month_ago}},
-                {"movie_id": 1}
-            )
-            .sort("last_updated", 1)
-            .limit(1000)
-        }
+        # update_ids |= {
+        #     x["movie_id"]
+        #     for x in movies_collection.find(
+        #         {"last_updated": {"$lte": one_month_ago}},
+        #         {"movie_id": 1}
+        #     )
+        #     .sort("last_updated", 1)
+        #     .limit(1000)
+        # }
 
         # backfill a chunk of the records that are missing 'content_type' (newly-added)
-        update_ids |= {
-            x["movie_id"]
-            for x in movies_collection.find(
-                {        
-                    "content_type": {"$exists": False}
-                },
-                {"movie_id": 1},
-            )
-            .limit(5000)
-        }
+        # update_ids |= {
+        #     x["movie_id"]
+        #     for x in movies_collection.find(
+        #         {        
+        #             "content_type": {"$exists": False}
+        #         },
+        #         {"movie_id": 1},
+        #     )
+        #     .limit(5000)
+        # }
 
         # anything newly added or missing key data (including missing poster image)
-        update_ids |= {
-            x["movie_id"]
-            for x in movies_collection.find(
-                {        
-                    "$or": [
-                        {"movie_title": {"$exists": False}},
-                        {"tmdb_id": {"$exists": False}},
-                        {"image_url": {"$exists": False}},
-                    ]
-                },
-                {"movie_id": 1},
-            )
-        }
+        # update_ids |= {
+        #     x["movie_id"]
+        #     for x in movies_collection.find(
+        #         {        
+        #             "$or": [
+        #                 {"movie_title": {"$exists": False}},
+        #                 {"tmdb_id": {"$exists": False}},
+        #                 {"image_url": {"$exists": False}},
+        #             ]
+        #         },
+        #         {"movie_id": 1},
+        #     )
+        # }
 
         # missing key data (but has been attempted before), limited to a batch of 500 per update
         update_ids |= {
@@ -317,10 +318,10 @@ def get_ids_for_update(movies_collection, data_type):
                     "$and": [
                         {
                             "$or": [
-                                {"movie_title": {"$in": ["", None]}},
+                                # {"movie_title": {"$in": ["", None]}},
                                 {"tmdb_id": {"$in": ["", None]}},
-                                {"image_url": {"$in": ["", None]}},
-                                {"content_type": {"in": ["", None]}},
+                                # {"image_url": {"$in": ["", None]}},
+                                # {"content_type": {"in": ["", None]}},
                             ]
                         },
                         # {
