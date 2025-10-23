@@ -17,7 +17,7 @@ PER_USER_CAP = 300          # at most this many ratings per sampled user
 TARGET_SAMPLES = [
   500_000,
   1_000_000,
-  1_500_000
+  1_500_000,
 ] 
 
 # collection names
@@ -316,7 +316,7 @@ def main(use_cached_aggregations=False):
     df = pd.DataFrame(list(cursor))
 
     # Export to CSV/Parquet files
-    df.to_csv(f"./data/training_data_{sample_size}.csv", index=False)
+    # df.to_csv(f"./data/training_data_{sample_size}.csv", index=False)
     df.to_parquet(f"./data/training_data_{sample_size}.parquet", index=False)
   
   movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
