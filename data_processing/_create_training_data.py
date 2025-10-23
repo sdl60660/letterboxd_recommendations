@@ -53,7 +53,9 @@ def get_or_build_collection(db, name, build_fn, use_cache=False, drop_existing=T
       return coll if coll is not None else db[name]
   return db[name]
 
-def filter_active_users(db, ratings):
+def filter_active_users(db):
+  ratings = db.ratings
+
   ratings.aggregate([
       {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
       {"$match": {"n": {"$gte": USER_MIN}}},
@@ -65,12 +67,14 @@ def filter_active_users(db, ratings):
 
   return db[ACTIVE_USERS_COLL]
 
-def create_movie_counts(db, ratings):
+def create_movie_counts(db):
+  ratings = db.ratings
+
   # Build (or rebuild) movie_counts
   db[MOVIE_COUNTS_COLL].drop()
   ratings.aggregate([
       {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
-      {"$out": "movie_counts"},
+      {"$out": MOVIE_COUNTS_COLL},
   ], allowDiskUse=True)
 
   # Indexes
@@ -173,8 +177,8 @@ def get_raw_final_sample(db, collection_name, sampled_users, deterministic_user_
   return raw_final_sample
 
 def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
-  #  this is routh, but it seems to be a decent enough ratio to make the hard-cutoff threshold about a third of the original filter pass threshold
-  adjusted_threshold = movie_threshold // 3
+  #  this is routh, but it seems to be a decent enough ratio to make the hard-cutoff threshold about half of the original filter pass threshold
+  adjusted_threshold = movie_threshold // 2
 
   # create temp movie group collection
   db["qualifying_movies_tmp"].drop()
@@ -256,21 +260,25 @@ def create_training_set(db, ratings, sample_size, active_users, use_cached_aggre
   return final_training_data_sample, final_sample_coll_name
 
 def create_movie_data_sample(db, threshold=MOVIE_MIN): 
+  if MOVIE_COUNTS_COLL not in db.list_collection_names():
+    create_movie_counts(db)
+
   pipeline = [
     {"$lookup": {
-      "from": "movie_counts",
+      "from": MOVIE_COUNTS_COLL,
       "localField": "movie_id",
       "foreignField": "_id",
       "as": "mc"
     }},
     {"$unwind": "$mc"},
     {"$match": {"mc.count": {"$gte": threshold}}},
+    {"$addFields": {"ratings_count": "$mc.count"}}
   ]
 
   cursor = db['movies'].aggregate(pipeline, allowDiskUse=True)
   movie_df = pd.DataFrame(list(cursor))
 
-  movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released"]]
+  movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released", "ratings_count"]]
   movie_df["image_url"] = (
       movie_df["image_url"]
       .fillna("")
@@ -288,6 +296,19 @@ def create_movie_data_sample(db, threshold=MOVIE_MIN):
 
   return movie_df
 
+def create_review_counts_df(db, threshold=MOVIE_MIN):
+  # Create review counts dataframe
+  review_count = db.ratings.aggregate(
+    [
+      {"$group": {"_id": "$movie_id", "review_count": {"$sum": 1}}},
+      {"$match": {"review_count": {"$gte": threshold}}},
+    ]
+  )
+  review_counts_df = pd.DataFrame(list(review_count))
+  review_counts_df.rename(
+    columns={"_id": "movie_id", "review_count": "count"}, inplace=True
+)
+
 def main(use_cached_aggregations=False):
   db_name, client = connect_to_db()
   db = client[db_name]
@@ -297,13 +318,13 @@ def main(use_cached_aggregations=False):
 
   active_users = get_or_build_collection(
     db, ACTIVE_USERS_COLL,
-    build_fn=lambda: filter_active_users(db, ratings),
+    build_fn=lambda: filter_active_users(db),
     use_cache=use_cached_aggregations
   )
 
   movie_counts = get_or_build_collection(
     db, MOVIE_COUNTS_COLL,
-    build_fn=lambda: create_movie_counts(db, ratings),
+    build_fn=lambda: create_movie_counts(db),
     use_cache=use_cached_aggregations
   )
 
@@ -321,6 +342,9 @@ def main(use_cached_aggregations=False):
   
   movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
   movie_df.to_csv("../static/data/movie_data.csv", index=False)
+
+  # review_counts_df = create_review_counts_df(db, threshold=MOVIE_MIN)
+  # review_counts_df.to_csv("data/review_counts.csv", index=False)
 
 
 if __name__ == "__main__":
