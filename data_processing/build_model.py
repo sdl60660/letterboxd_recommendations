@@ -56,7 +56,7 @@ if __name__ == "__main__":
         from data_processing.get_user_ratings import get_user_data
 
     # Load ratings data
-    df = pd.read_csv("data/training_data.csv")
+    df = pd.read_parquet("data/training_data_1000000.parquet")
 
     user_data = get_user_data("samlearner")[0]
     algo, user_watched_list = build_model(df, user_data)

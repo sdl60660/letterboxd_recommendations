@@ -1,5 +1,6 @@
 import pickle
 import time
+import pandas as pd
 
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import CollectionInvalid
@@ -26,7 +27,6 @@ POPULAR_MOVIES_COLL = "popular_movies_tmp"
 SAMPLED_USERS_COLL = "sampled_users_tmp"
 RAW_TRAINING_DATA_SAMPLE_COLL = "training_data_sample_raw"
 TRAINING_DATA_SAMPLE_COLL = "training_data_sample"
-
 
 def ensure_empty_collection(db, name, wait_secs=2.0):
     # Drop if present
@@ -215,7 +215,7 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
   pruned_sample_count = db[dst].estimated_document_count()
   print(f"Original sample count: {original_sample_count}, Pruned count: {pruned_sample_count}")
 
-  return training_data_sample
+  return db[dst]
 
 
 def create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations = False):
@@ -256,7 +256,7 @@ def create_training_set(db, ratings, sample_size, active_users, use_cached_aggre
     use_cache=False
   )
 
-  print(f'Target sample size: {sample_size}. Estimated document count: {final_training_data_sample.estimated_document_count():}')
+  return final_training_data_sample, final_sample_coll_name
 
 
 def main(use_cached_aggregations=False):
@@ -280,7 +280,16 @@ def main(use_cached_aggregations=False):
 
   for sample_size in TARGET_SAMPLES:
     create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
-  
+    output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+
+    # get all files in output collection and load into pandas dataframe, without _id
+    cursor = db[output_collection_name].find({}, {"_id": 0})
+    df = pd.DataFrame(list(cursor))
+
+    # Export to CSV/Parquet files
+    df.to_csv(f"./data/training_data_{sample_size}.csv", index=False)
+    # df.to_parquet(f"./data/training_data_{sample_size}.parquet", index=False)
+
 
 if __name__ == "__main__":
   main(use_cached_aggregations=True)
