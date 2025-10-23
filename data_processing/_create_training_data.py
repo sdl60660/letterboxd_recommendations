@@ -23,7 +23,7 @@ TARGET_SAMPLES = [
 # collection names
 ACTIVE_USERS_COLL = "active_users_tmp"
 MOVIE_COUNTS_COLL = "movie_counts"
-POPULAR_MOVIES_COLL = "popular_movies_tmp"
+THRESHOLD_MOVIES_COLL = "threshold_movies_tmp"
 SAMPLED_USERS_COLL = "sampled_users_tmp"
 RAW_TRAINING_DATA_SAMPLE_COLL = "training_data_sample_raw"
 TRAINING_DATA_SAMPLE_COLL = "training_data_sample"
@@ -79,17 +79,16 @@ def create_movie_counts(db, ratings):
 
   return db[MOVIE_COUNTS_COLL]
 
-def filter_popular_movies(db, ratings, threshold_ratings_count):
+def filter_threshold_movies(db, threshold_ratings_count):
   db[MOVIE_COUNTS_COLL].aggregate([
       {"$match": {"count": {"$gte": threshold_ratings_count}}},
       {"$project": {"_id": 0, "movie_id": "$_id"}},
-      {"$out": "popular_movies_tmp"},
+      {"$out": THRESHOLD_MOVIES_COLL},
   ], allowDiskUse=True)
   
-  db[POPULAR_MOVIES_COLL].create_index([("movie_id", 1)], unique=True)
+  db[THRESHOLD_MOVIES_COLL].create_index([("movie_id", 1)], unique=True)
 
-  return db[POPULAR_MOVIES_COLL]
-
+  return db[THRESHOLD_MOVIES_COLL]
 
 def get_sampled_users(db, active_users_coll, target_sample_size):
   target_user_count = int((target_sample_size / (PER_USER_CAP / 1.25)) * 1.05)
@@ -101,7 +100,6 @@ def get_sampled_users(db, active_users_coll, target_sample_size):
   db[SAMPLED_USERS_COLL].create_index([("user_id", 1)], unique=True)
 
   return db[SAMPLED_USERS_COLL]
-
 
 def get_raw_final_sample(db, collection_name, sampled_users, deterministic_user_cap = True, collection_suffix=""):
   raw_final_sample = db[collection_name]
@@ -138,7 +136,7 @@ def get_raw_final_sample(db, collection_name, sampled_users, deterministic_user_
           # keep only movies over threshold
           {
             "$lookup": {
-              "from": POPULAR_MOVIES_COLL,
+              "from": THRESHOLD_MOVIES_COLL,
               "localField": "movie_id",
               "foreignField": "movie_id",
               "as": "pm"
@@ -209,14 +207,13 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
     } }
 ]
 
-  training_data_sample = db[src].aggregate(pipeline, allowDiskUse=True)
+  db[src].aggregate(pipeline, allowDiskUse=True)
 
   original_sample_count = db[src].estimated_document_count()
   pruned_sample_count = db[dst].estimated_document_count()
   print(f"Original sample count: {original_sample_count}, Pruned count: {pruned_sample_count}")
 
   return db[dst]
-
 
 def create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations = False):
   print(f'Starting build for sample size: {sample_size}')
@@ -235,9 +232,9 @@ def create_training_set(db, ratings, sample_size, active_users, use_cached_aggre
   sampled_users_count = sampled_users.estimated_document_count()
   adjusted_movie_threshold = MOVIE_MIN * (active_users_count / sampled_users_count) * 1.05
 
-  popular_movies = get_or_build_collection(
-    db, POPULAR_MOVIES_COLL,
-    build_fn=lambda: filter_popular_movies(db, ratings, adjusted_movie_threshold),
+  threshold_movies = get_or_build_collection(
+    db, THRESHOLD_MOVIES_COLL,
+    build_fn=lambda: filter_threshold_movies(db, adjusted_movie_threshold),
     use_cache=False
   )
 
@@ -258,6 +255,38 @@ def create_training_set(db, ratings, sample_size, active_users, use_cached_aggre
 
   return final_training_data_sample, final_sample_coll_name
 
+def create_movie_data_sample(db, threshold=MOVIE_MIN): 
+  pipeline = [
+    {"$lookup": {
+      "from": "movie_counts",
+      "localField": "movie_id",
+      "foreignField": "_id",
+      "as": "mc"
+    }},
+    {"$unwind": "$mc"},
+    {"$match": {"mc.count": {"$gte": threshold}}},
+  ]
+
+  cursor = db['movies'].aggregate(pipeline, allowDiskUse=True)
+  movie_df = pd.DataFrame(list(cursor))
+
+  movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released"]]
+  movie_df["image_url"] = (
+      movie_df["image_url"]
+      .fillna("")
+      .str.replace("https://a.ltrbxd.com/resized/", "", regex=False)
+  )
+  movie_df["image_url"] = (
+      movie_df["image_url"]
+      .fillna("")
+      .str.replace(
+          "https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png",
+          "",
+          regex=False,
+      )
+  )
+
+  return movie_df
 
 def main(use_cached_aggregations=False):
   db_name, client = connect_to_db()
@@ -288,7 +317,10 @@ def main(use_cached_aggregations=False):
 
     # Export to CSV/Parquet files
     df.to_csv(f"./data/training_data_{sample_size}.csv", index=False)
-    # df.to_parquet(f"./data/training_data_{sample_size}.parquet", index=False)
+    df.to_parquet(f"./data/training_data_{sample_size}.parquet", index=False)
+  
+  movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
+  movie_df.to_csv("../static/data/movie_data.csv", index=False)
 
 
 if __name__ == "__main__":
