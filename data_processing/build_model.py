@@ -26,7 +26,7 @@ def build_model(df, sample_movie_list, user_data):
     user_rated = [x for x in user_data if x["rating_val"] > 0 and x['movie_id'] in sample_movie_list]
 
     user_df = pd.DataFrame(user_rated)
-    df = pd.concat([df, user_df]).drop_duplicates().reset_index(drop=True)
+    df = pd.concat([df, user_df]).reset_index(drop=True)
     df.drop_duplicates(inplace=True)
     del user_df
 
