@@ -14,7 +14,7 @@ import random
 import numpy as np
 
 
-def build_model(df, user_data):
+def build_model(df, sample_movie_list, user_data):
     # print(df.head())
 
     # Set random seed so that returned recs are always the same for same user with same ratings
@@ -23,10 +23,10 @@ def build_model(df, user_data):
     random.seed(my_seed)
     np.random.seed(my_seed)
 
-    user_rated = [x for x in user_data if x["rating_val"] > 0]
+    user_rated = [x for x in user_data if x["rating_val"] > 0 and x['movie_id'] in sample_movie_list]
 
     user_df = pd.DataFrame(user_rated)
-    df = pd.concat([df, user_df]).reset_index(drop=True)
+    df = pd.concat([df, user_df]).drop_duplicates().reset_index(drop=True)
     df.drop_duplicates(inplace=True)
     del user_df
 
@@ -56,10 +56,12 @@ if __name__ == "__main__":
         from data_processing.get_user_ratings import get_user_data
 
     # Load ratings data
-    df = pd.read_parquet("data/training_data_5000000.parquet")
+    df = pd.read_parquet("data/training_data_samples/training_data_1000000.parquet")
+    with open(f"data/movie_lists/sample_movie_list_1000000.txt", "rb") as fp:
+        sample_movie_list = pickle.load(fp)
 
     user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list = build_model(df, user_data)
+    algo, user_watched_list = build_model(df, sample_movie_list, user_data)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
     with open("models/user_watched.txt", "wb") as fp:

@@ -59,26 +59,20 @@ def build_client_model(
     # Load in training full training dataset and filter it to the selected sample size
     # df = pd.read_csv("data_processing/data/training_data.csv")
     # model_df = df.head(training_data_rows)
-    model_df = pd.read_parquet(f"data_processing/data/training_data_{training_data_rows}.parquet")
+    model_df = pd.read_parquet(f"data_processing/data/training_data_samples/training_data_{training_data_rows}.parquet")
 
     # Load in the list of all availble movie ids (passed the threshold of at least five samples in dataset)
-    with open("data_processing/models/threshold_movie_list.txt", "rb") as fp:
-        threshold_movie_list = pickle.load(fp)
-
-    # If user has requested only less often reviewed movies, apply review count threshold to the movie id list
-    # if popularity_threshold:
-    #     threshold_movie_list = filter_threshold_list(
-    #         threshold_movie_list, popularity_threshold
-    #     )
+    with open(f"data_processing/data/movie_lists/sample_movie_list_{training_data_rows}.txt", "rb") as fp:
+        sample_movie_list = pickle.load(fp)
 
     current_job.meta["stage"] = "building_model"
     current_job.save()
     # Build model with appended user data
-    algo, user_watched_list = build_model(model_df, user_data)
+    algo, user_watched_list = build_model(model_df, sample_movie_list, user_data)
     del model_df
 
     current_job.meta["stage"] = "running_model"
     current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
-    recs = run_model(username, algo, user_watched_list, threshold_movie_list, num_items)
+    recs = run_model(username, algo, user_watched_list, sample_movie_list, num_items)
     return recs

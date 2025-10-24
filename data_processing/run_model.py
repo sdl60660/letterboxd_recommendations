@@ -26,7 +26,7 @@ def get_top_n(predictions, n=20):
 
 
 def run_model(
-    username, algo, user_watched_list, threshold_movie_list, num_recommendations=20
+    username, algo, user_watched_list, sample_movie_list, num_recommendations=20
 ):
     # Connect to MongoDB Client
     db_name = os.getenv("MONGO_DB", "letterboxd")
@@ -35,7 +35,7 @@ def run_model(
     client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi("1"))
     db = client[db_name]
 
-    unwatched_movies = [x for x in threshold_movie_list if x not in user_watched_list]
+    unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
     prediction_set = [(username, x, 0) for x in unwatched_movies]
 
     predictions = algo.test(prediction_set)

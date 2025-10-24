@@ -15,12 +15,12 @@ PER_USER_CAP = 300          # at most this many ratings per sampled user
 
 # aim ~this many ratings in final sample sets (±5–10%)
 TARGET_SAMPLES = [
-  # 500_000,
-  # 1_000_000,
-  # 1_500_000,
-  2_500_000,
-  5_000_000,
-  10_000_000
+  500_000,
+  1_000_000,
+  1_500_000,
+  # 2_500_000,
+  # 5_000_000,
+  # 10_000_000
 ] 
 
 # collection names
@@ -310,8 +310,10 @@ def create_review_counts_df(db, threshold=MOVIE_MIN):
   )
   review_counts_df = pd.DataFrame(list(review_count))
   review_counts_df.rename(
-    columns={"_id": "movie_id", "review_count": "count"}, inplace=True
-)
+      columns={"_id": "movie_id", "review_count": "count"}, inplace=True
+  )
+
+  return review_counts_df
 
 def main(use_cached_aggregations=False):
   db_name, client = connect_to_db()
@@ -333,22 +335,25 @@ def main(use_cached_aggregations=False):
   )
 
   for sample_size in TARGET_SAMPLES:
-    create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+    # create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
     output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
     # get all files in output collection and load into pandas dataframe, without _id
     cursor = db[output_collection_name].find({}, {"_id": 0})
     df = pd.DataFrame(list(cursor))
+    
+    sample_movie_list = set(list(df['movie_id']))
+    with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
+        pickle.dump(sample_movie_list, fp)
 
     # Export to CSV/Parquet files
-    # df.to_csv(f"./data/training_data_{sample_size}.csv", index=False)
-    df.to_parquet(f"./data/training_data_{sample_size}.parquet", index=False)
+    df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
   
   movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
   movie_df.to_csv("../static/data/movie_data.csv", index=False)
 
-  # review_counts_df = create_review_counts_df(db, threshold=MOVIE_MIN)
-  # review_counts_df.to_csv("data/review_counts.csv", index=False)
+  review_counts_df = create_review_counts_df(db, threshold=MOVIE_MIN)
+  review_counts_df.to_csv("data/review_counts.csv", index=False)
 
 
 if __name__ == "__main__":
