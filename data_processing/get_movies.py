@@ -86,10 +86,12 @@ async def fetch_letterboxd(url, session, input_data={}):
 
         try:
             tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
-            tmdb_id = tmdb_link.split("/movie")[1].strip("/").split("/")[0]
+            content_type = "movie" if "/movie/" in tmdb_link else "tv"
+            tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
         except:
             tmdb_link = ""
             tmdb_id = ""
+            content_type = None
         
         movie_object = {
             "movie_id": input_data["movie_id"],
@@ -99,6 +101,7 @@ async def fetch_letterboxd(url, session, input_data={}):
             "tmdb_link": tmdb_link,
             "imdb_id": imdb_id,
             "tmdb_id": tmdb_id,
+            "content_type": content_type
         }
 
         try:
@@ -228,19 +231,17 @@ async def get_movies(movie_list, db_cursor, mongo_db):
 
 
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
-    base_url = "https://api.themoviedb.org/3/movie/{}?api_key={}"
+    base_url = "https://api.themoviedb.org/3/{}/{}?api_key={}"
 
     async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
-        # print("Starting Scrape", time.time() - start)
-
         tasks = []
         movie_list = [x for x in movie_list if x["tmdb_id"]]
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
-            # print(base_url.format(movie["tmdb_id"], tmdb_key))
+            content_type = movie["content_type"] or "movie"
             task = asyncio.ensure_future(
                 fetch_tmdb_data(
-                    base_url.format(movie["tmdb_id"], tmdb_key),
+                    base_url.format(content_type, movie["tmdb_id"], tmdb_key),
                     session,
                     movie,
                     {"movie_id": movie["movie_id"]},
@@ -279,6 +280,18 @@ def get_ids_for_update(movies_collection, data_type):
             .limit(1000)
         }
 
+        # backfill a chunk of the records that are missing 'content_type' (newly-added)
+        update_ids |= {
+            x["movie_id"]
+            for x in movies_collection.find(
+                {        
+                    "content_type": {"$exists": False}
+                },
+                {"movie_id": 1},
+            )
+            .limit(1000)
+        }
+
         # anything newly added or missing key data (including missing poster image)
         update_ids |= {
             x["movie_id"]
@@ -305,6 +318,7 @@ def get_ids_for_update(movies_collection, data_type):
                                 {"movie_title": {"$in": ["", None]}},
                                 {"tmdb_id": {"$in": ["", None]}},
                                 {"image_url": {"$in": ["", None]}},
+                                {"content_type": {"in": ["", None]}},
                             ]
                         },
                         {
@@ -329,8 +343,7 @@ def get_ids_for_update(movies_collection, data_type):
                 movies_collection.find(
                     {
                         "genres": {"$exists": False},
-                        "tmdb_id": {"$ne": ""},
-                        "tmdb_id": {"$exists": True},
+                        "content_type": {"$exists": True}
                     }
                 )
             )

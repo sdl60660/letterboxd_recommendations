@@ -51,7 +51,7 @@ const Controls = ({
 
     const [username, setUsername] = useState('')
     const [modelStrength, setModelStrength] = useState(500000)
-    const [popularityFilter, setPopularityFilter] = useState(-1)
+    // const [popularityFilter, setPopularityFilter] = useState(-1)
     const [dataOptIn, setDataOptIn] = useState(false)
 
     const [runningModel, setRunningModel] = useState(false)
@@ -62,7 +62,7 @@ const Controls = ({
         setQueryData({
             username,
             modelStrength,
-            popularityFilter,
+            // popularityFilter,
             dataOptIn,
         })
 
@@ -74,7 +74,7 @@ const Controls = ({
                 : 'https://letterboxd-recommendations.herokuapp.com'
 
         const response = await fetch(
-            `${url}/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
+            `${url}/get_recs?username=${username}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
             {
                 method: 'GET',
             }
@@ -141,7 +141,7 @@ const Controls = ({
                 />
             </FormGroup>
 
-            <FormGroup className={'form-slider'}>
+            {/* <FormGroup className={'form-slider'}>
                 <LabeledSlider
                     aria-label="Poplularity filter slider. Increase value to only received less-watched movies."
                     defaultValue={popularityFilter}
@@ -154,7 +154,8 @@ const Controls = ({
                     marks={true}
                     labels={['All Movies', 'Less-Reviewed Movies Only']}
                 />
-            </FormGroup>
+            </FormGroup> 
+            */}
 
             <FormGroup className={'data_opt_in_control'}>
                 <FormControlLabel
