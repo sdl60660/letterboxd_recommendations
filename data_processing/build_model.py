@@ -3,9 +3,7 @@
 import pandas as pd
 import pickle
 
-from surprise import Dataset
-from surprise import Reader
-from surprise import SVD
+from surprise import SVD, Reader, Dataset, BaselineOnly
 
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
@@ -35,9 +33,18 @@ def build_model(df, sample_movie_list, user_data):
     data = Dataset.load_from_df(df[["user_id", "movie_id", "rating_val"]], reader)
     del df
 
+    params = {
+        # "n_factors": 150,
+        # "n_epochs": 20,
+        # "lr_all": 0.005,
+        # "reg_all": 0.02
+    }
     # Configure algorithm
-    algo = SVD()
-    # cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=3, verbose=True)
+    algo = SVD(**params)
+
+    # bsl_options = {"method": "als", "n_epochs": 10, "reg_u": 1, "reg_i": 1}
+    # algo = BaselineOnly(bsl_options=bsl_options)
+    # cross_validate(algo, data, measures=['RMSE', 'MAE', 'FCP'], cv=3, verbose=True)
 
     trainingSet = data.build_full_trainset()
     algo.fit(trainingSet)
