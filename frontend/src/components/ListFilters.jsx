@@ -52,8 +52,8 @@ const ListFilters = ({
         ),
     ]
     const allYears = [
-        Math.min(...results.map((d) => d.movie_data.year_released)),
-        Math.max(...results.map((d) => d.movie_data.year_released)),
+        Math.min(...results.filter(d => d.movie_data.year_released).map((d) => d.movie_data.year_released)),
+        Math.max(...results.filter(d => d.movie_data.year_released).map((d) => d.movie_data.year_released)),
     ]
 
     const [genres, setGenres] = useState(allGenres)
