@@ -10,7 +10,7 @@ from db_connect import connect_to_db
 
 # --- params (tune these) ---
 USER_MIN = 50               # users must have ≥ this many ratings to end up in sampling pool
-MOVIE_MIN = 30              # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
+MOVIE_MIN = 40              # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
 PER_USER_CAP = 300          # at most this many ratings per sampled user
 
 # aim ~this many ratings in final sample sets (±5–10%)
