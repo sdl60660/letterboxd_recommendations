@@ -15,9 +15,12 @@ PER_USER_CAP = 300          # at most this many ratings per sampled user
 
 # aim ~this many ratings in final sample sets (±5–10%)
 TARGET_SAMPLES = [
-  500_000,
-  1_000_000,
-  1_500_000,
+  # 500_000,
+  # 1_000_000,
+  # 1_500_000,
+  2_500_000,
+  5_000_000,
+  10_000_000
 ] 
 
 # collection names
