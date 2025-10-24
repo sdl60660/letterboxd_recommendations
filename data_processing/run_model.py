@@ -15,7 +15,10 @@ from surprise.model_selection import GridSearchCV
 from surprise import SVD
 from surprise.dump import load
 
-from db_connect import connect_to_db
+if os.getcwd().endswith("data_processing"):
+    from db_connect import connect_to_db
+else:
+    from data_processing.db_connect import connect_to_db
 
 
 def get_top_n(predictions, n=20):
