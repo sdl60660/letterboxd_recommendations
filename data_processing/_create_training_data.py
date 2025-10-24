@@ -335,7 +335,7 @@ def main(use_cached_aggregations=False):
   )
 
   for sample_size in TARGET_SAMPLES:
-    # create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+    create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
     output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
     # get all files in output collection and load into pandas dataframe, without _id

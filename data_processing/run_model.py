@@ -1,5 +1,11 @@
 #!/usr/local/bin/python3.12
 
+import os
+import pymongo
+import pickle
+import pandas as pd
+import random
+
 from collections import defaultdict
 
 from surprise import Dataset
@@ -9,13 +15,7 @@ from surprise.model_selection import GridSearchCV
 from surprise import SVD
 from surprise.dump import load
 
-import pickle
-import pandas as pd
-import random
-
-import os
-
-import pymongo
+from db_connect import connect_to_db
 
 
 def get_top_n(predictions, n=20):
@@ -28,11 +28,7 @@ def get_top_n(predictions, n=20):
 def run_model(
     username, algo, user_watched_list, sample_movie_list, num_recommendations=20
 ):
-    # Connect to MongoDB Client
-    db_name = os.getenv("MONGO_DB", "letterboxd")
-    connection_url = os.getenv("CONNECTION_URL")
-
-    client = pymongo.MongoClient(connection_url, server_api=pymongo.server_api.ServerApi("1"))
+    db_name, client = connect_to_db()
     db = client[db_name]
 
     unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
@@ -50,15 +46,12 @@ def run_model(
         "popularity",
         "runtime",
         "release_date",
+        "content_type"
     ]
     movie_data = {
         x["movie_id"]: {k: v for k, v in x.items() if k in movie_fields}
         for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})
     }
-
-    # Print the recommended items for user
-    # for prediction in top_n:
-    #     print(f"{prediction[0]}: {round(prediction[1], 2)}")
 
     return_object = [
         {
@@ -76,7 +69,11 @@ def run_model(
                 algo.predict(username, prediction["movie_id"], clip=False).est
             )
 
+    # filter out any tv shows (based on TMDB data)
+    # this conditional is a little funky for now because the "content_type" field hasn't finished backfilling in the movies collection
+    return_object = [x for x in return_object if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
     return_object.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
+
     return return_object
 
 
@@ -84,10 +81,9 @@ if __name__ == "__main__":
     with open("models/user_watched.txt", "rb") as fp:
         user_watched_list = pickle.load(fp)
 
-    with open("models/threshold_movie_list.txt", "rb") as fp:
-        threshold_movie_list = pickle.load(fp)
+    with open(f"data/movie_lists/sample_movie_list_1000000.txt", "rb") as fp:
+        sample_movie_list = pickle.load(fp)
 
     algo = load("models/mini_model.pkl")[1]
 
-    recs = run_model("samlearner", algo, user_watched_list, threshold_movie_list, 25)
-    print(recs)
+    recs = run_model("samlearner", algo, user_watched_list, sample_movie_list, 25)
