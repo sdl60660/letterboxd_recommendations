@@ -50,7 +50,7 @@ const Controls = ({
     const POLL_INTERVAL = 1000
 
     const [username, setUsername] = useState('')
-    const [modelStrength, setModelStrength] = useState(500000)
+    const [modelStrength, setModelStrength] = useState(1000000)
     // const [popularityFilter, setPopularityFilter] = useState(-1)
     const [dataOptIn, setDataOptIn] = useState(false)
 

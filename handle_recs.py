@@ -47,7 +47,7 @@ def get_client_user_data(username, data_opt_in):
 
 
 def build_client_model(
-    username, training_data_rows=500000, num_items=30
+    username, training_data_rows=1000000, num_items=30
 ):
     # Load user data from previous Redis job
     current_job = get_current_job(conn)

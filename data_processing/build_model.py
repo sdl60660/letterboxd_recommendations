@@ -1,5 +1,6 @@
 #!/usr/local/bin/python3.12
 
+import json
 import random
 import pickle
 import numpy as np
@@ -10,16 +11,9 @@ from surprise import SVD, Reader, Dataset, BaselineOnly
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
 
-
-params = {
-    # "n_factors": 150,
-    # "n_epochs": 20,
-    # "lr_all": 0.005,
-    # "reg_all": 0.02
-}
-
-# bsl_options = {"method": "als", "n_epochs": 10, "reg_u": 1, "reg_i": 1}
-# algo = BaselineOnly(bsl_options=bsl_options)
+# with open('models/best_svd_params.json', 'r') as f:
+#     SVD_PARAMS = json.load(f)
+SVD_PARAMS = {"lr_all": 0.004816404910904498, "n_epochs": 42, "n_factors": 147, "reg_all": 0.1382784138473327}
 
 def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_val']):
     # Surprise dataset loading
@@ -28,7 +22,7 @@ def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_va
     return data
 
 
-def prep_concat_dataframe(df, user_data):
+def prep_concat_dataframe(df, sample_movie_list, user_data):
     user_rated = [x for x in user_data if x["rating_val"] > 0 and x['movie_id'] in sample_movie_list]
 
     user_df = pd.DataFrame(user_rated)
@@ -42,7 +36,7 @@ def prep_concat_dataframe(df, user_data):
     return data
 
 
-def train_model(data, model=SVD, params={}, run_cv=False):
+def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
     # Set random seed so that returned recs are always the same for same user with same ratings
     # This might make sense so that results are consistent, or you might want to refresh with different results
     my_seed = 12
@@ -61,8 +55,8 @@ def train_model(data, model=SVD, params={}, run_cv=False):
     return algo
 
 
-def build_model(df, sample_movie_list, user_data, model=SVD, params={}, run_cv=False):
-    model_data = prep_concat_dataframe(df, user_data)
+def build_model(df, sample_movie_list, user_data, model=SVD, params=SVD_PARAMS, run_cv=False):
+    model_data = prep_concat_dataframe(df, sample_movie_list, user_data)
 
     algo = train_model(model_data, model, params, run_cv)
     user_watched_list = [x["movie_id"] for x in user_data]
@@ -85,7 +79,7 @@ if __name__ == "__main__":
         sample_movie_list = pickle.load(fp)
 
     user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list = build_model(df, sample_movie_list, user_data)
+    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=SVD_PARAMS, run_cv=True)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
     with open("models/user_watched.txt", "wb") as fp:

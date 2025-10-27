@@ -1,15 +1,17 @@
 #!/usr/local/bin/python3.12
 
 import pickle
+import json
 import random
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 
-from surprise import SVD, Reader, Dataset, BaselineOnly, SVDpp
+import scipy.stats.distributions as dists
 
-from surprise.model_selection import cross_validate, KFold
+from surprise import SVD, Reader, Dataset, BaselineOnly, SVDpp
+from surprise.model_selection import cross_validate, KFold, RandomizedSearchCV
 from surprise.dump import dump
 
 from build_model import train_model, get_dataset
@@ -87,7 +89,7 @@ def evaluate_config(dataset, model, params={}, cv_folds=4):
   for trainset, testset in kf.split(data):
     algo.fit(trainset)
     predictions = algo.test(testset)
-    precisions, recalls = precision_recall_at_k(predictions, k=20, threshold=6)
+    precisions, recalls = precision_recall_at_k(predictions, k=50, threshold=7)
   
   mean_precision = sum(prec for prec in precisions.values()) / len(precisions)
   mean_recall = sum(rec for rec in recalls.values()) / len(recalls)
@@ -105,33 +107,40 @@ def evaluate_config(dataset, model, params={}, cv_folds=4):
   return eval_row
 
 
+def run_grid_search(model, dataset):
+  param_dists = {'n_factors': dists.randint(80, 150), 'n_epochs': dists.randint(15, 70), 'lr_all': dists.uniform(0.001, 0.01), 'reg_all': dists.uniform(0.05, 0.2)}
+
+  rand_search = RandomizedSearchCV(model, param_dists, n_iter = 50, measures=['rmse', 'mae'], cv=5, n_jobs=5, joblib_verbose = 1000)
+  rand_search.fit(dataset)
+
+  results_df = pd.DataFrame.from_dict(rand_search.cv_results)
+  results_df.to_csv('./models/model_param_test_results.csv', index=False)
+
+  best_params = rand_search.best_params["rmse"]
+
+  with open('./models/best_svd_params.json', 'w') as f:
+    json.dump(best_params, f)
+  
+  return best_params
+
 def main():
   sample_sizes = [500_000, 1_000_000, 2_000_000, 3_000_000]
-  # models = [{'name': 'SVD', 'model': SVD}, {'name': 'SVD++', 'model': SVDpp}, {'name': 'ALS', 'model': BaselineOnly}]
-  # models = [{'name': 'SVD', 'model': SVD}]
-  models = [{'name': 'ALS', 'model': BaselineOnly}]
-
-  bsl_options = {"method": "als", "n_epochs": 10, "reg_u": 1, "reg_i": 1}
-  # bsl_options = {"method": "als"}
+  models = [{'name': 'SVD', 'model': SVD}]
+  # models = [{'name': 'SVD', 'model': SVD}, {'name': 'SVD++', 'model': SVDpp}]
 
   datasets = get_datasets(sample_sizes)
+  best_params = run_grid_search(models[0]['model'], datasets[1]['dataset'])
 
-  eval_rows = []
-  for dataset in datasets:
-    for model in models:
-      # config_eval = evaluate_config(dataset, model, params={})
-      config_eval = evaluate_config(dataset, model, params={"bsl_options": bsl_options})
-      eval_rows.append(config_eval)
+  # eval_rows = []
+  # for dataset in datasets:
+  #   for model in models:
+  #     config_eval = evaluate_config(dataset, model, params=best_params)
+  #     eval_rows.append(config_eval)
 
-  eval_table = pd.DataFrame(eval_rows)
-  print(eval_table.head(20))
-
-  
+  # pd.set_option('display.max_columns', 10)
+  # eval_table = pd.DataFrame(eval_rows)
+  # print(eval_table.head(20))
   
 
 if __name__ == "__main__":
     main()
-
-    # dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
-    # with open("models/user_watched.txt", "wb") as fp:
-    #     pickle.dump(user_watched_list, fp)
