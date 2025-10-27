@@ -13,7 +13,7 @@ from surprise.dump import dump
 
 # with open('models/best_svd_params.json', 'r') as f:
 #     SVD_PARAMS = json.load(f)
-SVD_PARAMS = {"lr_all": 0.004816404910904498, "n_epochs": 42, "n_factors": 147, "reg_all": 0.1382784138473327}
+SVD_PARAMS = {"lr_all": 0.0028736061000986107, "n_epochs": 63, "n_factors": 114, "reg_all": 0.1351711989635303, "reg_bi": 0.2812632244453843}
 
 def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_val']):
     # Surprise dataset loading

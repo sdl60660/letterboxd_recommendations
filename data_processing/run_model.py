@@ -90,3 +90,4 @@ if __name__ == "__main__":
     algo = load("models/mini_model.pkl")[1]
 
     recs = run_model("samlearner", algo, user_watched_list, sample_movie_list, 25)
+    print([x['movie_id'] for x in recs])

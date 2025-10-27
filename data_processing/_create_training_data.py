@@ -345,7 +345,7 @@ def main(use_cached_aggregations=False):
     cursor = db[output_collection_name].find({}, {"_id": 0})
     df = pd.DataFrame(list(cursor))
     
-    sample_movie_list = set(list(df['movie_id']))
+    sample_movie_list = {doc["movie_id"] for doc in cursor}
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
         pickle.dump(sample_movie_list, fp)
 
