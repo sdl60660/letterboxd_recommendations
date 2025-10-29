@@ -15,14 +15,14 @@ PER_USER_CAP = 300          # at most this many ratings per sampled user
 
 # aim ~this many ratings in final sample sets (±5–10%)
 TARGET_SAMPLES = [
-  # 500_000,
+  500_000,
   1_000_000,
   # 1_500_000,
   2_000_000,
   # 2_500_000,
   3_000_000,
-  4_000_000,
-  5_000_000,
+  # 4_000_000,
+  # 5_000_000,
   # 10_000_000
 ] 
 
@@ -318,7 +318,17 @@ def create_review_counts_df(db, threshold=MOVIE_MIN):
 
   return review_counts_df
 
-def main(use_cached_aggregations=False):
+def clean_up_temp_collections(db):
+  collections_for_removal = [ACTIVE_USERS_COLL, THRESHOLD_MOVIES_COLL, SAMPLED_USERS_COLL]
+
+  for sample_size in TARGET_SAMPLES:
+    raw_sample_coll = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+    collections_for_removal.append(raw_sample_coll)
+
+  for temp_collection in collections_for_removal:
+    db.drop_collection(temp_collection)
+
+def main(use_cached_aggregations=False, remove_temp_collections=True):
   db_name, client = connect_to_db()
   db = client[db_name]
   # db = client["aggregations"]
@@ -358,6 +368,9 @@ def main(use_cached_aggregations=False):
   review_counts_df = create_review_counts_df(db, threshold=MOVIE_MIN)
   review_counts_df.to_csv("data/review_counts.csv", index=False)
 
+  if remove_temp_collections: 
+    clean_up_temp_collections(db)
+
 
 if __name__ == "__main__":
-  main(use_cached_aggregations=False)
+  main(use_cached_aggregations=False, remove_temp_collections=True)
