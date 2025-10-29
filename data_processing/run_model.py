@@ -17,15 +17,18 @@ from surprise.dump import load
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
+    from utils.utils import explicit_exclude_list
+
 else:
     from data_processing.db_connect import connect_to_db
+    from data_processing.utils.utils import explicit_exclude_list
+
 
 # There are some pseudo-TV shows (docs about shows, etc) that people use to log a rating for a TV show
 # which I think we want to exclude. For now, this is just a little manual/explicit with the most prominent
 # ones, but can maybe find a better way to target later
 # (Think I'm going to work on turning this into a default-on frontend filter,
 # modeled after the exclusions here: https://letterboxd.com/dave/list/official-top-250-narrative-feature-films/)
-explicit_exclude_list = ['no-half-measures-creating-the-final-season-of-breaking-bad', 'twin-peaks']
 
 def get_top_n(predictions, n=20):
     top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
@@ -41,8 +44,9 @@ def run_model(
     db = client[db_name]
 
     exclude_list = user_watched_list + explicit_exclude_list
-    unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
-    prediction_set = [(username, x, 0) for x in unwatched_movies]
+    # unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
+    valid_unwatched_movies = [x for x in sample_movie_list if x not in exclude_list]
+    prediction_set = [(username, x, 0) for x in valid_unwatched_movies]
 
     predictions = algo.test(prediction_set)
     top_n = get_top_n(predictions, num_recommendations)
