@@ -11,9 +11,9 @@ from surprise import SVD, Reader, Dataset, BaselineOnly
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
 
-# with open('models/best_svd_params.json', 'r') as f:
-#     SVD_PARAMS = json.load(f)
-SVD_PARAMS = {"lr_all": 0.0028736061000986107, "n_epochs": 63, "n_factors": 114, "reg_all": 0.1351711989635303, "reg_bi": 0.2812632244453843}
+# a global/fallback to use as a default val, based on a traiing run/eval, but this shouldn't ever be used,
+# either when this is called from the web server or from commandline
+SVD_PARAMS = {"lr_all": 0.0028736, "n_epochs": 63, "n_factors": 114, "reg_all": 0.135171, "reg_bi": 0.281263224}
 
 def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_val']):
     # Surprise dataset loading
@@ -77,9 +77,12 @@ if __name__ == "__main__":
     df = pd.read_parquet(f"data/training_data_samples/training_data_{default_sample_size}.parquet")
     with open(f"data/movie_lists/sample_movie_list_{default_sample_size}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
+    
+    with open("models/best_svd_params.json", 'r') as f:
+        svd_params = json.load(f)
 
     user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=SVD_PARAMS, run_cv=True)
+    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=True)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
     with open("models/user_watched.txt", "wb") as fp:

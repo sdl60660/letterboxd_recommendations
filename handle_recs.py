@@ -1,5 +1,6 @@
 import pandas as pd
 import pickle
+import json
 
 from rq import Queue, get_current_job
 from rq.job import Job
@@ -64,11 +65,14 @@ def build_client_model(
     # Load in the list of all availble movie ids (passed the threshold of at least five samples in dataset)
     with open(f"data_processing/data/movie_lists/sample_movie_list_{training_data_rows}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
+    
+    with open("data_processing/models/best_svd_params.json", 'r') as f:
+        svd_params = json.load(f)
 
     current_job.meta["stage"] = "building_model"
     current_job.save()
     # Build model with appended user data
-    algo, user_watched_list = build_model(model_df, sample_movie_list, user_data)
+    algo, user_watched_list = build_model(model_df, sample_movie_list, user_data, params=svd_params)
     del model_df
 
     current_job.meta["stage"] = "running_model"

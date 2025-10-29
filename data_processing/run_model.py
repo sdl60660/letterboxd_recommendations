@@ -23,7 +23,9 @@ else:
 # There are some pseudo-TV shows (docs about shows, etc) that people use to log a rating for a TV show
 # which I think we want to exclude. For now, this is just a little manual/explicit with the most prominent
 # ones, but can maybe find a better way to target later
-explicit_exclude_list = []
+# (Think I'm going to work on turning this into a default-on frontend filter,
+# modeled after the exclusions here: https://letterboxd.com/dave/list/official-top-250-narrative-feature-films/)
+explicit_exclude_list = ['no-half-measures-creating-the-final-season-of-breaking-bad', 'twin-peaks']
 
 def get_top_n(predictions, n=20):
     top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
