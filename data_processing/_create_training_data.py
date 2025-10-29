@@ -31,6 +31,7 @@ ACTIVE_USERS_COLL = "active_users_tmp"
 MOVIE_COUNTS_COLL = "movie_counts"
 THRESHOLD_MOVIES_COLL = "threshold_movies_tmp"
 SAMPLED_USERS_COLL = "sampled_users_tmp"
+QUALIFYING_MOVIES_COLL = "qualifying_movies_tmp"
 RAW_TRAINING_DATA_SAMPLE_COLL = "training_data_sample_raw"
 TRAINING_DATA_SAMPLE_COLL = "training_data_sample"
 
@@ -187,20 +188,20 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
   adjusted_threshold = movie_threshold // 2
 
   # create temp movie group collection
-  db["qualifying_movies_tmp"].drop()
+  db[QUALIFYING_MOVIES_COLL].drop()
   db[src].aggregate([
       {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
       {"$match": {"n": {"$gte": adjusted_threshold}}},
       {"$project": {"_id": 0, "movie_id": "$_id"}},
-      {"$out": "qualifying_movies_tmp"},
+      {"$out": QUALIFYING_MOVIES_COLL},
   ], allowDiskUse=True)
-  db["qualifying_movies_tmp"].create_index([("movie_id", 1)])
+  db[QUALIFYING_MOVIES_COLL].create_index([("movie_id", 1)])
   
   pipeline = pipeline = [
     # Start from the big collection and just *check existence* in the small set
     {
         "$lookup": {
-            "from": "qualifying_movies_tmp",
+            "from": QUALIFYING_MOVIES_COLL,
             "localField": "movie_id",
             "foreignField": "movie_id",
             "as": "qm"
@@ -319,7 +320,7 @@ def create_review_counts_df(db, threshold=MOVIE_MIN):
   return review_counts_df
 
 def clean_up_temp_collections(db):
-  collections_for_removal = [ACTIVE_USERS_COLL, THRESHOLD_MOVIES_COLL, SAMPLED_USERS_COLL]
+  collections_for_removal = [ACTIVE_USERS_COLL, THRESHOLD_MOVIES_COLL, SAMPLED_USERS_COLL, QUALIFYING_MOVIES_COLL]
 
   for sample_size in TARGET_SAMPLES:
     raw_sample_coll = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
