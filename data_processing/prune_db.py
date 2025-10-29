@@ -3,6 +3,7 @@
 
 from pymongo import UpdateOne, ASCENDING
 from db_connect import connect_to_db
+import datetime
 
 def get_filter_exp(inactive_fail_count = 3):
     return {"fail_count": {"$gte": inactive_fail_count}, "scrape_status": "failed"}
@@ -16,9 +17,11 @@ def get_inactive_movies(movies_collection, filter_exp):
 
 def migrate_inactive_movies(movies_collection, retired_movies_collection, filter_exp):
     filter_stage = {"$match": filter_exp}
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     pipeline = [
         filter_stage,
+        {"$set": {"migrated_at": now}},
         {
             "$merge": {
                 "into": {"db": retired_movies_collection.database.name, "coll": retired_movies_collection.name},
@@ -31,6 +34,8 @@ def migrate_inactive_movies(movies_collection, retired_movies_collection, filter
     movies_collection.aggregate(pipeline, allowDiskUse=True)
 
 def migrate_inactive_ratings(movies_coll, ratings_coll, retired_ratings_coll, filter_exp):
+    now = datetime.datetime.now(datetime.timezone.utc)
+
     pipeline = [
         {"$match": filter_exp},
         {"$project": {"_id": 0, "movie_id": 1}},
@@ -42,6 +47,7 @@ def migrate_inactive_ratings(movies_coll, ratings_coll, retired_ratings_coll, fi
         }},
         {"$unwind": "$r"},
         {"$replaceRoot": {"newRoot": "$r"}},
+        {"$set": {"migrated_at": now}},
         {"$merge": {
             "into": {"db": retired_ratings_coll.database.name, "coll": retired_ratings_coll.name},
             "whenMatched": "keepExisting",
