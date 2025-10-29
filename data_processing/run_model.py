@@ -20,6 +20,10 @@ if os.getcwd().endswith("data_processing"):
 else:
     from data_processing.db_connect import connect_to_db
 
+# There are some pseudo-TV shows (docs about shows, etc) that people use to log a rating for a TV show
+# which I think we want to exclude. For now, this is just a little manual/explicit with the most prominent
+# ones, but can maybe find a better way to target later
+explicit_exclude_list = []
 
 def get_top_n(predictions, n=20):
     top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
@@ -34,6 +38,7 @@ def run_model(
     db_name, client = connect_to_db()
     db = client[db_name]
 
+    exclude_list = user_watched_list + explicit_exclude_list
     unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
     prediction_set = [(username, x, 0) for x in unwatched_movies]
 
