@@ -18,17 +18,14 @@ from pymongo.errors import BulkWriteError
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
-    from utils import utils
+    from utils.utils import get_backoff_days
     from http_utils import BROWSER_HEADERS
 
 else:
     from data_processing.db_connect import connect_to_db
-    from data_processing.utils import utils
+    from data_processing.utils.utils import get_backoff_days
     from data_processing.http_utils import BROWSER_HEADERS
 
-
-def get_backoff_days(fail_count, max_days = 180):
-    return min(2 ** min(fail_count, 5), max_days)
 
 async def fetch(url, session, input_data={}, *, retries=3):
     for attempt in range(retries):
