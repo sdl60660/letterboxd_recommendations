@@ -15,8 +15,12 @@ const colorScale = scaleLinear()
 const Results = ({ results, userWatchlist }) => {
     const [listDownloaded, setListDownloaded] = useState(false)
 
-    const [filteredGenres, setFilteredGenres] = useState({included: null, excluded: ['Music']})
+    const [filteredGenres, setFilteredGenres] = useState({
+        included: null,
+        excluded: ['Music'],
+    })
     const [filteredYearRange, setFilteredYearRange] = useState(null)
+    const [filteredPopularityRange, setFilteredPopularityRange] = useState(null)
     const [excludeWatchlist, setExcludeWatchlist] = useState(true)
 
     const displayedResults = useMemo(() => {
@@ -27,9 +31,9 @@ const Results = ({ results, userWatchlist }) => {
         let output = results.slice()
 
         // filter on genres
-        const includeSet = new Set(filteredGenres.included);
-        const excludeSet = new Set(filteredGenres.excluded);
-        
+        const includeSet = new Set(filteredGenres.included)
+        const excludeSet = new Set(filteredGenres.excluded)
+
         output = output.filter((movie) => {
             const movieGenres = new Set(movie.movie_data.genres ?? [])
 
@@ -52,6 +56,15 @@ const Results = ({ results, userWatchlist }) => {
             )
         }
 
+        // filter on popularity value (via TMDB)
+        if (filteredPopularityRange) {
+            output = output.filter(
+                (movie) =>
+                    movie.movie_data.popularity >= filteredPopularityRange[0] &&
+                    movie.movie_data.popularity <= filteredPopularityRange[1]
+            )
+        }
+
         // exclude watchlist items (if watchlist present and exclude checkbox is selected)
         if (excludeWatchlist === true && userWatchlist !== null) {
             output = output.filter(
@@ -64,6 +77,7 @@ const Results = ({ results, userWatchlist }) => {
         results,
         filteredGenres,
         filteredYearRange,
+        filteredPopularityRange,
         excludeWatchlist,
         userWatchlist,
     ])
@@ -102,6 +116,7 @@ const Results = ({ results, userWatchlist }) => {
                     results={results}
                     setFilteredGenres={setFilteredGenres}
                     setFilteredYearRange={setFilteredYearRange}
+                    setFilteredPopularityRange={setFilteredPopularityRange}
                     excludeWatchlist={excludeWatchlist}
                     setExcludeWatchlist={setExcludeWatchlist}
                 />

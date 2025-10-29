@@ -14,6 +14,7 @@ import Checkbox from '@mui/material/Checkbox'
 import Slider from '@mui/material/Slider'
 
 import '../styles/ListFilters.scss'
+import LabeledSlider from './ui/LabeledSlider'
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -40,6 +41,7 @@ const ListFilters = ({
     results,
     setFilteredGenres,
     setFilteredYearRange,
+    setFilteredPopularityRange,
     excludeWatchlist,
     setExcludeWatchlist,
 }) => {
@@ -52,26 +54,43 @@ const ListFilters = ({
                     .filter((d) => d && d !== '')
             ),
         ].sort()
-    }, [results]);
+    }, [results])
 
-    const allYears = [
-        Math.min(
-            ...results
-                .filter((d) => d.movie_data.year_released)
-                .map((d) => d.movie_data.year_released)
-        ),
-        Math.max(
-            ...results
-                .filter((d) => d.movie_data.year_released)
-                .map((d) => d.movie_data.year_released)
-        ),
-    ]
+    const allYears = useMemo(() => {
+        return [
+            Math.min(
+                ...results
+                    .filter((d) => d.movie_data.year_released)
+                    .map((d) => d.movie_data.year_released)
+            ),
+            Math.max(
+                ...results
+                    .filter((d) => d.movie_data.year_released)
+                    .map((d) => d.movie_data.year_released)
+            ),
+        ]
+    }, [results])
+
+    const popularityRange = useMemo(() => {
+        return [
+            Math.min(
+                ...results
+                    .filter((d) => d.movie_data.popularity)
+                    .map((d) => d.movie_data.popularity)
+            ),
+            Math.max(
+                ...results
+                    .filter((d) => d.movie_data.popularity)
+                    .map((d) => d.movie_data.popularity)
+            ),
+        ]
+    }, [results]);
 
     const [genres, setGenres] = useState({
         included: allGenres,
         excluded: ['Music'],
     })
-
+    const [popularity, setPopularity] = useState(popularityRange)
     const [yearRange, setYearRange] = useState(allYears)
 
     const theme = useTheme()
@@ -99,6 +118,11 @@ const ListFilters = ({
         })
     }
 
+    const handlePopularityChange = (event, newValue) => {
+        setPopularity(newValue)
+        setFilteredPopularityRange(newValue)
+    }
+
     const handleYearChange = (event, newValue) => {
         setYearRange(newValue)
         setFilteredYearRange(newValue)
@@ -107,9 +131,7 @@ const ListFilters = ({
     return (
         <div className="list-filter-controls">
             <FormControl>
-                <Box
-                // sx={{ width: 400, maxWidth: '100%'}}
-                >
+                <Box>
                     <InputLabel id="year-filter-label" shrink={true}>
                         Year Released
                     </InputLabel>
@@ -124,10 +146,31 @@ const ListFilters = ({
                         min={allYears[0]}
                         max={allYears[1]}
                         step={1}
-                        colorPrimary="red"
                     />
                 </Box>
             </FormControl>
+
+            {/* <FormControl>
+                <Box>
+                    <InputLabel id="popularity-filter-label" shrink={true}>
+                        Popularity
+                    </InputLabel>
+                    <LabeledSlider
+                        labelId="popularity-filter-label"
+                        id="popularity-filter"
+                        aria-label="Poplularity filter slider. Adjust value to only receive recommendations for more- or less-watched movies."
+                        value={popularity}
+                        onChange={handlePopularityChange}
+                        valueLabelDisplay="off"
+                        getAriaValueText={(value) => value}
+                        min={popularityRange[0]}
+                        max={popularityRange[1]}
+                        marks={true}
+                        labels={['Less', 'More']}
+                        step={Math.round(popularityRange[1] - popularityRange[0]) / 10}
+                    />
+                </Box>
+            </FormControl> */}
 
             <FormControl sx={{ m: 1, width: 400, maxWidth: '90vw' }}>
                 <InputLabel id="included-genre-filter-label">
