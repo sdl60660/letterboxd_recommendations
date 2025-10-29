@@ -404,7 +404,7 @@ def main(data_type="letterboxd"):
     movies_for_update = get_ids_for_update(movies, data_type)
 
     loop = asyncio.get_event_loop()
-    chunk_size = 12
+    chunk_size = 20
     num_chunks = len(movies_for_update) // chunk_size + 1
 
     print("Total Movies to Scrape:", len(movies_for_update))

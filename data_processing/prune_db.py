@@ -86,7 +86,7 @@ def main():
     retired_movies = retired_db.movies
     retired_ratings = retired_db.ratings
 
-    filter_exp = get_filter_exp(inactive_fail_count=3)
+    filter_exp = get_filter_exp(inactive_fail_count = 5)
 
     # 1) Copy movies
     migrate_inactive_movies(movies, retired_movies, filter_exp)
