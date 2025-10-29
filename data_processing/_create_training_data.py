@@ -332,7 +332,6 @@ def clean_up_temp_collections(db):
 def main(use_cached_aggregations=False, remove_temp_collections=True):
   db_name, client = connect_to_db()
   db = client[db_name]
-  # db = client["aggregations"]
 
   ratings = db["ratings"]
 
