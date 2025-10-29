@@ -80,12 +80,14 @@ async def get_page_counts(usernames, users_cursor):
                 update_operations.append(
                     UpdateOne(
                         {"username": username},
-                        {"$set": {
-                            "scrape_status": "fail",
-                            "last_attempted": now,
-                            "next_retry_at": next_retry,
+                        {
+                            "$set": {
+                                "scrape_status": "fail",
+                                "last_attempted": now,
+                                "next_retry_at": next_retry,
+                                },
+                            "$inc": {"fail_count": 1}
                         },
-                        "$inc": {"fail_count": 1}},
                         upsert=True,
                     )
                 )

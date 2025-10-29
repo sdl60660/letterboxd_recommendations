@@ -129,19 +129,14 @@ def parse_letterboxd_page_data(response, movie_id):
 
 
 def format_failed_update(movie_id, fail_count):
-    backoff_days = get_backoff_days(fail_count)
+    # backoff_days = get_backoff_days(fail_count)
+    backoff_days = 7
     now = datetime.datetime.now(datetime.timezone.utc)
     next_retry = now + datetime.timedelta(days=backoff_days)
 
-    # if the scrape has failed three consecutive times, we'll mark the movie object as "inactive"
-    # which will schedule it for deletion. otherwise, it'll be marked "failed", which will put it
-    # in a queue to eventually be re-checked
-    scrape_status = "inactive" if fail_count >= 3 else "failed"
-
     movie_update_object = {
         "movie_id": movie_id,
-        "scrape_status": scrape_status,
-        "fail_count": fail_count,
+        "scrape_status": "failed",
         "next_retry_at": next_retry,
     }
 
@@ -155,12 +150,14 @@ async def fetch_letterboxd(url, session, input_data={}):
         if r.status == 404:
             fail_count = input_data.get("fail_count", 0) + 1
             movie_update_object = format_failed_update(movie_id, fail_count)
+            update_operation = UpdateOne(
+                { "movie_id": input_data["movie_id"]}, {"$set": movie_update_object,  "$inc": {"fail_count": 1}}, upsert=True
+            )
         else:
             movie_update_object = parse_letterboxd_page_data(response, movie_id)
-
-        update_operation = UpdateOne(
-            {"movie_id": input_data["movie_id"]}, {"$set": movie_update_object}, upsert=True
-        )
+            update_operation = UpdateOne(
+                {"movie_id": input_data["movie_id"]}, {"$set": movie_update_object}, upsert=True
+            )
 
         return update_operation
 
@@ -318,7 +315,8 @@ def get_ids_for_update(movies_collection, data_type):
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                {"next_retry_at": {"$lte": now}, "scrape_status": "fail"},
+                # {"scrape_status": "failed"},
+                {"next_retry_at": {"$lte": now}, "scrape_status": "failed"},
                 {"movie_id": 1}
             ).sort("next_retry_at", 1)
         }
