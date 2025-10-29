@@ -49,6 +49,7 @@ def run_model(
     prediction_set = [(username, x, 0) for x in valid_unwatched_movies]
 
     predictions = algo.test(prediction_set)
+
     top_n = get_top_n(predictions, num_recommendations)
     movie_fields = [
         "image_url",
