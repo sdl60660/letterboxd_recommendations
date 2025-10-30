@@ -44,7 +44,7 @@ def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
     np.random.seed(my_seed)
 
     # Configure algorithm
-    algo = model(**params)
+    algo = model(**params, random_state=my_seed)
 
     if run_cv:
         cross_validate(algo, data, measures=['RMSE', 'MAE', 'FCP'], cv=3, verbose=True)
@@ -67,6 +67,53 @@ def build_model(df, sample_movie_list, user_data, model=SVD, params=SVD_PARAMS, 
     return algo, user_watched_list
 
 
+def export_model(algo, sample_size, compressed=True, subdirectory_path="models"):
+    if compressed:
+        mu = algo.trainset.global_mean
+
+        qi = algo.qi.astype(np.float32)
+        bi = algo.bi.astype(np.float32)
+        bu = algo.bu.astype(np.float32)
+        pu = algo.pu.astype(np.float32)
+
+        # build inner-id → raw movie_id list
+        inner2raw_item = {inner: algo.trainset.to_raw_iid(inner) for inner in range(algo.trainset.n_items)}
+        item_ids = [inner2raw_item[i] for i in range(len(inner2raw_item))]
+
+        # build inner-id → raw user_id list
+        inner2raw_user = {inner: algo.trainset.to_raw_uid(inner) for inner in range(algo.trainset.n_users)}
+        user_ids = [inner2raw_user[i] for i in range(len(inner2raw_user))]
+
+        np.savez_compressed(
+            f"{subdirectory_path}/model_{sample_size}.npz",
+            qi=qi,
+            bi=bi,
+            pu=pu,
+            bu=bu,
+            mu=np.float32(mu),
+            user_ids=np.array(user_ids, dtype=object),
+            item_ids=np.array(item_ids, dtype=object),
+            n_factors=np.int16(algo.n_factors),
+            n_epochs=np.int16(algo.n_epochs),
+            reg_bu=np.float32(algo.reg_bu),
+            reg_pu=np.float32(algo.reg_pu),
+            reg_qi=np.float32(algo.reg_qi),
+            reg_bi=np.float32(algo.reg_bi),
+            lr_bu=np.float32(algo.lr_bu),
+            lr_pu=np.float32(algo.lr_pu),
+            lr_qi=np.float32(algo.lr_qi),
+            lr_bi=np.float32(algo.lr_bi),
+            rating_min=np.float32(algo.trainset.rating_scale[0]),
+            rating_max=np.float32(algo.trainset.rating_scale[1]),
+            random_state=np.int16(algo.random_state),
+            init_mean=np.float32(algo.init_mean),
+            init_std_dev=np.float32(algo.init_std_dev),
+            biased=np.bool_(algo.biased)
+        )
+    else:
+        dump(f"{subdirectory_path}/model_{sample_size}.pkl", predictions=None, algo=algo, verbose=1)
+
+
 if __name__ == "__main__":
     import os
     if os.getcwd().endswith("data_processing"):
@@ -74,7 +121,7 @@ if __name__ == "__main__":
     else:
         from data_processing.get_user_ratings import get_user_data
     
-    default_sample_size = 1000000
+    default_sample_size = 3000000
 
     # Load ratings data
     df = pd.read_parquet(f"data/training_data_samples/training_data_{default_sample_size}.parquet")
@@ -87,7 +134,7 @@ if __name__ == "__main__":
     user_data = get_user_data("samlearner")[0]
     algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
 
-    dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
+    export_model(algo, default_sample_size, compressed=True)
 
     with open("models/user_watched.txt", "wb") as fp:
         pickle.dump(user_watched_list, fp)

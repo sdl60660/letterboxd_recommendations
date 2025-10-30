@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 import random
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+
+from types import SimpleNamespace, MethodType
 
 # from surprise import Dataset, SVD, Reader
 # from surprise.model_selection import GridSearchCV
@@ -26,6 +28,61 @@ else:
     from data_processing.utils.utils import explicit_exclude_list
     from data_processing.get_user_ratings import get_user_data
 
+
+Prediction = namedtuple("Prediction", "uid iid r_ui est details")
+
+def _estimate_like(self, iu, ii):
+    """iu, ii are *inner* indices (ints) or None if unknown."""
+    biased = getattr(self, "biased", True)
+    mu = getattr(self, "mu", 0.0)
+
+    # Known flags
+    ku = (iu is not None) and (iu < self.pu.shape[0])
+    ki = (ii is not None) and (ii < self.qi.shape[0])
+
+    if biased:
+        est = mu
+        if ku:
+            est += self.bu[iu]
+        if ki:
+            est += self.bi[ii]
+        if ku and ki:
+            est += float(np.dot(self.qi[ii], self.pu[iu]))
+        return est
+    else:
+        # Unbiased: only dot(pu, qi) when both are known; otherwise fall back to 0
+        if ku and ki:
+            return float(np.dot(self.qi[ii], self.pu[iu]))
+        return 0.0
+
+def _predict_like(self, uid_raw, iid_raw, r_ui=None, clip=True):
+    iu = self.user_index.get(uid_raw, None)
+    ii = self.item_index.get(iid_raw, None)
+
+    est = _estimate_like(self, iu, ii)
+    details = {"was_impossible": False, "inner_uid": iu, "inner_iid": ii}
+
+    if clip:
+        lo = getattr(self, "rating_min", 1.0)
+        hi = getattr(self, "rating_max", 10.0)
+        est = min(hi, max(lo, est))
+
+    return Prediction(uid_raw, iid_raw, r_ui, float(est), details)
+
+def _test_like(self, testset, verbose=False):
+    """testset: iterable of (uid_raw, iid_raw, r_ui_trans)."""
+    preds = [_predict_like(self, uid, iid, r_ui, clip=True) for (uid, iid, r_ui) in testset]
+    if verbose:
+        for p in preds:
+            print(p)
+    return preds
+
+def attach_surprise_like_methods(model_ns):
+    """Bind the helpers as methods on your SimpleNamespace model."""
+    model_ns.estimate = MethodType(_estimate_like, model_ns)
+    model_ns.predict  = MethodType(_predict_like,  model_ns)
+    model_ns.test     = MethodType(_test_like,     model_ns)
+    return model_ns
 
 def get_top_n(predictions, n=20):
     top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
@@ -71,6 +128,7 @@ def update_trainset_user_data(model, new_ratings_set, uid, username):
     ur_dict_entry = []
     for u,i,r in new_ratings_set:
         ur_dict_entry.append((i, r))
+
     model.trainset.ur[uid] = ur_dict_entry
     model.trainset._raw2inner_id_users[username] = uid
     return model
@@ -79,7 +137,7 @@ def adjust_model_for_user(model, new_ratings_set, uid, username):
     user_in_training_set = (uid != model.pu.shape[0])
     rng = get_rng(model.random_state)
 
-    model = update_trainset_user_data(model, new_ratings_set, uid, username)
+    # model = update_trainset_user_data(model, new_ratings_set, uid, username)
 
     # append a new zero-value item to the end of the user-bias numpy array for the new user
     bu = model.bu
@@ -91,6 +149,7 @@ def adjust_model_for_user(model, new_ratings_set, uid, username):
     # append a new slice onto the user-factors array for the new user
     new_user_factor_slice = rng.normal(model.init_mean, model.init_std_dev, size=(1, model.n_factors))
     pu = model.pu
+
     if user_in_training_set:
         pu[uid] = new_user_factor_slice
     else:
@@ -106,6 +165,8 @@ def adjust_model_for_user(model, new_ratings_set, uid, username):
     bi = model.bi
     qi = model.qi
 
+    global_mean = model.trainset.global_mean if hasattr(model, 'trainset') else model.mu
+
     # don't need to iterate because we won't really worry about re-adjusting global_mean, etc. based...
     # on this user's ratings, which aren't likely to impact it much at all
     for current_epoch in range(model.n_epochs):
@@ -116,7 +177,7 @@ def adjust_model_for_user(model, new_ratings_set, uid, username):
             for f in range(model.n_factors):
                 dot += qi[i, f] * pu[u, f]
 
-            err = r - (model.trainset.global_mean + bu[u] + bi[i] + dot)
+            err = r - (global_mean + bu[u] + bi[i] + dot)
 
             # update biases
             if model.biased:
@@ -139,24 +200,26 @@ def adjust_model_for_user(model, new_ratings_set, uid, username):
 
 
 def update_algo(algo, username, user_data):
-    training_set = algo.trainset
+    # training_set = algo.trainset
 
     try:
-        uid = training_set.to_inner_uid(username)
-    except ValueError:
+        uid = algo.user_index[username]
+    except KeyError:
         # new user id should be the total exising users (index off-by-one)
         uid = algo.pu.shape[0]
 
     new_ratings_set = []
     for item in user_data:
         try:
-            iid = training_set.to_inner_iid(item['movie_id'])
+            iid = algo.item_index[item['movie_id']]
             new_ratings_set.append((uid, iid, float(item['rating_val'])))
-        except ValueError:
+        except KeyError:
             # print(f"Cannot find a corresponding item ID in the training set for {item['movie_id']}")
             pass
         
     updated_model = adjust_model_for_user(algo, new_ratings_set, uid, username)
+    algo.user_index[username] = uid
+
     return updated_model
 
 def run_model(
@@ -194,9 +257,45 @@ def run_model(
 
     return return_object
 
+def load_compressed_model(path):
+    blob = np.load(path, allow_pickle=True)
+    
+    model_dict = {
+        "qi": blob["qi"],
+        "bi": blob["bi"],
+        "pu": blob["pu"],
+        "bu": blob["bu"],
+        "mu": float(blob["mu"]),
+        "user_ids": list(blob["user_ids"]),
+        "item_ids": list(blob["item_ids"]),
+        "n_factors": int(blob["n_factors"]),
+        "n_epochs": int(blob["n_epochs"]),
+        "reg_bu": float(blob["reg_bu"]),
+        "reg_pu": float(blob["reg_pu"]),
+        "reg_qi": float(blob["reg_qi"]),
+        "reg_bi": float(blob["reg_bi"]),
+        "lr_bu": float(blob["lr_bu"]),
+        "lr_pu": float(blob["lr_pu"]),
+        "lr_qi": float(blob["lr_qi"]),
+        "lr_bi": float(blob["lr_bi"]),
+        "rating_min": float(blob["rating_min"]),
+        "rating_max": float(blob["rating_max"]),
+        "random_state": int(blob["random_state"]),
+        "init_mean": float(blob["init_mean"]),
+        "init_std_dev": float(blob["init_std_dev"]),
+        "biased": bool(blob["biased"])
+    }
+
+    model_dict["item_index"] = {mid: i for i, mid in enumerate(model_dict["item_ids"])}
+    model_dict["user_index"] = {uid: i for i, uid in enumerate(model_dict["user_ids"])}
+
+    return SimpleNamespace(**model_dict)
+
 
 def main(username, sample_size = 1000000, fold_in=False, num_recommendations=25):
-    algo = load("models/mini_model.pkl")[1]
+    # algo = load(f"models/model_{sample_size}.npz")[1]
+    algo = load_compressed_model(f"models/model_{sample_size}.npz")
+    attach_surprise_like_methods(algo)
 
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
