@@ -70,7 +70,7 @@ def run_model(
     username, algo, user_watched_list, sample_movie_list, num_recommendations=20
 ):
     prediction_set = get_prediction_set(username, user_watched_list, sample_movie_list)
-    predictions = algo.test(prediction_set) 
+    predictions = algo.test(prediction_set)
     top_n = get_top_n(predictions, num_recommendations)
     
     movie_data = get_movie_data(top_n)
@@ -99,9 +99,20 @@ def run_model(
     return return_object
 
 
-def adjust_model_for_user(model, new_ratings_set, uid):
+def update_trainset_user_data(model, new_ratings_set, uid, username):
+    # update ur entry in trainset (which should in turn allow the user to be found when predict/estimate searches for id)
+    ur_dict_entry = []
+    for u,i,r in new_ratings_set:
+        ur_dict_entry.append((i, r))
+    model.trainset.ur[uid] = ur_dict_entry
+    model.trainset._raw2inner_id_users[username] = uid
+    return model
+
+def adjust_model_for_user(model, new_ratings_set, uid, username):
     user_in_training_set = (uid != model.pu.shape[0])
     rng = get_rng(model.random_state)
+
+    model = update_trainset_user_data(model, new_ratings_set, uid, username)
 
     # append a new zero-value item to the end of the user-bias numpy array for the new user
     bu = model.bu
@@ -130,27 +141,27 @@ def adjust_model_for_user(model, new_ratings_set, uid):
 
     # don't need to iterate because we won't really worry about re-adjusting global_mean, etc. based...
     # on this user's ratings, which aren't likely to impact it much at all
-    # for current_epoch in range(model.n_epochs):
-    for u, i, r in new_ratings_set:
-        # compute current error
-        dot = 0  # <q_i, p_u>
+    for current_epoch in range(model.n_epochs):
+        for u, i, r in new_ratings_set:
+            # compute current error
+            dot = 0  # <q_i, p_u>
 
-        for f in range(model.n_factors):
-            dot += qi[i, f] * pu[u, f]
+            for f in range(model.n_factors):
+                dot += qi[i, f] * pu[u, f]
 
-        err = r - (model.trainset.global_mean + bu[u] + bi[i] + dot)
+            err = r - (model.trainset.global_mean + bu[u] + bi[i] + dot)
 
-        # update biases
-        if model.biased:
-            bu[u] += model.lr_bu * (err - model.reg_bu * bu[u])
-            # model.bi[i] += model.lr_bi * (err - model.reg_bi * model.bi[i])
+            # update biases
+            if model.biased:
+                bu[u] += model.lr_bu * (err - model.reg_bu * bu[u])
+                # model.bi[i] += model.lr_bi * (err - model.reg_bi * model.bi[i])
 
-        # update factors
-        for f in range(model.n_factors):
-            puf = pu[u, f]
-            qif = qi[i, f]
-            pu[u, f] += model.lr_pu * (err * qif - model.reg_pu * puf)
-            # qi[i, f] += model.lr_qi * (err * puf - model.reg_qi * qif)
+            # update factors
+            for f in range(model.n_factors):
+                puf = pu[u, f]
+                qif = qi[i, f]
+                pu[u, f] += model.lr_pu * (err * qif - model.reg_pu * puf)
+                # qi[i, f] += model.lr_qi * (err * puf - model.reg_qi * qif)
     
     model.bu = np.asarray(bu)
     model.bi = np.asarray(bi)
@@ -160,7 +171,7 @@ def adjust_model_for_user(model, new_ratings_set, uid):
     return model
 
 
-def update_algo(algo, username, user_data, user_watched_list, sample_movie_list, num_recommendations=25):
+def update_algo(algo, username, user_data):
     training_set = algo.trainset
 
     try:
@@ -178,7 +189,7 @@ def update_algo(algo, username, user_data, user_watched_list, sample_movie_list,
             # print(f"Cannot find a corresponding item ID in the training set for {item['movie_id']}")
             pass
         
-    updated_model = adjust_model_for_user(algo, new_ratings_set, uid)
+    updated_model = adjust_model_for_user(algo, new_ratings_set, uid, username)
     return updated_model
 
 def main(username, sample_size = 1000000, fold_in=False, num_recommendations=25):
@@ -190,16 +201,16 @@ def main(username, sample_size = 1000000, fold_in=False, num_recommendations=25)
     if fold_in == True:
         user_data = get_user_data(username)[0]
         user_watched_list = [x["movie_id"] for x in user_data]
-        algo = update_algo(algo, username, user_data, user_watched_list, sample_movie_list, num_recommendations)
-        
+        algo = update_algo(algo, username, user_data)
+
     else:
         with open("models/user_watched.txt", "rb") as fp:
             user_watched_list = pickle.load(fp)
         
     recs = run_model(username, algo, user_watched_list, sample_movie_list, num_recommendations)
-    print([x['movie_id'] for x in recs])
+    # print([{'movie': x['movie_id'], 'rating': x['predicted_rating']} for x in recs[:10]])
     return recs
 
 
 if __name__ == "__main__":
-    main("samlearner", sample_size=1000000, fold_in=False, num_recommendations=25)
+    main("faycwalker", sample_size=1000000, fold_in=True, num_recommendations=25)

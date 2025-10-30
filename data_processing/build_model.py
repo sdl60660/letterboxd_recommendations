@@ -85,7 +85,7 @@ if __name__ == "__main__":
         svd_params = json.load(f)
 
     user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=True)
+    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
 
