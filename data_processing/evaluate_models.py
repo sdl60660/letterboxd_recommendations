@@ -108,7 +108,7 @@ def evaluate_config(dataset, model, params={}, cv_folds=4):
 
 
 def run_grid_search(model, dataset):
-  param_dists = {'n_factors': dists.randint(80, 250), 'n_epochs': dists.randint(40, 100), 'lr_all': dists.uniform(0.001, 0.01), 'reg_all': dists.uniform(0.05, 0.2), 'lr_pu': dists.uniform(0.1, 0.3), 'lr_bu': dists.uniform(0.1, 0.3)}
+  param_dists = {'n_factors': dists.randint(100, 250), 'n_epochs': dists.randint(40, 80), 'lr_all': dists.uniform(0.003, 0.008), 'reg_qi': dists.uniform(0.01, 0.04), 'reg_pu': dists.uniform(0.01, 0.04), 'reg_bu': dists.uniform(0.03, 0.08), 'reg_bi': dists.uniform(0.08, 0.25)}
 
   rand_search = RandomizedSearchCV(model, param_dists, n_iter = 50, measures=['rmse', 'mae'], cv=5, n_jobs=5, joblib_verbose = 1000)
   rand_search.fit(dataset)
