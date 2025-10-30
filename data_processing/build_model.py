@@ -73,7 +73,7 @@ def export_model(algo, sample_size, compressed=True, subdirectory_path="models")
     if compressed:
         model = Model.from_surprise(algo)
         out_path = f"{subdirectory_path}/model_{sample_size}.npz"
-        model.to_npz(out_path)
+        model.to_npz(out_path, items_only=True)
     else:
         dump(f"{subdirectory_path}/model_{sample_size}.pkl", predictions=None, algo=algo, verbose=1)
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     else:
         from data_processing.get_user_ratings import get_user_data
     
-    default_sample_size = 1000000
+    default_sample_size = 3000000
 
     # Load ratings data
     df = pd.read_parquet(f"data/training_data_samples/training_data_{default_sample_size}.parquet")

@@ -75,7 +75,7 @@ def get_movie_data(top_n):
 
 def load_compressed_model(path):
     m = Model.from_npz(path)
-    assert m.qi.shape[1] == m.n_factors and m.pu.shape[1] == m.n_factors
+    # assert m.qi.shape[1] == m.n_factors and m.pu.shape[1] == m.n_factors
     return m
 
 
@@ -132,7 +132,7 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
         with open("models/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
         
-    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in, verbose=False)
+    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in, verbose=True)
     return recs
 
 
