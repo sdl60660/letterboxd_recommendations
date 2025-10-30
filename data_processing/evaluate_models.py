@@ -83,7 +83,7 @@ def evaluate_config(dataset, model, params={}, cv_folds=4):
   sample_size = dataset['sample_size']
 
   print(f'Testing model: {model['name']} at sample size {sample_size}...')
-  algo = train_model(data=data, model=model['model'], params=params, run_cv=False)
+  algo, training_set = train_model(data=data, model=model['model'], params=params, run_cv=False)
 
   kf = KFold(cv_folds)
   for trainset, testset in kf.split(data):
