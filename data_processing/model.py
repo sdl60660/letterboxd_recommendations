@@ -50,6 +50,9 @@ class Model:
         # indices
         self.item_index = {mid: i for i, mid in enumerate(self.item_ids)}
         self.user_index = {uid: i for i, uid in enumerate(self.user_ids)}
+
+        self.reg = float(kw.get("reg", kw.get("reg_pu", kw.get("reg_qi", 0.02))))
+        self._user_cache = {}  # uid_raw -> (p_u, b_u)
     
     @classmethod
     def from_surprise(cls, algo) -> "Model":
@@ -175,21 +178,81 @@ class Model:
                 return float(self.qi[ii].dot(self.pu[iu]))
             return 0.0
 
+    # def predict(self, uid_raw, iid_raw, r_ui=None, clip=True):
+    #     iu = self.user_index.get(uid_raw, None)
+    #     ii = self.item_index.get(iid_raw, None)
+    #     est = self.estimate_inner(iu, ii)
+    #     if clip:
+    #         est = min(self.rating_max, max(self.rating_min, est))
+    #     details = {"was_impossible": False, "inner_uid": iu, "inner_iid": ii}
+    #     return Prediction(uid_raw, iid_raw, r_ui, float(est), details)
+
     def predict(self, uid_raw, iid_raw, r_ui=None, clip=True):
+        ii = self.item_index.get(iid_raw, None)
+
+        if uid_raw in self._user_cache and ii is not None:
+            p_u, b_u = self._user_cache[uid_raw]
+            est = self.mu + b_u
+
+            if ii is not None:
+                est += self.bi[ii] + float(self.qi[ii].dot(p_u))
+
+            if clip:
+                est = min(self.rating_max, max(self.rating_min, est))
+
+            details = {"was_impossible": False, "inner_uid": None, "inner_iid": ii}
+            return Prediction(uid_raw, iid_raw, r_ui, float(est), details)
+
         iu = self.user_index.get(uid_raw, None)
         ii = self.item_index.get(iid_raw, None)
         est = self.estimate_inner(iu, ii)
+
         if clip:
             est = min(self.rating_max, max(self.rating_min, est))
+
         details = {"was_impossible": False, "inner_uid": iu, "inner_iid": ii}
         return Prediction(uid_raw, iid_raw, r_ui, float(est), details)
 
     def test(self, testset, verbose=False):
-        preds = [self.predict(uid, iid, r_ui, clip=True) for (uid, iid, r_ui) in testset]
+        preds = [self.predict(uid, iid, r_ui, clip=False) for (uid, iid, r_ui) in testset]
         if verbose:
             for p in preds: print(p)
         return preds
 
+    def _fold_in_from_pairs(self, uid_raw: str, pairs: list[tuple[int, float]], reg: float | None = None):
+        if not pairs:
+            self._user_cache[uid_raw] = (np.zeros(self.n_factors, dtype=self.qi.dtype), 0.0)
+            return
+
+        I, r = zip(*pairs)
+        I = np.asarray(I, dtype=np.int64)
+        r = np.asarray(r, dtype=np.float32)
+
+        Q = self.qi[I, :]
+        y = r - (self.mu + self.bi[I])
+
+        m = Q.shape[0]
+        lam_p = (self.reg_pu if reg is None else float(reg)) * max(1, m + self.n_factors)
+        A = (Q.T @ Q).astype(np.float32) + lam_p * np.eye(self.n_factors, dtype=np.float32)
+        b = (Q.T @ y).astype(np.float32)
+        p_u = np.linalg.solve(A, b).astype(self.qi.dtype)
+
+        if self.pu is not None and self.pu.size:
+            tau_cap = float(np.median(np.linalg.norm(self.pu, axis=1)))
+        else:
+            qnorm90 = float(np.percentile(np.linalg.norm(self.qi, axis=1), 90))
+            target_dot = 0.9 * (self.rating_max - self.rating_min)
+            tau_cap = target_dot / max(qnorm90, 1e-6)
+        norm_p = float(np.linalg.norm(p_u))
+        if norm_p > 0 and norm_p > tau_cap:
+            p_u = (p_u * (tau_cap / norm_p)).astype(self.qi.dtype)
+
+        lam_b = max(self.reg_bu, 1e-6) * max(1, m)
+        resid = y - Q @ p_u
+        b_u = float(resid.sum() / (lam_b + m))
+
+        self._user_cache[uid_raw] = (p_u, b_u)
+        
     def _ensure_user_row(self, uid_raw: str) -> int:
         if self.pu is None:
             self.pu = np.zeros((0, self.n_factors), dtype=self.qi.dtype)
@@ -210,84 +273,99 @@ class Model:
 
     # ---------- Will adjust this method soon, maintaining like this for now for compatibility ----------
 
+    # def adjust_model_for_user(self, new_ratings_set, uid: int, username: str):
+    #     """
+    #     new_ratings_set: list of (u_inner, i_inner, rating_float) triples using *inner* ids.
+    #     """
+    #     if self.pu is None:
+    #         self.pu = np.zeros((0, self.n_factors), dtype=self.qi.dtype)
+    #         self.bu = np.zeros((0,), dtype=np.float32)
+
+    #     user_in_training_set = (uid < self.pu.shape[0])
+    #     rng = get_rng(self.random_state)
+
+    #     # prepare bu/pu rows
+    #     bu = self.bu
+    #     if user_in_training_set:
+    #         bu[uid] = 0.0
+    #     else:
+    #         bu = np.append(self.bu, 0.0)
+
+    #     new_user_slice = get_rng(self.random_state).normal(self.init_mean, self.init_std_dev, size=(1, self.n_factors))
+    #     pu = self.pu
+    #     if user_in_training_set:
+    #         pu[uid] = new_user_slice
+    #     else:
+    #         pu = np.concatenate((self.pu, new_user_slice), axis=0)
+
+
+    #     new_user_slice = rng.normal(self.init_mean, self.init_std_dev, size=(1, self.n_factors))
+    #     pu = self.pu
+    #     if user_in_training_set:
+    #         pu[uid] = new_user_slice
+    #     else:
+    #         pu = np.concatenate((self.pu, new_user_slice), axis=0)
+
+    #     bi = self.bi
+    #     qi = self.qi
+    #     global_mean = self.mu
+
+    #     for _ in range(self.n_epochs):
+    #         for u, i, r in new_ratings_set:
+    #             # dot(qi[i], pu[u])
+    #             dot = float(np.dot(qi[i], pu[u]))
+    #             err = r - (global_mean + bu[u] + bi[i] + dot)
+
+    #             # biases
+    #             if self.biased:
+    #                 bu[u] += self.lr_bu * (err - self.reg_bu * bu[u])
+    #                 # self.bi[i] += self.lr_bi * (err - self.reg_bi * self.bi[i])  # intentionally frozen
+
+    #             # factors (user-only updates)
+    #             grad_pu = err * qi[i] - self.reg_pu * pu[u]
+    #             pu[u] += self.lr_pu * grad_pu
+    #             # qi[i] frozen for now
+
+    #     self.bu = np.asarray(bu)
+    #     self.pu = np.asarray(pu)
+
+    #     # bi/qi unchanged
+    #     self.user_index[username] = uid  # ensure predict() sees this user
+    #     if not user_in_training_set:
+    #         self.user_ids.append(username)
+
+    #     return self
+
     def adjust_model_for_user(self, new_ratings_set, uid: int, username: str):
-        """
-        new_ratings_set: list of (u_inner, i_inner, rating_float) triples using *inner* ids.
-        """
-        if self.pu is None:
-            self.pu = np.zeros((0, self.n_factors), dtype=self.qi.dtype)
-            self.bu = np.zeros((0,), dtype=np.float32)
-
-        user_in_training_set = (uid < self.pu.shape[0])
-        rng = get_rng(self.random_state)
-
-        # prepare bu/pu rows
-        bu = self.bu
-        if user_in_training_set:
-            bu[uid] = 0.0
-        else:
-            bu = np.append(self.bu, 0.0)
-
-        new_user_slice = get_rng(self.random_state).normal(self.init_mean, self.init_std_dev, size=(1, self.n_factors))
-        pu = self.pu
-        if user_in_training_set:
-            pu[uid] = new_user_slice
-        else:
-            pu = np.concatenate((self.pu, new_user_slice), axis=0)
-
-
-        new_user_slice = rng.normal(self.init_mean, self.init_std_dev, size=(1, self.n_factors))
-        pu = self.pu
-        if user_in_training_set:
-            pu[uid] = new_user_slice
-        else:
-            pu = np.concatenate((self.pu, new_user_slice), axis=0)
-
-        bi = self.bi
-        qi = self.qi
-        global_mean = self.mu
-
-        for _ in range(self.n_epochs):
-            for u, i, r in new_ratings_set:
-                # dot(qi[i], pu[u])
-                dot = float(np.dot(qi[i], pu[u]))
-                err = r - (global_mean + bu[u] + bi[i] + dot)
-
-                # biases
-                if self.biased:
-                    bu[u] += self.lr_bu * (err - self.reg_bu * bu[u])
-                    # self.bi[i] += self.lr_bi * (err - self.reg_bi * self.bi[i])  # intentionally frozen
-
-                # factors (user-only updates)
-                grad_pu = err * qi[i] - self.reg_pu * pu[u]
-                pu[u] += self.lr_pu * grad_pu
-                # qi[i] frozen for now
-
-        self.bu = np.asarray(bu)
-        self.pu = np.asarray(pu)
-
-        # bi/qi unchanged
-        self.user_index[username] = uid  # ensure predict() sees this user
-        if not user_in_training_set:
-            self.user_ids.append(username)
-
+        pairs = [(i, float(r)) for (_u, i, r) in new_ratings_set]
+        self._fold_in_from_pairs(username, pairs)
         return self
 
-    # helper to map raw user ratings to inner ids and call adjust
-    def update_algo(self, username: str, user_data: list[dict]) -> "Model":
-        """
-        user_data: list of {'movie_id': str, 'rating_val': float}
-        """
-        uid = self.user_index.get(username, None)
-        if uid is None:
-            uid = self._ensure_user_row(username)
 
-        triples = []
+    # helper to map raw user ratings to inner ids and call adjust
+    # def update_algo(self, username: str, user_data: list[dict]) -> "Model":
+    #     """
+    #     user_data: list of {'movie_id': str, 'rating_val': float}
+    #     """
+    #     uid = self.user_index.get(username, None)
+    #     if uid is None:
+    #         uid = self._ensure_user_row(username)
+
+    #     triples = []
+    #     for item in user_data:
+    #         ii = self.item_index.get(item["movie_id"])
+    #         if ii is not None:
+    #             triples.append((uid, ii, float(item["rating_val"])))
+
+    #     return self.adjust_model_for_user(triples, uid, username)
+
+    def update_algo(self, username: str, user_data: list[dict]) -> "Model":
+        pairs = []
         for item in user_data:
             ii = self.item_index.get(item["movie_id"])
             if ii is not None:
-                triples.append((uid, ii, float(item["rating_val"])))
-
-        return self.adjust_model_for_user(triples, uid, username)
+                pairs.append((ii, float(item["rating_val"])))
+        self._fold_in_from_pairs(username, pairs)
+        return self
 
 

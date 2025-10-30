@@ -100,7 +100,7 @@ def run_model(
     return return_object
 
 
-def main(username, sample_size = 1000000, fold_in=False, num_recommendations=25):
+def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
     # algo = load(f"models/model_{sample_size}.npz")[1]
     algo = load_compressed_model(f"models/model_{sample_size}.npz")
 
