@@ -80,54 +80,42 @@ def load_compressed_model(path):
 
 
 def run_model(
-    username, algo, user_data, sample_movie_list, num_recommendations=20, fold_in=True
+    username, algo, user_data, sample_movie_list, num_recommendations=20, fold_in=True, verbose=False
 ):
-    try:
-        rating_thresholds = [algo.rating_min, algo.rating_max]
-    except AttributeError:
-        rating_thresholds = [1.0, 10.0]
-
-    rated_events, seen_ids = split_user_events(user_data, rating_thresholds[0], rating_thresholds[1])
+    rating_min, rating_max = getattr(algo, "rating_min", 1.0), getattr(algo, "rating_max", 10.0)
+    rated_events, seen_ids = split_user_events(user_data, rating_min, rating_max)
 
     if fold_in:
         algo = algo.update_algo(username, rated_events)
 
     prediction_set = get_prediction_set(username, seen_ids, sample_movie_list)
-    predictions = algo.test(prediction_set)
-    top_n = get_top_n(predictions, num_recommendations)
-    
-    movie_data = get_movie_data(top_n)
+    predictions = algo.test(prediction_set, clip_ratings=False)
 
-    return_object = [
-        {
-            "movie_id": x[0],
-            "predicted_rating": round(x[1], 3),
-            "unclipped_rating": round(x[1], 3),
-            "movie_data": movie_data[x[0]],
-        }
-        for x in top_n
-    ]
+    top_n_pairs = get_top_n(predictions, num_recommendations)
+    movie_data = get_movie_data(top_n_pairs)
 
-    for i, prediction in enumerate(return_object):
-        if prediction["predicted_rating"] == 10:
-            return_object[i]["unclipped_rating"] = float(
-                algo.predict(username, prediction["movie_id"], clip=False).est
-            )
+    results = []
+    for movie_id, est_unclipped in top_n_pairs:
+        est_clipped = min(rating_max, max(rating_min, est_unclipped))
+        results.append({
+            "movie_id": movie_id,
+            "predicted_rating": round(est_clipped, 3),
+            "unclipped_rating": round(est_unclipped, 3),
+            "movie_data": movie_data[movie_id],
+        })
 
     # filter out any tv shows (based on TMDB data)
     # this conditional is a little funky for now because the "content_type" field hasn't finished backfilling in the movies collection
-    return_object = [x for x in return_object if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
-    return_object.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
+    results = [x for x in results if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
+    results.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
 
-    print([{'movie': x['movie_id'], 'rating': x['predicted_rating']} for x in return_object[:10]])
-    # stats, _ = algo.debug_foldin_user(username, rated_events)
-    # print('Stats:', stats)
-    # user_mean = float(np.mean([x["rating_val"] for x in rated_events]))
-    # delta_user_mu = user_mean - algo.mu
-    # print("user_mean - mu =", delta_user_mu, 'user mean =', user_mean )
-    # print([x["rating_val"] for x in rated_events])
+    if verbose:
+        print(f'Top estimated results for user: {username}')
+        print(f'=====================================')
+        for item in results:
+            print(f"{item['movie_id']}: {item['predicted_rating']}")
 
-    return return_object
+    return results
 
 
 def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
@@ -144,7 +132,7 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
         with open("models/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
         
-    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in)
+    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in, verbose=False)
     return recs
 
 

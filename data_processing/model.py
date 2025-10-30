@@ -213,10 +213,58 @@ class Model:
         details = {"was_impossible": False, "inner_uid": iu, "inner_iid": ii}
         return Prediction(uid_raw, iid_raw, r_ui, float(est), details)
 
-    def test(self, testset, verbose=False):
-        preds = [self.predict(uid, iid, r_ui, clip=False) for (uid, iid, r_ui) in testset]
+    def _scores_unclipped(self, username: str, item_ids: list[str]) -> tuple[list[str], np.ndarray]:
+        p_u, b_u = self._user_cache.get(username, (np.zeros(self.n_factors, self.qi.dtype), 0.0))
+        idx = [self.item_index[iid] for iid in item_ids if iid in self.item_index]
+
+        I = np.asarray(idx, dtype=np.int64)
+        scores = self.mu + b_u + self.bi[I] + (self.qi[I] @ p_u)  # unclipped
+
+        # Preserve original order alignment
+        filtered_items = [iid for iid in item_ids if iid in self.item_index]
+        return filtered_items, scores
+    
+    # def test(self, testset, clip_ratings: bool=False, verbose: bool=False):
+    #     preds = [self.predict(uid, iid, r_ui, clip=clip_ratings) for (uid, iid, r_ui) in testset]
+    #     if verbose:
+    #         for p in preds: print(p)
+    #     return preds
+    
+    
+    def test(self, testset, clip_ratings: bool=False, verbose: bool=False):
+        uids = {uid for (uid, _, _) in testset}
+
+        # If test set is for single user, this will be faster
+        if len(uids) == 1:
+            username = next(iter(uids))
+            items = [iid for (_, iid, _) in testset]
+            items_filt, scores = self._scores_unclipped(username, items)
+
+            preds = []
+            it = iter(scores)
+
+            for (uid, iid, r_ui) in testset:
+                if iid in self.item_index:
+                    score = float(next(it))
+                    est = min(self.rating_max, max(self.rating_min, score)) if clip_ratings else score
+
+                else:
+                    # unknown item: fall back to baseline
+                    est = float(self.mu)
+
+                pred = Prediction(uid, iid, r_ui, est, {"was_impossible": False})
+
+                if verbose: print(pred)
+                preds.append(pred)
+
+            return preds
+
+        # Fallback: mixed users → use per-item predict
+        preds = [self.predict(uid, iid, r_ui, clip=clip_ratings) for (uid, iid, r_ui) in testset]
+
         if verbose:
             for p in preds: print(p)
+
         return preds
 
     def _fold_in_from_pairs(self, uid_raw: str, pairs: list[tuple[int, float]], reg: float | None = None):
@@ -247,7 +295,7 @@ class Model:
         if norm_p > 0 and norm_p > tau_cap:
             p_u = (p_u * (tau_cap / norm_p)).astype(self.qi.dtype)
 
-        lam_b = max(self.reg_bu, 1e-6) * max(1, m)
+        lam_b = self.reg_bu * m
         resid = y - Q @ p_u
         b_u = float(resid.sum() / (lam_b + m))
 
