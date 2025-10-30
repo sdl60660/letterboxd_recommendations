@@ -19,6 +19,21 @@ else:
     from data_processing.get_user_ratings import get_user_data
 
 
+def split_user_events(user_data, rating_min=1.0, rating_max=10.0):
+    rated = []
+    seen = set()
+
+    for x in user_data:
+        mid = x["movie_id"]
+        val = float(x["rating_val"])
+        seen.add(mid)
+
+        if rating_min <= val <= rating_max:
+            rated.append({"movie_id": mid, "rating_val": val})
+
+    return rated, seen
+
+
 def get_top_n(predictions, n=20):
     top_n = [(iid, est) for uid, iid, true_r, est, _ in predictions]
     top_n.sort(key=lambda x: (x[1], random.random()), reverse=True)
@@ -26,7 +41,7 @@ def get_top_n(predictions, n=20):
     return top_n[:n]
 
 def get_prediction_set(username, user_watched_list, sample_movie_list):
-    exclude_list = user_watched_list + explicit_exclude_list
+    exclude_list = set(user_watched_list).union(set(explicit_exclude_list))
     # unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
     valid_unwatched_movies = [x for x in sample_movie_list if x not in exclude_list]
     prediction_set = [(username, x, 0) for x in valid_unwatched_movies]
@@ -65,12 +80,14 @@ def load_compressed_model(path):
 
 
 def run_model(
-    username, algo, user_data, user_watched_list, sample_movie_list, num_recommendations=20, fold_in=True
+    username, algo, user_data, sample_movie_list, num_recommendations=20, fold_in=True
 ):
-    if fold_in:
-        algo = algo.update_algo(username, user_data)
+    rated_events, seen_ids = split_user_events(user_data, algo.rating_min, algo.rating_max)
 
-    prediction_set = get_prediction_set(username, user_watched_list, sample_movie_list)
+    if fold_in:
+        algo = algo.update_algo(username, rated_events)
+
+    prediction_set = get_prediction_set(username, seen_ids, sample_movie_list)
     predictions = algo.test(prediction_set)
     top_n = get_top_n(predictions, num_recommendations)
     
@@ -97,6 +114,14 @@ def run_model(
     return_object = [x for x in return_object if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
     return_object.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
 
+    print([{'movie': x['movie_id'], 'rating': x['predicted_rating']} for x in return_object[:10]])
+    # stats, _ = algo.debug_foldin_user(username, rated_events)
+    # print('Stats:', stats)
+    # user_mean = float(np.mean([x["rating_val"] for x in rated_events]))
+    # delta_user_mu = user_mean - algo.mu
+    # print("user_mean - mu =", delta_user_mu, 'user mean =', user_mean )
+    # print([x["rating_val"] for x in rated_events])
+
     return return_object
 
 
@@ -109,17 +134,16 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
 
     if fold_in == True:
         user_data = get_user_data(username)[0]
-        user_watched_list = [x["movie_id"] for x in user_data]
+        # user_watched_list = [x["movie_id"] for x in user_data]
 
     else:
-        with open("models/user_watched.txt", "rb") as fp:
-            user_watched_list = pickle.load(fp)
+        # with open("models/user_watched.txt", "rb") as fp:
+        #     user_watched_list = pickle.load(fp)
 
         with open("models/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
         
-    recs = run_model(username, algo, user_data, user_watched_list, sample_movie_list, num_recommendations, fold_in)
-    print([{'movie': x['movie_id'], 'rating': x['predicted_rating']} for x in recs[:10]])
+    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in)
     return recs
 
 

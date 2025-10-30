@@ -361,11 +361,64 @@ class Model:
 
     def update_algo(self, username: str, user_data: list[dict]) -> "Model":
         pairs = []
+
         for item in user_data:
             ii = self.item_index.get(item["movie_id"])
             if ii is not None:
                 pairs.append((ii, float(item["rating_val"])))
+
         self._fold_in_from_pairs(username, pairs)
         return self
+
+    def debug_foldin_user(self, username: str, user_data: list[dict], candidate_ids=None, n_show=10):
+        pairs = []
+        for it in user_data:
+            v = float(it["rating_val"])
+            if self.rating_min <= v <= self.rating_max:
+                ii = self.item_index.get(it["movie_id"])
+                if ii is not None:
+                    pairs.append((ii, float(it["rating_val"])))
+
+        # fold-in (reuses your current impl)
+        self._fold_in_from_pairs(username, pairs)
+        p_u, b_u = self._user_cache[username]
+
+        # scales
+        q_norms = np.linalg.norm(self.qi, axis=1)
+        dot_all = self.qi @ p_u
+        bi = self.bi
+        mu = self.mu
+
+        # optional candidate restriction
+        if candidate_ids is not None:
+            mask = np.array([mid in self.item_index for mid in candidate_ids], dtype=bool)
+            I = np.fromiter((self.item_index[mid] for mid in candidate_ids if mid in self.item_index), dtype=np.int64)
+        else:
+            I = np.arange(self.qi.shape[0], dtype=np.int64)
+
+        s = mu + b_u + bi[I] + dot_all[I]
+
+        def pct(a, ps=[5, 25, 50, 75, 95]):
+            return {p: float(np.percentile(a, p)) for p in ps}
+
+        stats = {
+            "m_user_ratings": len(pairs),
+            "p_u_norm": float(np.linalg.norm(p_u)),
+            "b_u": float(b_u),
+            "bi_percentiles": pct(bi[I]),
+            "dot_percentiles": pct(dot_all[I]),
+            "score_percentiles_unclipped": pct(s),
+            "mu": float(mu),
+            "q_norm_percentiles": pct(q_norms[I]),
+        }
+
+        # show top/bottom few for quick smell test
+        top_idx = I[np.argsort(-s)[:n_show]]
+        bot_idx = I[np.argsort(s)[:n_show]]
+        top = [(self.item_ids[i], float(s[I.tolist().index(i)] if candidate_ids else s[np.where(I==i)[0][0]])) for i in top_idx]
+        bot = [(self.item_ids[i], float(s[I.tolist().index(i)] if candidate_ids else s[np.where(I==i)[0][0]])) for i in bot_idx]
+
+        return stats, {"top": top, "bottom": bot}
+
 
 
