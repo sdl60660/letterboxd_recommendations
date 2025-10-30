@@ -91,3 +91,6 @@ if __name__ == "__main__":
 
     with open("models/user_watched.txt", "wb") as fp:
         pickle.dump(user_watched_list, fp)
+    
+    with open("models/user_data.txt", "wb") as fp:
+        pickle.dump(user_data, fp)
