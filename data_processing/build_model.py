@@ -73,7 +73,7 @@ def export_model(algo, sample_size, compressed=True, subdirectory_path="models")
     if compressed:
         model = Model.from_surprise(algo)
         out_path = f"{subdirectory_path}/model_{sample_size}.npz"
-        model.to_npz(out_path)
+        model.to_npz(out_path, items_only=True)
     else:
         dump(f"{subdirectory_path}/model_{sample_size}.pkl", predictions=None, algo=algo, verbose=1)
 
