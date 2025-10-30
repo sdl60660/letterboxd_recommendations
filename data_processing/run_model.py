@@ -82,7 +82,12 @@ def load_compressed_model(path):
 def run_model(
     username, algo, user_data, sample_movie_list, num_recommendations=20, fold_in=True
 ):
-    rated_events, seen_ids = split_user_events(user_data, algo.rating_min, algo.rating_max)
+    try:
+        rating_thresholds = [algo.rating_min, algo.rating_max]
+    except AttributeError:
+        rating_thresholds = [1.0, 10.0]
+
+    rated_events, seen_ids = split_user_events(user_data, rating_thresholds[0], rating_thresholds[1])
 
     if fold_in:
         algo = algo.update_algo(username, rated_events)
@@ -134,12 +139,8 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
 
     if fold_in == True:
         user_data = get_user_data(username)[0]
-        # user_watched_list = [x["movie_id"] for x in user_data]
 
     else:
-        # with open("models/user_watched.txt", "rb") as fp:
-        #     user_watched_list = pickle.load(fp)
-
         with open("models/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
         
