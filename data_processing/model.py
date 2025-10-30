@@ -19,12 +19,12 @@ class Model:
         # core params
         self.qi = kw["qi"]               # (n_items, k)
         self.bi = kw["bi"]               # (n_items,)
-        self.pu = kw["pu"]               # (n_users, k)
-        self.bu = kw["bu"]               # (n_users,)
+        self.pu = kw.get("pu", None)                # (n_users, k)
+        self.bu = kw.get("bu", None)             # (n_users,)
         self.mu = float(kw["mu"])
 
         self.item_ids = list(kw["item_ids"])
-        self.user_ids = list(kw["user_ids"])
+        self.user_ids = list(kw.get("user_ids", []))
 
         self.n_factors = int(kw["n_factors"])
         self.n_epochs  = int(kw["n_epochs"])
@@ -98,53 +98,60 @@ class Model:
         d = {
             "qi": blob["qi"],
             "bi": blob["bi"],
-            "pu": blob["pu"],
-            "bu": blob["bu"],
+            "pu": blob["pu"] if "pu" in blob.files else None,
+            "bu": blob["bu"] if "bu" in blob.files else None,
             "mu": float(blob["mu"]),
             "item_ids": list(blob["item_ids"]),
-            "user_ids": list(blob["user_ids"]),
+            "user_ids": list(blob["user_ids"]) if "user_ids" in blob.files else [],
             "n_factors": int(blob["n_factors"]),
-            "n_epochs": int(blob["n_epochs"]),
+            "n_epochs": int(blob["n_epochs"]) if "n_epochs" in blob.files else 0,
             "rating_min": float(blob["rating_min"]),
             "rating_max": float(blob["rating_max"]),
             "biased": bool(blob.get("biased", True)),
-
             "lr_bu": float(blob.get("lr_bu", 0.005)),
             "lr_bi": float(blob.get("lr_bi", 0.005)),
             "lr_pu": float(blob.get("lr_pu", 0.005)),
             "lr_qi": float(blob.get("lr_qi", 0.005)),
-
             "reg_bu": float(blob.get("reg_bu", 0.02)),
             "reg_bi": float(blob.get("reg_bi", 0.02)),
             "reg_pu": float(blob.get("reg_pu", 0.02)),
             "reg_qi": float(blob.get("reg_qi", 0.02)),
-
             "random_state": int(blob.get("random_state", 0)),
             "init_mean": float(blob.get("init_mean", 0.0)),
             "init_std_dev": float(blob.get("init_std_dev", 0.1)),
         }
+
         return cls(**d)
 
-    def to_npz(self, path: str) -> None:
-        np.savez_compressed(
-            path,
-            qi=self.qi, bi=self.bi, pu=self.pu, bu=self.bu,
+    def to_npz(self, path: str, items_only: bool = False) -> None:
+        out = dict(
+            qi=self.qi, bi=self.bi,
             mu=np.float32(self.mu),
             item_ids=np.array(self.item_ids, dtype=object),
-            user_ids=np.array(self.user_ids, dtype=object),
             n_factors=np.int16(self.n_factors),
-            n_epochs=np.int16(self.n_epochs),
             rating_min=np.float32(self.rating_min),
             rating_max=np.float32(self.rating_max),
             biased=np.bool_(self.biased),
-            lr_bu=np.float32(self.lr_bu), lr_bi=np.float32(self.lr_bi),
-            lr_pu=np.float32(self.lr_pu), lr_qi=np.float32(self.lr_qi),
-            reg_bu=np.float32(self.reg_bu), reg_bi=np.float32(self.reg_bi),
-            reg_pu=np.float32(self.reg_pu), reg_qi=np.float32(self.reg_qi),
+            lr_bu=np.float32(self.lr_bu),
+            lr_bi=np.float32(self.lr_bi),
+            lr_pu=np.float32(self.lr_pu),
+            lr_qi=np.float32(self.lr_qi),
+            reg_bu=np.float32(self.reg_bu),
+            reg_bi=np.float32(self.reg_bi),
+            reg_pu=np.float32(self.reg_pu),
+            reg_qi=np.float32(self.reg_qi),
             random_state=np.int16(self.random_state),
             init_mean=np.float32(self.init_mean),
             init_std_dev=np.float32(self.init_std_dev),
         )
+        if not items_only:
+            out.update(
+                pu=self.pu if self.pu is not None else np.zeros((0, self.n_factors), self.qi.dtype),
+                bu=self.bu if self.bu is not None else np.zeros((0,), np.float32),
+                user_ids=np.array(self.user_ids, dtype=object),
+                n_epochs=np.int16(self.n_epochs),
+            )
+        np.savez_compressed(path, **out)
 
     # ---------- Surprise-like API ----------
     # Methods on Surprise's SVD/AlgoBase have some conditionals that the folded-in data
@@ -154,7 +161,7 @@ class Model:
     # override the methods
 
     def estimate_inner(self, iu: int | None, ii: int | None) -> float:
-        ku = (iu is not None) and (iu < self.pu.shape[0])
+        ku = (iu is not None) and (self.pu is not None) and (iu < self.pu.shape[0])
         ki = (ii is not None) and (ii < self.qi.shape[0])
 
         if self.biased:
@@ -183,13 +190,35 @@ class Model:
             for p in preds: print(p)
         return preds
 
+    def _ensure_user_row(self, uid_raw: str) -> int:
+        if self.pu is None:
+            self.pu = np.zeros((0, self.n_factors), dtype=self.qi.dtype)
+            self.bu = np.zeros((0,), dtype=np.float32)
+
+        iu = self.user_index.get(uid_raw)
+        if iu is not None:
+            return iu
+        
+        iu = self.pu.shape[0]
+
+        self.pu = np.vstack([self.pu, np.zeros((1, self.n_factors), dtype=self.qi.dtype)])
+        self.bu = np.hstack([self.bu, np.zeros((1,), dtype=np.float32)])
+        self.user_ids.append(uid_raw)
+        self.user_index[uid_raw] = iu
+
+        return iu
+
     # ---------- Will adjust this method soon, maintaining like this for now for compatibility ----------
 
     def adjust_model_for_user(self, new_ratings_set, uid: int, username: str):
         """
         new_ratings_set: list of (u_inner, i_inner, rating_float) triples using *inner* ids.
         """
-        user_in_training_set = (uid != self.pu.shape[0])
+        if self.pu is None:
+            self.pu = np.zeros((0, self.n_factors), dtype=self.qi.dtype)
+            self.bu = np.zeros((0,), dtype=np.float32)
+
+        user_in_training_set = (uid < self.pu.shape[0])
         rng = get_rng(self.random_state)
 
         # prepare bu/pu rows
@@ -198,6 +227,14 @@ class Model:
             bu[uid] = 0.0
         else:
             bu = np.append(self.bu, 0.0)
+
+        new_user_slice = get_rng(self.random_state).normal(self.init_mean, self.init_std_dev, size=(1, self.n_factors))
+        pu = self.pu
+        if user_in_training_set:
+            pu[uid] = new_user_slice
+        else:
+            pu = np.concatenate((self.pu, new_user_slice), axis=0)
+
 
         new_user_slice = rng.normal(self.init_mean, self.init_std_dev, size=(1, self.n_factors))
         pu = self.pu
@@ -243,7 +280,7 @@ class Model:
         """
         uid = self.user_index.get(username, None)
         if uid is None:
-            uid = self.pu.shape[0]  # next row
+            uid = self._ensure_user_row(username)
 
         triples = []
         for item in user_data:
