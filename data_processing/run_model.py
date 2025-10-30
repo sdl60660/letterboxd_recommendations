@@ -75,7 +75,7 @@ def get_movie_data(top_n):
 
 def load_compressed_model(path):
     m = Model.from_npz(path)
-    # assert m.qi.shape[1] == m.n_factors and m.pu.shape[1] == m.n_factors
+    assert m.qi.shape[1] == m.n_factors
     return m
 
 

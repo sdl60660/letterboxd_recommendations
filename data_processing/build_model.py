@@ -85,7 +85,7 @@ if __name__ == "__main__":
     else:
         from data_processing.get_user_ratings import get_user_data
     
-    default_sample_size = 3000000
+    default_sample_size = 1000000
 
     # Load ratings data
     df = pd.read_parquet(f"data/training_data_samples/training_data_{default_sample_size}.parquet")
