@@ -5,18 +5,18 @@ import pickle
 import numpy as np
 import random
 
-from model import Model
-
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
     from utils.utils import explicit_exclude_list
     from get_user_ratings import get_user_data
+    from model import Model
 
 else:
     from data_processing.db_connect import connect_to_db
     from data_processing.utils.utils import explicit_exclude_list
     from data_processing.get_user_ratings import get_user_data
+    from data_processing.model import Model
 
 
 def split_user_events(user_data, rating_min=1.0, rating_max=10.0):
@@ -112,7 +112,7 @@ def run_model(
     if verbose:
         print(f'Top estimated results for user: {username}')
         print(f'=====================================')
-        for item in results:
+        for item in results[:30]:
             print(f"{item['movie_id']}: {item['predicted_rating']}")
 
     return results

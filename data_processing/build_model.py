@@ -1,5 +1,6 @@
 #!/usr/local/bin/python3.12
 
+import os
 import json
 import random
 import pickle
@@ -11,11 +12,15 @@ from surprise import SVD, Reader, Dataset, BaselineOnly
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
 
-from model import Model
+
+if os.getcwd().endswith("data_processing"):
+    from model import Model
+else:
+    from data_processing.model import Model
 
 # a global/fallback to use as a default val, based on a traiing run/eval, but this shouldn't ever be used,
 # either when this is called from the web server or from commandline
-SVD_PARAMS = {"lr_all": 0.0028736, "n_epochs": 63, "n_factors": 114, "reg_all": 0.135171, "reg_bi": 0.281263224}
+SVD_PARAMS = {"lr_all": 0.0062939, "n_epochs": 69, "n_factors": 215, "reg_bi": 0.31902932, "reg_bu": 0.03736959, "reg_pu": 0.0458803, "reg_qi": 0.0457921065}
 
 def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_val']):
     # Surprise dataset loading
