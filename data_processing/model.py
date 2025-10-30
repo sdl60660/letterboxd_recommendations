@@ -50,6 +50,46 @@ class Model:
         # indices
         self.item_index = {mid: i for i, mid in enumerate(self.item_ids)}
         self.user_index = {uid: i for i, uid in enumerate(self.user_ids)}
+    
+    @classmethod
+    def from_surprise(cls, algo) -> "Model":
+        """Create a Model from a trained Surprise SVD instance."""
+        # core tensors (keep float32 for size/speed)
+        qi = algo.qi.astype(np.float32)             # (n_items, k)
+        bi = algo.bi.astype(np.float32)             # (n_items,)
+        pu = algo.pu.astype(np.float32)             # (n_users, k)
+        bu = algo.bu.astype(np.float32)             # (n_users,)
+        mu = float(algo.trainset.global_mean)
+
+        # raw id lists (inner -> raw)
+        inner2raw_item = {i: algo.trainset.to_raw_iid(i) for i in range(algo.trainset.n_items)}
+        inner2raw_user = {u: algo.trainset.to_raw_uid(u) for u in range(algo.trainset.n_users)}
+        item_ids = [inner2raw_item[i] for i in range(len(inner2raw_item))]
+        user_ids = [inner2raw_user[u] for u in range(len(inner2raw_user))]
+
+        return cls(
+            qi=qi, bi=bi, pu=pu, bu=bu, mu=mu,
+            item_ids=item_ids, user_ids=user_ids,
+            n_factors=int(algo.n_factors),
+            n_epochs=int(algo.n_epochs),
+            rating_min=float(algo.trainset.rating_scale[0]),
+            rating_max=float(algo.trainset.rating_scale[1]),
+            biased=bool(getattr(algo, "biased", True)),
+
+            lr_bu=float(getattr(algo, "lr_bu", 0.005)),
+            lr_bi=float(getattr(algo, "lr_bi", 0.005)),
+            lr_pu=float(getattr(algo, "lr_pu", 0.005)),
+            lr_qi=float(getattr(algo, "lr_qi", 0.005)),
+
+            reg_bu=float(getattr(algo, "reg_bu", 0.02)),
+            reg_bi=float(getattr(algo, "reg_bi", 0.02)),
+            reg_pu=float(getattr(algo, "reg_pu", 0.02)),
+            reg_qi=float(getattr(algo, "reg_qi", 0.02)),
+
+            random_state=int(getattr(algo, "random_state", 0)),
+            init_mean=float(getattr(algo, "init_mean", 0.0)),
+            init_std_dev=float(getattr(algo, "init_std_dev", 0.1)),
+        )
 
     @classmethod
     def from_npz(cls, path: str) -> "Model":
