@@ -52,7 +52,7 @@ def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
     training_set = data.build_full_trainset()
     algo.fit(training_set)
 
-    return algo, training_set
+    return algo
 
 
 def build_model(df, sample_movie_list, user_data, model=SVD, params=SVD_PARAMS, run_cv=False, concat_user_data=True):
@@ -61,10 +61,10 @@ def build_model(df, sample_movie_list, user_data, model=SVD, params=SVD_PARAMS, 
     else:
         model_data = get_dataset(df)
 
-    algo, training_set = train_model(model_data, model, params, run_cv)
+    algo = train_model(model_data, model, params, run_cv)
     user_watched_list = [x["movie_id"] for x in user_data]
 
-    return algo, user_watched_list, training_set
+    return algo, user_watched_list
 
 
 if __name__ == "__main__":
@@ -85,12 +85,9 @@ if __name__ == "__main__":
         svd_params = json.load(f)
 
     user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list, training_set = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
+    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
-
-    with open('models/training_set.txt', 'wb') as fp:
-        pickle.dump(training_set, fp)
 
     with open("models/user_watched.txt", "wb") as fp:
         pickle.dump(user_watched_list, fp)

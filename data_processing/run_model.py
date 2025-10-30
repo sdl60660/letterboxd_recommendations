@@ -146,12 +146,10 @@ def estimate_for_user():
     pass
 
 
-def run_model_fold_in(algo, training_set, user_data, user_watched_list, sample_movie_list, num_recommendations=25):
+def run_model_fold_in(algo, user_data, user_watched_list, sample_movie_list, num_recommendations=25):
     # new_user_id should be the total exising users (index off-by-one)
     new_user_id = algo.pu.shape[0]
-
-    print(training_set.to_inner_iid('the-godfather'))
-    print(algo.trainset.to_inner_iid('the-godfather'))
+    training_set = algo.trainset
 
     new_ratings_set = []
     for item in user_data:
@@ -161,7 +159,7 @@ def run_model_fold_in(algo, training_set, user_data, user_watched_list, sample_m
         except ValueError:
             # print(f"Cannot find a corresponding item ID in the training set for {item['movie_id']}")
             pass
-    
+        
     adjust_model_for_user(algo, new_ratings_set=new_ratings_set)
     # print(new_ratings_set)
     # print(len(new_ratings_set), len(user_data))
@@ -172,14 +170,11 @@ def main(username, sample_size = 1000000, fold_in=False, num_recommendations=25)
 
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
-        
-    with open("models/training_set.txt", "rb") as fp:
-        training_set = pickle.load(fp)
 
     if fold_in == True:
         user_data = get_user_data(username)[0]
         user_watched_list = [x["movie_id"] for x in user_data]
-        recs = run_model_fold_in(algo, training_set, user_data, user_watched_list, sample_movie_list, num_recommendations)
+        recs = run_model_fold_in(algo, user_data, user_watched_list, sample_movie_list, num_recommendations)
         
     else:
         with open("models/user_watched.txt", "rb") as fp:
