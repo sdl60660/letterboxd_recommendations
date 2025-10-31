@@ -9,7 +9,7 @@ from rq.registry import FinishedJobRegistry
 from data_processing.get_user_ratings import get_user_data
 from data_processing.get_user_watchlist import get_watchlist_data
 from data_processing.build_model import build_model
-from data_processing.run_model import run_model, load_compressed_model
+from data_processing.run_model import run_model, load_compressed_model, get_movie_data
 
 from surprise.dump import load
 
@@ -80,9 +80,10 @@ def build_client_model(
 
     # algo = load(f"data_processing/models/model_{training_data_rows}.pkl")[1]
     algo = load_compressed_model(f"data_processing/models/model_{training_data_rows}.npz")
+    movie_data = get_movie_data(sample_movie_list, sample_size=training_data_rows)
 
     current_job.meta["stage"] = "running_model"
     current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
-    recs = run_model(username, algo, training_data_rows, user_data, sample_movie_list, num_items, fold_in=True)
+    recs = run_model(username, algo, user_data, movie_data, sample_movie_list, num_items, fold_in=True)
     return recs

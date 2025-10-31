@@ -84,7 +84,7 @@ def load_compressed_model(path):
 
 
 def run_model(
-    username, algo, sample_size, user_data, sample_movie_list, num_recommendations=20, fold_in=True, verbose=False
+    username, algo, user_data, movie_data, sample_movie_list, num_recommendations=20, fold_in=True, verbose=False
 ):
     rating_min, rating_max = getattr(algo, "rating_min", 1.0), getattr(algo, "rating_max", 10.0)
     rated_events, seen_ids = split_user_events(user_data, rating_min, rating_max)
@@ -96,7 +96,6 @@ def run_model(
     predictions = algo.test(prediction_set, clip_ratings=False)
 
     top_n_pairs = get_top_n(predictions, num_recommendations)
-    movie_data = get_movie_data(sample_movie_list, sample_size)
 
     results = []
     for movie_id, est_unclipped in top_n_pairs:
@@ -133,9 +132,11 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, 
             user_data = pickle.load(fp)
     else:
         user_data = get_user_data(username)[0]
-
+    
+    # will use cached file if it exsits, or grab/cache if it doesn't
+    movie_data = get_movie_data(sample_movie_list, sample_size)
         
-    recs = run_model(username, algo, sample_size, user_data, sample_movie_list, num_recommendations, fold_in, verbose=verbose)
+    recs = run_model(username, algo, user_data, movie_data, sample_movie_list, num_recommendations, fold_in, verbose=verbose)
     return recs
 
 
