@@ -3,18 +3,19 @@
 import os
 import pickle
 import numpy as np
+import pandas as pd
 import random
 
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
-    from utils.utils import explicit_exclude_list
+    from utils.utils import explicit_exclude_list, get_rich_movie_data
     from get_user_ratings import get_user_data
     from model import Model
 
 else:
     from data_processing.db_connect import connect_to_db
-    from data_processing.utils.utils import explicit_exclude_list
+    from data_processing.utils.utils import explicit_exclude_list, get_rich_movie_data
     from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
 
@@ -49,43 +50,21 @@ def get_prediction_set(username, user_watched_list, sample_movie_list):
     return prediction_set
 
 
-def get_movie_data(top_n, sample_movie_list):
-    movie_fields = [
-        "image_url",
-        "movie_id",
-        "movie_title",
-        "year_released",
-        "genres",
-        "original_language",
-        "popularity",
-        "runtime",
-        "release_date",
-        "content_type"
-    ]
+def get_movie_data(sample_movie_list, sample_size):
+    if os.getcwd().endswith("data_processing"):
+        datafile_path = f"data/rich_movie_data/sample_movie_data_{sample_size}.parquet"
+    else:
+        datafile_path = f"data_processing/data/rich_movie_data/sample_movie_data_{sample_size}.parquet"
 
-    db_name, client = connect_to_db()
-    db = client[db_name]
-    # movie_data = {
-    #     x["movie_id"]: {k: v for k, v in x.items() if k in movie_fields}
-    #     for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})
-    # }
-
-    # movie_data = {
-    #     x["movie_id"]: {k: v for k, v in x.items() if k in movie_fields}
-    #     for x in db.movies.find({"movie_id": {"$in": list(sample_movie_list)}}, )
-    # }
-
-    pipeline = [
-        {"$match": {"movie_id": {"$in": list([x[0] for x in top_n])}}},
-        {"$project": {k: 1 for k in movie_fields} | {"_id": 0}},
-    ]
-
-    cursor = db.movies.aggregate(pipeline, allowDiskUse=True)
-    movie_data = {doc["movie_id"]: doc for doc in cursor}
-
-    # with open('./data/movie_lists/sample_movie_data.txt', "wb") as fp:
-    #     pickle.dump(movie_data, fp)
-
+    if os.path.exists(datafile_path):
+        try:
+            movie_data = pd.read_parquet(datafile_path)
+        except Exception as e:
+            print(f"Error loading rich movie data Parquet file '{datafile_path}': {e}")
+    else:
+        movie_data = get_rich_movie_data(movie_ids=sample_movie_list, output_path=datafile_path)
+    
+    movie_data = movie_data.set_index('movie_id', drop=False).to_dict('index')
     return movie_data
 
 
@@ -96,7 +75,7 @@ def load_compressed_model(path):
 
 
 def run_model(
-    username, algo, user_data, sample_movie_list, num_recommendations=20, fold_in=True, verbose=False
+    username, algo, sample_size, user_data, sample_movie_list, num_recommendations=20, fold_in=True, verbose=False
 ):
     rating_min, rating_max = getattr(algo, "rating_min", 1.0), getattr(algo, "rating_max", 10.0)
     rated_events, seen_ids = split_user_events(user_data, rating_min, rating_max)
@@ -108,7 +87,7 @@ def run_model(
     predictions = algo.test(prediction_set, clip_ratings=False)
 
     top_n_pairs = get_top_n(predictions, num_recommendations)
-    movie_data = get_movie_data(top_n_pairs, sample_movie_list)
+    movie_data = get_movie_data(sample_movie_list, sample_size)
 
     results = []
     for movie_id, est_unclipped in top_n_pairs:
@@ -134,23 +113,22 @@ def run_model(
     return results
 
 
-def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, verbose=True):
-    # algo = load(f"models/model_{sample_size}.npz")[1]
+def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, use_cached_user_data=False, verbose=True):
     algo = load_compressed_model(f"models/model_{sample_size}.npz")
 
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
 
-    if fold_in == True:
+    if use_cached_user_data == True and os.path.exists("testing/user_data.txt"):
+        with open("testing/user_data.txt", "rb") as fp:
+            user_data = pickle.load(fp)
+    else:
         user_data = get_user_data(username)[0]
 
-    else:
-        with open("models/user_data.txt", "rb") as fp:
-            user_data = pickle.load(fp)
         
-    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in, verbose=verbose)
+    recs = run_model(username, algo, sample_size, user_data, sample_movie_list, num_recommendations, fold_in, verbose=verbose)
     return recs
 
 
 if __name__ == "__main__":
-    main("samlearner", sample_size=2000000, fold_in=True, num_recommendations=25, verbose=True)
+    main("samlearner", sample_size=2000000, fold_in=True, num_recommendations=25, use_cached_user_data=True, verbose=True)

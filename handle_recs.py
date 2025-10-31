@@ -84,5 +84,5 @@ def build_client_model(
     current_job.meta["stage"] = "running_model"
     current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
-    recs = run_model(username, algo, user_data, sample_movie_list, num_items, fold_in=True)
+    recs = run_model(username, algo, training_data_rows, user_data, sample_movie_list, num_items, fold_in=True)
     return recs

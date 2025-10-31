@@ -107,8 +107,8 @@ if __name__ == "__main__":
         export_model(algo, sample_size, compressed=True)
 
         if i == 0:
-            with open("models/user_watched.txt", "wb") as fp:
+            with open("testing/user_watched.txt", "wb") as fp:
                 pickle.dump(user_watched_list, fp)
             
-            with open("models/user_data.txt", "wb") as fp:
+            with open("testing/user_data.txt", "wb") as fp:
                 pickle.dump(user_data, fp)
