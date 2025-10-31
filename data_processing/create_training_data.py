@@ -352,7 +352,7 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
     output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
     # get all files in output collection and load into pandas dataframe, without _id
-    cursor = db[output_collection_name].find({}, {"_id": 0})
+    cursor = db[output_collection_name].find({}, {"_id": 0})    
     sample_movie_list = {doc["movie_id"] for doc in cursor}
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
         pickle.dump(sample_movie_list, fp)
