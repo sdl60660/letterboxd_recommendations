@@ -1,3 +1,11 @@
+import os
+import pandas as pd
+
+if os.getcwd().endswith("data_processing"):
+    from db_connect import connect_to_db
+else:
+    from data_processing.db_connect import connect_to_db
+
 
 def format_seconds(seconds):
     seconds = seconds % (24 * 3600)
@@ -10,6 +18,36 @@ def format_seconds(seconds):
 
 def get_backoff_days(fail_count, max_days = 180):
     return min(2 ** min(fail_count, 5), max_days)
+
+def get_rich_movie_data(movie_ids, output_path=None):
+    db_name, client = connect_to_db()
+    db = client[db_name]
+
+    movie_fields = {
+        "image_url",
+        "movie_id",
+        "movie_title",
+        "year_released",
+        "genres",
+        "original_language",
+        "popularity",
+        "runtime",
+        "release_date",
+        "content_type"
+    }
+
+    projection = {k: 1 for k in movie_fields} | {"_id": 0}
+    movie_docs = db.movies.find({"movie_id": {"$in": list(movie_ids)}}, projection=projection)
+    movie_data = {d["movie_id"]: d for d in movie_docs}
+
+    # if data file output path is provided, cache it as a parquet file at that path
+    if output_path:
+        pd.DataFrame(movie_data.values()).to_parquet(
+            output_path, index=False
+        )
+
+    return movie_data
+    
 
 # There are some pseudo-TV shows (docs about shows, etc) that people use to log a rating for a TV show
 # which I think we want to exclude. For now, this is just a little manual/explicit with the most prominent
