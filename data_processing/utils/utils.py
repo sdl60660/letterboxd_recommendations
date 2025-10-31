@@ -24,8 +24,8 @@ def get_rich_movie_data(movie_ids, output_path=None):
     db = client[db_name]
 
     movie_fields = {
-        "image_url",
         "movie_id",
+        "image_url",
         "movie_title",
         "year_released",
         "genres",
