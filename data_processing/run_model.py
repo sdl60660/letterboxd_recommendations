@@ -49,7 +49,7 @@ def get_prediction_set(username, user_watched_list, sample_movie_list):
     return prediction_set
 
 
-def get_movie_data(top_n):
+def get_movie_data(top_n, sample_movie_list):
     movie_fields = [
         "image_url",
         "movie_id",
@@ -65,10 +65,26 @@ def get_movie_data(top_n):
 
     db_name, client = connect_to_db()
     db = client[db_name]
-    movie_data = {
-        x["movie_id"]: {k: v for k, v in x.items() if k in movie_fields}
-        for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})
-    }
+    # movie_data = {
+    #     x["movie_id"]: {k: v for k, v in x.items() if k in movie_fields}
+    #     for x in db.movies.find({"movie_id": {"$in": [x[0] for x in top_n]}})
+    # }
+
+    # movie_data = {
+    #     x["movie_id"]: {k: v for k, v in x.items() if k in movie_fields}
+    #     for x in db.movies.find({"movie_id": {"$in": list(sample_movie_list)}}, )
+    # }
+
+    pipeline = [
+        {"$match": {"movie_id": {"$in": list([x[0] for x in top_n])}}},
+        {"$project": {k: 1 for k in movie_fields} | {"_id": 0}},
+    ]
+
+    cursor = db.movies.aggregate(pipeline, allowDiskUse=True)
+    movie_data = {doc["movie_id"]: doc for doc in cursor}
+
+    # with open('./data/movie_lists/sample_movie_data.txt', "wb") as fp:
+    #     pickle.dump(movie_data, fp)
 
     return movie_data
 
@@ -92,7 +108,7 @@ def run_model(
     predictions = algo.test(prediction_set, clip_ratings=False)
 
     top_n_pairs = get_top_n(predictions, num_recommendations)
-    movie_data = get_movie_data(top_n_pairs)
+    movie_data = get_movie_data(top_n_pairs, sample_movie_list)
 
     results = []
     for movie_id, est_unclipped in top_n_pairs:

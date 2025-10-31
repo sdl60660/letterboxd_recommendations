@@ -348,14 +348,17 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
   )
 
   for sample_size in TARGET_SAMPLES:
-    create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+    # create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
     output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
-    # get all files in output collection and load into pandas dataframe, without _id
-    cursor = db[output_collection_name].find({}, {"_id": 0})    
-    sample_movie_list = {doc["movie_id"] for doc in cursor}
+    # index on movie id to make next step faster
+    db[output_collection_name].create_index("movie_id")
+    sample_movie_list = set(db[output_collection_name].distinct("movie_id"))
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
         pickle.dump(sample_movie_list, fp)
+    
+    # get all files in output collection and load into pandas dataframe, without _id
+    cursor = db[output_collection_name].find({}, {"_id": 0})    
 
     df = pd.DataFrame(list(cursor))
     # Export to CSV/Parquet files
