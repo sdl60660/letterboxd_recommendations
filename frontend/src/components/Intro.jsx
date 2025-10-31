@@ -16,10 +16,7 @@ const Intro = (props) => {
                 <p>
                     The more movies you've rated on Letterboxd, the better and
                     more personalized the recommendations will be, but it can
-                    provide recommendations to any user. If you'd like to filter
-                    out more well-known movies (based on the number of
-                    Letterboxd reviews), you can do so using the last slider
-                    below.
+                    provide recommendations to any user.
                 </p>
             </div>
             <div className="row byline">
