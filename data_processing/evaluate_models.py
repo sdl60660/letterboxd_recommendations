@@ -17,15 +17,6 @@ from surprise.dump import dump
 from build_model import train_model, get_dataset
 from run_model import get_top_n
 
-params = {
-    # "n_factors": 150,
-    # "n_epochs": 20,
-    # "lr_all": 0.005,
-    # "reg_all": 0.02
-}
-
-# bsl_options = {"method": "als", "n_epochs": 10, "reg_u": 1, "reg_i": 1}
-# algo = BaselineOnly(bsl_options=bsl_options)
 
 def precision_recall_at_k(predictions, k=20, threshold=6):
   """Return precision and recall at k metrics for each user"""
@@ -107,19 +98,28 @@ def evaluate_config(dataset, model, params={}, cv_folds=4):
   return eval_row
 
 
-def run_grid_search(model, dataset):
-  param_dists = {'n_factors': dists.randint(100, 250), 'n_epochs': dists.randint(40, 80), 'lr_all': dists.uniform(0.003, 0.008), 'reg_qi': dists.uniform(0.01, 0.04), 'reg_pu': dists.uniform(0.01, 0.04), 'reg_bu': dists.uniform(0.03, 0.08), 'reg_bi': dists.uniform(0.08, 0.25)}
+def eval_fold_in(model, dataset, params):
+  # Split into test/training sets by users, then fold-in 2/3 of a test user's ratings and predict/test the other 1/3
+  pass
 
-  rand_search = RandomizedSearchCV(model, param_dists, n_iter = 50, measures=['rmse', 'mae'], cv=5, n_jobs=5, joblib_verbose = 1000)
+
+def run_grid_search(model, dataset):
+  param_dists = {'n_factors': dists.randint(100, 250), 'n_epochs': dists.randint(40, 80), 'lr_all': dists.uniform(0.003, 0.008), 'reg_qi': dists.uniform(0.01, 0.04), 'reg_pu': dists.uniform(0.01, 0.04), 'reg_bu': dists.uniform(0.03, 0.08), 'reg_bi': dists.uniform(0.08, 0.25), 'init_std_dev': dists.uniform(0.05, 0.25)}
+
+  rand_search = RandomizedSearchCV(model, param_dists, n_iter = 60, measures=['rmse', 'mae'], cv=4, n_jobs=4, joblib_verbose = 1000)
   rand_search.fit(dataset)
 
   results_df = pd.DataFrame.from_dict(rand_search.cv_results)
+  # for index, row in results_df.iterrows():
+  #   eval_fold_in(model, dataset, params=row['params']) 
+
   results_df.to_csv('./models/model_param_test_results.csv', index=False)
 
   best_params = rand_search.best_params["rmse"]
-
   with open('./models/best_svd_params.json', 'w') as f:
     json.dump(best_params, f)
+
+  eval_fold_in(model, dataset, params=best_params) 
   
   return best_params
 

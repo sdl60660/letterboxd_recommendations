@@ -118,7 +118,7 @@ def run_model(
     return results
 
 
-def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
+def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, verbose=True):
     # algo = load(f"models/model_{sample_size}.npz")[1]
     algo = load_compressed_model(f"models/model_{sample_size}.npz")
 
@@ -132,9 +132,9 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25):
         with open("models/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
         
-    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in, verbose=True)
+    recs = run_model(username, algo, user_data, sample_movie_list, num_recommendations, fold_in, verbose=verbose)
     return recs
 
 
 if __name__ == "__main__":
-    main("samlearner", sample_size=1000000, fold_in=True, num_recommendations=25)
+    main("samlearner", sample_size=2000000, fold_in=True, num_recommendations=25, verbose=True)

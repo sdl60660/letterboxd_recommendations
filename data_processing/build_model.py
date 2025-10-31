@@ -90,23 +90,25 @@ if __name__ == "__main__":
     else:
         from data_processing.get_user_ratings import get_user_data
     
-    default_sample_size = 1000000
+    sample_sizes = [1_000_000, 2_000_000, 3_000_000]
 
-    # Load ratings data
-    df = pd.read_parquet(f"data/training_data_samples/training_data_{default_sample_size}.parquet")
-    with open(f"data/movie_lists/sample_movie_list_{default_sample_size}.txt", "rb") as fp:
-        sample_movie_list = pickle.load(fp)
-    
-    with open("models/best_svd_params.json", 'r') as f:
-        svd_params = json.load(f)
+    for i, sample_size in enumerate(sample_sizes):
+        # Load ratings data
+        df = pd.read_parquet(f"data/training_data_samples/training_data_{sample_size}.parquet")
+        with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
+            sample_movie_list = pickle.load(fp)
+        
+        with open("models/best_svd_params.json", 'r') as f:
+            svd_params = json.load(f)
 
-    user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
+        user_data = get_user_data("samlearner")[0]
+        algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
 
-    export_model(algo, default_sample_size, compressed=True)
+        export_model(algo, sample_size, compressed=True)
 
-    with open("models/user_watched.txt", "wb") as fp:
-        pickle.dump(user_watched_list, fp)
-    
-    with open("models/user_data.txt", "wb") as fp:
-        pickle.dump(user_data, fp)
+        if i == 0:
+            with open("models/user_watched.txt", "wb") as fp:
+                pickle.dump(user_watched_list, fp)
+            
+            with open("models/user_data.txt", "wb") as fp:
+                pickle.dump(user_data, fp)
