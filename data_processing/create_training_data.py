@@ -348,10 +348,10 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
   )
 
   for sample_size in TARGET_SAMPLES:
-    print("Creating collection and samples for {sample_size} sample size data")
+    print(f"Creating collection and samples for {sample_size} sample size data")
+    output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
     create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
-    output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
     # index on movie id to make next step faster
     db[output_collection_name].create_index("movie_id")
@@ -361,9 +361,9 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
     
     # get all files in output collection and load into pandas dataframe, without _id
     proj = {"_id": 0}
-    cursor = db[output_collection_name].find({}, proj, batch_size=5000)    
-
+    cursor = db[output_collection_name].find({}, proj, batch_size=10_000)    
     df = pd.DataFrame(cursor)
+    
     # Export to CSV/Parquet files
     df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
   
