@@ -6,6 +6,7 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import CollectionInvalid
 
 from db_connect import connect_to_db
+from utils.utils import get_rich_movie_data
 
 
 # --- params (tune these) ---
@@ -227,8 +228,6 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
   return db[dst]
 
 def create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations = False):
-  print(f'Starting build for sample size: {sample_size}')
-
   sampled_users = get_or_build_collection(
     db, SAMPLED_USERS_COLL, build_fn=lambda: get_sampled_users(db, active_users, sample_size),
     use_cache=False
@@ -329,7 +328,6 @@ def clean_up_temp_collections(db):
   for temp_collection in collections_for_removal:
     db.drop_collection(temp_collection)
 
-
 def store_sample_movie_list(db, output_collection_name, sample_size):
   # index on movie id to make next step faster
   db[output_collection_name].create_index("movie_id")
@@ -338,32 +336,6 @@ def store_sample_movie_list(db, output_collection_name, sample_size):
       pickle.dump(sample_movie_list, fp)
 
   return sample_movie_list
-
-
-def store_sample_rich_movie_data(db, movie_ids, sample_size):
-  movie_fields = {
-    "image_url",
-    "movie_id",
-    "movie_title",
-    "year_released",
-    "genres",
-    "original_language",
-    "popularity",
-    "runtime",
-    "release_date",
-    "content_type"
-  }
-
-  projection = {k: 1 for k in movie_fields} | {"_id": 0}
-
-  # small/medium ID sets: one shot
-  movie_docs = db.movies.find({"movie_id": {"$in": list(movie_ids)}}, projection=projection)
-  movie_data = {d["movie_id"]: d for d in movie_docs}
-
-  # write to parquet for reuse if helpful
-  pd.DataFrame(movie_data.values()).to_parquet(
-      f"./data/movie_lists/sample_movie_data_{sample_size}.parquet", index=False
-  )
 
 def store_sample_ratings(db, output_collection_name, sample_size):
   # get all files in output collection and load into pandas dataframe, without _id
@@ -374,8 +346,8 @@ def store_sample_ratings(db, output_collection_name, sample_size):
   # Export to CSV/Parquet files
   df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
 
-
 def create_and_store_sample(db, sample_size, ratings, active_users, use_cached_aggregations):
+  print(f'Starting build for sample size: {sample_size}')
   output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
   create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
@@ -383,7 +355,8 @@ def create_and_store_sample(db, sample_size, ratings, active_users, use_cached_a
   # index on movie id to make next steps faster
   db[output_collection_name].create_index("movie_id")
   sample_movie_list = store_sample_movie_list(db, output_collection_name, sample_size)
-  store_sample_rich_movie_data(db, sample_movie_list, sample_size)
+
+  get_rich_movie_data(movie_ids=sample_movie_list, output_path=f"./data/movie_lists/sample_movie_data_{sample_size}.parquet")
 
   store_sample_ratings(db, output_collection_name, sample_size)
 
@@ -407,10 +380,9 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
   )
 
   for sample_size in TARGET_SAMPLES:
-    print(f"Creating collection and samples for {sample_size} rating sample size data")
     create_and_store_sample(db, sample_size, ratings, active_users, use_cached_aggregations)
-    
   
+
   movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
   movie_df.to_csv("../static/data/movie_data.csv", index=False)
 
@@ -422,4 +394,4 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
 
 
 if __name__ == "__main__":
-  main(use_cached_aggregations=False, remove_temp_collections=True)
+  main(use_cached_aggregations=True, remove_temp_collections=True)
