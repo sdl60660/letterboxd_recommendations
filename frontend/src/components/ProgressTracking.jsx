@@ -4,33 +4,38 @@ import '../styles/ProgressTracking.scss'
 
 import { Checkmark, Error, Loader } from './ui/StatefulIcons'
 
-const formatRatingGatherText = ({ queryData, redisData }) => {
-    const userDataStatus = redisData?.statuses?.redis_get_user_data_job_status
+const formatRatingGatherText = ({ queryData, redisData, userCacheData }) => {
+    const userDataStatus = redisData?.statuses?.redis_get_user_data_job_status;
+
     if (userDataStatus !== 'finished' && userDataStatus !== 'failed') {
+        const mainMessage = userCacheData.reused_cache === true ? `Using cached movie ratings from ${queryData.username}'s` : `Gathering movie ratings from ${queryData.username}'s`
+
         return (
             <>
-                Gathering movie ratings from {queryData.username}'s{' '}
+                {mainMessage}{' '}
                 <a
                     target="_blank"
                     rel="noreferrer"
                     href={`https://letterboxd.com/${queryData.username}/films/ratings/`}
                 >
                     profile
-                </a>
+                </a>{userCacheData.reused_cache === true && ' (using cached data)'}
             </>
         )
     } else if (redisData?.execution_data?.user_status === 'user_not_found') {
         return `Could not find Letterboxd user: ${queryData.username}. Will return generic recommendations.`
     } else {
         const numRatings = redisData.execution_data.num_user_ratings
-        const additionalRatingsPrompt =
-            numRatings < 50
-                ? ' (Rate more movies for more personalized results)'
-                : ''
+        const mainMessage = userCacheData.reused_cache === true ? `Used ${numRatings} cached movie ratings from ${queryData.username}'s` : `Gathered ${numRatings} movie ratings from ${queryData.username}'s`
+
+        let cacheMessage = '';
+        if (userCacheData.reused_cache === false && userCacheData.cached_data_ttl) {
+            cacheMessage = ` (caching for ${Math.round(userCacheData.cached_data_ttl / 60)} mins)`
+        }
 
         return (
             <>
-                Gathered {numRatings} movie ratings from {queryData.username}'s{' '}
+                {mainMessage}{' '}
                 <a
                     target="_blank"
                     rel="noreferrer"
@@ -38,7 +43,7 @@ const formatRatingGatherText = ({ queryData, redisData }) => {
                 >
                     profile
                 </a>
-                {additionalRatingsPrompt}
+                {cacheMessage}
             </>
         )
     }
@@ -57,7 +62,8 @@ const renderIcon = ({ status, error = false }) => {
 }
 
 const ProgressTracking = ({ queryData, redisData }) => {
-    const [stageProgress, setStageProgress] = useState({})
+    const [stageProgress, setStageProgress] = useState({});
+    const [userCacheData, setUserCacheData] = useState({reused_cache: false, cached_data_ttl: 200});
 
     useEffect(() => {
         if (redisData) {
@@ -76,9 +82,13 @@ const ProgressTracking = ({ queryData, redisData }) => {
                         : statuses?.redis_build_model_job_status === 'finished'
                         ? 'finished'
                         : 'started',
-            })
+            });
+
+            setUserCacheData(redisData?.user_data_cache)
+
+
         }
-    }, [redisData])
+    }, [redisData]);
 
     return (
         <div id="progress-tracking" tabIndex="0">
@@ -98,6 +108,7 @@ const ProgressTracking = ({ queryData, redisData }) => {
                                 {formatRatingGatherText({
                                     queryData,
                                     redisData,
+                                    userCacheData,
                                 })}
                             </span>
                         </li>
@@ -150,4 +161,4 @@ const ProgressTracking = ({ queryData, redisData }) => {
     )
 }
 
-export default ProgressTracking
+export default React.memo(ProgressTracking);
