@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3.12
 
 import os
+import json
 import pickle
 import numpy as np
 import pandas as pd
@@ -64,7 +65,15 @@ def get_movie_data(sample_movie_list, sample_size):
     else:
         movie_data = get_rich_movie_data(movie_ids=sample_movie_list, output_path=datafile_path)
     
-    movie_data = movie_data.set_index('movie_id', drop=False).to_dict('index')
+    # movie_data = movie_data.set_index('movie_id', drop=False).to_dict('index')
+    movie_data = json.loads(
+            movie_data.set_index('movie_id', drop=False).to_json(
+            orient="index",
+            date_format="iso",     # ISO-8601 for datetimes
+            default_handler=str    # fallback for anything exotic
+        )
+    )
+
     return movie_data
 
 
