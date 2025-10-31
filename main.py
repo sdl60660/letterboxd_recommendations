@@ -129,6 +129,14 @@ def get_recs(
         ttl=200,
     )
 
+    job_build_model.meta.update({
+        "reused_cache": reused_cache,
+        "user_job_id": job_get_user_data.get_id(),
+        "user_cache_ttl_at_enqueue": conn.ttl(job_get_user_data.key),   # may be -1 or >0
+        "userdata_result_ttl": USERDATA_CACHE_TTL,
+    })
+    job_build_model.save()
+
     return JSONResponse(
         {
             "redis_get_user_data_job_id": job_get_user_data.get_id(),
@@ -162,6 +170,7 @@ def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
     execution_data = {"build_model_stage": end_job.meta.get("stage")}
 
     user_cache_ttl = None  # default if job missing/expired
+
     try:
         user_job = Job.fetch(job_ids["redis_get_user_data_job_id"], connection=conn)
         execution_data |= {
@@ -178,8 +187,11 @@ def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
         "statuses": job_statuses,
         "execution_data": execution_data,
         "user_data_cache": {
+            "reused_cache":  bool(end_job.meta.get("reused_cache", False)),
             "cached_data_ttl": user_cache_ttl,
-            "total_cache_time_seconds": USERDATA_CACHE_TTL,
+            "total_cache_time_seconds": end_job.meta.get("userdata_result_ttl"),
+            "cached_data_ttl_at_enque": end_job.meta.get("user_cache_ttl_at_enqueue"),
+            "user_job_id": end_job.meta.get("user_job_id"),
         },
     }
 
