@@ -6,6 +6,7 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import CollectionInvalid
 
 from db_connect import connect_to_db
+from utils.utils import get_rich_movie_data
 
 
 # --- params (tune these) ---
@@ -21,8 +22,8 @@ TARGET_SAMPLES = [
   2_000_000,
   # 2_500_000,
   3_000_000,
-  # 4_000_000,
-  # 5_000_000,
+  4_000_000,
+  5_000_000,
   # 10_000_000
 ] 
 
@@ -227,8 +228,6 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
   return db[dst]
 
 def create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations = False):
-  print(f'Starting build for sample size: {sample_size}')
-
   sampled_users = get_or_build_collection(
     db, SAMPLED_USERS_COLL, build_fn=lambda: get_sampled_users(db, active_users, sample_size),
     use_cache=False
@@ -329,6 +328,39 @@ def clean_up_temp_collections(db):
   for temp_collection in collections_for_removal:
     db.drop_collection(temp_collection)
 
+def store_sample_movie_list(db, output_collection_name, sample_size):
+  # index on movie id to make next step faster
+  db[output_collection_name].create_index("movie_id")
+  sample_movie_list = set(db[output_collection_name].distinct("movie_id"))
+  with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
+      pickle.dump(sample_movie_list, fp)
+
+  return sample_movie_list
+
+def store_sample_ratings(db, output_collection_name, sample_size):
+  # get all files in output collection and load into pandas dataframe, without _id
+  proj = {"_id": 0}
+  cursor = db[output_collection_name].find({}, proj)    
+  df = pd.DataFrame(cursor)
+
+  # Export to CSV/Parquet files
+  df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
+
+def create_and_store_sample(db, sample_size, ratings, active_users, use_cached_aggregations):
+  print(f'Starting build for sample size: {sample_size}')
+  output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+
+  create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+
+  # index on movie id to make next steps faster
+  db[output_collection_name].create_index("movie_id")
+  sample_movie_list = store_sample_movie_list(db, output_collection_name, sample_size)
+
+  get_rich_movie_data(movie_ids=sample_movie_list, output_path=f"./data/movie_lists/sample_movie_data_{sample_size}.parquet")
+
+  store_sample_ratings(db, output_collection_name, sample_size)
+
+
 def main(use_cached_aggregations=False, remove_temp_collections=True):
   db_name, client = connect_to_db()
   db = client[db_name]
@@ -348,22 +380,9 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
   )
 
   for sample_size in TARGET_SAMPLES:
-    # create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
-    output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
-
-    # index on movie id to make next step faster
-    db[output_collection_name].create_index("movie_id")
-    sample_movie_list = set(db[output_collection_name].distinct("movie_id"))
-    with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
-        pickle.dump(sample_movie_list, fp)
-    
-    # get all files in output collection and load into pandas dataframe, without _id
-    cursor = db[output_collection_name].find({}, {"_id": 0})    
-
-    df = pd.DataFrame(list(cursor))
-    # Export to CSV/Parquet files
-    df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
+    create_and_store_sample(db, sample_size, ratings, active_users, use_cached_aggregations)
   
+
   movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
   movie_df.to_csv("../static/data/movie_data.csv", index=False)
 
@@ -375,4 +394,4 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
 
 
 if __name__ == "__main__":
-  main(use_cached_aggregations=False, remove_temp_collections=True)
+  main(use_cached_aggregations=True, remove_temp_collections=True)
