@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 
 from typing import Union
-
 from urllib.parse import urlparse, urlunparse
 
 import pandas as pd
@@ -34,6 +33,22 @@ templates = Jinja2Templates(directory="templates")
 queue_pool = [Queue(channel, connection=conn) for channel in ["high", "default", "low"]]
 popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
 
+USERDATA_CACHE_TTL = 240 
+USERDATA_TTL_BUFFER = 10
+
+
+def _ttl_for_job(job: Job) -> int | None:
+    """
+    Return remaining TTL in seconds for this job's Redis key.
+    - >0 : seconds until expiry
+    - -1 : key exists with no expiry (e.g., queued/running or no result_ttl)
+    - -2 : key doesn't exist (expired)
+    Normalize to None for -2 (missing).
+    """
+    t = conn.ttl(job.key)
+    if t == -2:
+        return None
+    return t
 
 # A direct link to the heroku site will redirect to new domain
 # Should take care of stale link issue
@@ -51,26 +66,56 @@ def get_recs(
     username: str, training_data_size: int, data_opt_in: bool
 ):
     username = username.strip().lower()
-    popularity_threshold = None
-
+    # popularity_threshold = None
     num_items = 2000
 
     ordered_queues = sorted(
         queue_pool, key=lambda queue: DeferredJobRegistry(queue=queue).count
     )
+
     print([(q, DeferredJobRegistry(queue=q).count) for q in ordered_queues])
     q = ordered_queues[0]
 
-    job_get_user_data = q.enqueue(
-        get_client_user_data,
-        args=(
-            username,
-            data_opt_in,
-        ),
-        description=f"Scraping user data for {username} (sample: {training_data_size}, data_opt_in: {data_opt_in})",
-        result_ttl=45,
-        ttl=200,
-    )
+    # set deterministic ID for user-data job
+    user_job_id = f"username-{username}__optin-{int(bool(data_opt_in))}"
+
+    reused_cache = False
+    job_get_user_data = None
+    ttl_remaining = None
+
+    try:
+        job = Job.fetch(user_job_id, connection=conn)
+
+        ttl_remaining = conn.ttl(job.key)
+        reusable = (job.is_finished and job.result is not None and (ttl_remaining == -1 or ttl_remaining is not None and ttl_remaining > USERDATA_TTL_BUFFER))
+
+        if reusable:
+            # Top up the TTL to avoid close-call expiry
+            if ttl_remaining not in (-1, None) and ttl_remaining <= (USERDATA_TTL_BUFFER + 5):
+                conn.expire(job.key, USERDATA_TTL_BUFFER + 30)
+                ttl_remaining = conn.ttl(job.key)
+            job_get_user_data = job
+            reused_cache = True
+
+    except NoSuchJobError:
+        pass
+
+    if job_get_user_data is None:
+        job_get_user_data = q.enqueue(
+            get_client_user_data,
+            args=(
+                username,
+                data_opt_in,
+            ),
+            job_id=user_job_id,
+            description=f"Scraping user data for {username} (sample: {training_data_size}, data_opt_in: {data_opt_in})",
+            result_ttl=120,
+            ttl=200,
+        )
+
+        # will set to -1, I think, as job won't be finished. can then ingest that on the frontend and use total cache time val
+        ttl_remaining = _ttl_for_job(job_get_user_data)
+
     job_build_model = q.enqueue(
         build_client_model,
         args=(
@@ -80,7 +125,7 @@ def get_recs(
         ),
         depends_on=job_get_user_data,
         description=f"Building model for {username} (sample: {training_data_size})",
-        result_ttl=30,
+        result_ttl=45,
         ttl=200,
     )
 
@@ -88,6 +133,11 @@ def get_recs(
         {
             "redis_get_user_data_job_id": job_get_user_data.get_id(),
             "redis_build_model_job_id": job_build_model.get_id(),
+            "user_data_cache": {
+                "reused_cache": reused_cache,
+                "cached_data_ttl": ttl_remaining,
+                "total_cache_time_seconds": USERDATA_CACHE_TTL
+            }
         }
     )
 
@@ -111,6 +161,7 @@ def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
     end_job = Job.fetch(job_ids["redis_build_model_job_id"], connection=conn)
     execution_data = {"build_model_stage": end_job.meta.get("stage")}
 
+    user_cache_ttl = None  # default if job missing/expired
     try:
         user_job = Job.fetch(job_ids["redis_get_user_data_job_id"], connection=conn)
         execution_data |= {
@@ -118,20 +169,28 @@ def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
             "user_watchlist": user_job.meta.get("user_watchlist"),
             "user_status": user_job.meta.get("user_status"),
         }
+        user_cache_ttl = _ttl_for_job(user_job)
     except NoSuchJobError:
         pass
 
+
+    payload = {
+        "statuses": job_statuses,
+        "execution_data": execution_data,
+        "user_data_cache": {
+            "cached_data_ttl": user_cache_ttl,
+            "total_cache_time_seconds": USERDATA_CACHE_TTL,
+        },
+    }
+
     if end_job.is_finished:
+        payload["result"] = end_job.result
         return JSONResponse(
             status_code=200,
-            content={
-                "statuses": job_statuses,
-                "execution_data": execution_data,
-                "result": end_job.result,
-            },
+            content=payload,
         )
     else:
         return JSONResponse(
             status_code=202,
-            content={"statuses": job_statuses, "execution_data": execution_data},
+            content=payload,
         )

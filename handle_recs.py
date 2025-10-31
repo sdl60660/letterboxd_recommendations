@@ -56,7 +56,7 @@ def build_client_model(
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
     user_data = user_data_job.result
-    user_watched_list = [x["movie_id"] for x in user_data]
+    # user_watched_list = [x["movie_id"] for x in user_data]
 
     current_job.meta["stage"] = "creating_sample_data"
     current_job.save()
