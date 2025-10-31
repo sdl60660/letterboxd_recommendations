@@ -48,13 +48,10 @@ def health():
 
 @app.get("/get_recs")
 def get_recs(
-    username: str, training_data_size: int, popularity_filter: int, data_opt_in: bool
+    username: str, training_data_size: int, data_opt_in: bool
 ):
     username = username.strip().lower()
-    if popularity_filter >= 0:
-        popularity_threshold = popularity_thresholds_500k_samples[popularity_filter]
-    else:
-        popularity_threshold = None
+    popularity_threshold = None
 
     num_items = 2000
 
@@ -70,7 +67,7 @@ def get_recs(
             username,
             data_opt_in,
         ),
-        description=f"Scraping user data for {username} (sample: {training_data_size}, popularity_filter: {popularity_threshold}, data_opt_in: {data_opt_in})",
+        description=f"Scraping user data for {username} (sample: {training_data_size}, data_opt_in: {data_opt_in})",
         result_ttl=45,
         ttl=200,
     )
@@ -79,11 +76,10 @@ def get_recs(
         args=(
             username,
             training_data_size,
-            popularity_threshold,
             num_items,
         ),
         depends_on=job_get_user_data,
-        description=f"Building model for {username} (sample: {training_data_size}, popularity_filter: {popularity_threshold})",
+        description=f"Building model for {username} (sample: {training_data_size})",
         result_ttl=30,
         ttl=200,
     )

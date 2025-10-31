@@ -24,8 +24,12 @@ import os
 
 if os.getcwd().endswith("/data_processing"):
     from http_utils import BROWSER_HEADERS
+    from utils.utils import get_backoff_days
+
 else:
     from data_processing.http_utils import BROWSER_HEADERS
+    from data_processing.utils.utils import get_backoff_days
+
 
 def format_img_link_stub(raw_link):
     image_url = raw_link.replace("https://a.ltrbxd.com/resized/", "").split(
@@ -56,78 +60,106 @@ def get_meta_data_from_script_tag(soup):
         return {"image_url": image_url, "letterboxd_rating_count": rating_count, "letterboxd_avg_rating": avg_rating, "letterboxd_genres": genres }
 
 
+def parse_letterboxd_page_data(response, movie_id):
+    # Parse ratings page response for each rating/review, use lxml parser for speed
+    soup = BeautifulSoup(response, "lxml")
+
+    movie_header = soup.find("section", class_="production-masthead")
+
+    try:
+        movie_title = movie_header.find("h1").text
+    except AttributeError:
+        movie_title = ""
+
+    try:
+        year = int(
+            movie_header.find("span", class_="releasedate").find("a").text
+        )
+    except AttributeError:
+        year = None
+    
+    try:
+        imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
+        imdb_id = imdb_link.split("/title")[1].strip("/").split("/")[0]
+    except:
+        imdb_link = ""
+        imdb_id = ""
+
+    try:
+        tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
+        content_type = "movie" if "/movie/" in tmdb_link else "tv"
+        tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
+    except:
+        tmdb_link = ""
+        tmdb_id = ""
+        content_type = None
+    
+    movie_update_object = {
+        "movie_id": movie_id,
+        "movie_title": movie_title,
+        "year_released": year,
+        "imdb_link": imdb_link,
+        "tmdb_link": tmdb_link,
+        "imdb_id": imdb_id,
+        "tmdb_id": tmdb_id,
+        "content_type": content_type,
+        "scrape_status": "ok",
+        "fail_count": 0,
+        "next_retry_at": None
+    }
+
+    try:
+        script_tag_data = get_meta_data_from_script_tag(soup)
+
+        for k, v in script_tag_data.items():
+            if v is None:
+                continue
+            elif k == 'image_url':
+                movie_update_object[k] = format_img_link_stub(v)
+            else:
+                movie_update_object[k] = v
+                    
+    except:
+        # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
+        # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
+        # so even if the script data isn't present for some reason, let's ensure that we mark this as an empty string
+        movie_update_object['image_url'] = ""
+
+    return movie_update_object
+
+
+def format_failed_update(movie_id, fail_count):
+    # backoff_days = get_backoff_days(fail_count)
+    backoff_days = 7
+    now = datetime.datetime.now(datetime.timezone.utc)
+    next_retry = now + datetime.timedelta(days=backoff_days)
+
+    movie_update_object = {
+        "movie_id": movie_id,
+        "scrape_status": "failed",
+        "next_retry_at": next_retry,
+    }
+
+    return movie_update_object
+
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
         response = await r.read()
 
-        # Parse ratings page response for each rating/review, use lxml parser for speed
-        soup = BeautifulSoup(response, "lxml")
-
-        movie_header = soup.find("section", class_="production-masthead")
-
-        try:
-            movie_title = movie_header.find("h1").text
-        except AttributeError:
-            movie_title = ""
-
-        try:
-            year = int(
-                movie_header.find("span", class_="releasedate").find("a").text
+        movie_id = input_data['movie_id']
+        if r.status == 404:
+            fail_count = input_data.get("fail_count", 0) + 1
+            movie_update_object = format_failed_update(movie_id, fail_count)
+            update_operation = UpdateOne(
+                { "movie_id": input_data["movie_id"]}, {"$set": movie_update_object,  "$inc": {"fail_count": 1}}, upsert=True
             )
-        except AttributeError:
-            year = None
-        
-        try:
-            imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
-            imdb_id = imdb_link.split("/title")[1].strip("/").split("/")[0]
-        except:
-            imdb_link = ""
-            imdb_id = ""
-
-        try:
-            tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
-            content_type = "movie" if "/movie/" in tmdb_link else "tv"
-            tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
-        except:
-            tmdb_link = ""
-            tmdb_id = ""
-            content_type = None
-        
-        movie_object = {
-            "movie_id": input_data["movie_id"],
-            "movie_title": movie_title,
-            "year_released": year,
-            "imdb_link": imdb_link,
-            "tmdb_link": tmdb_link,
-            "imdb_id": imdb_id,
-            "tmdb_id": tmdb_id,
-            "content_type": content_type
-        }
-
-        try:
-            script_tag_data = get_meta_data_from_script_tag(soup)
-
-            for k, v in script_tag_data.items():
-                if v is None:
-                    continue
-                elif k == 'image_url':
-                    movie_object[k] = format_img_link_stub(v)
-                else:
-                    movie_object[k] = v
-                    
-        except:
-            # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
-            # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
-            # so even if the script data isn't present for some reason, let's ensure that we mark this as an empty string
-            movie_object['image_url'] = ""
-
-        update_operation = UpdateOne(
-            {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
-        )
+        else:
+            movie_update_object = parse_letterboxd_page_data(response, movie_id)
+            update_operation = UpdateOne(
+                {"movie_id": input_data["movie_id"]}, {"$set": movie_update_object}, upsert=True
+            )
 
         return update_operation
-
-
 
 
 async def fetch_poster(url, session, input_data={}):
@@ -208,8 +240,6 @@ async def get_movies(movie_list, db_cursor, mongo_db):
     url = "https://letterboxd.com/film/{}/"
 
     async with ClientSession() as session:
-        # print("Starting Scrape", time.time() - start)
-
         tasks = []
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
@@ -262,7 +292,8 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
 
 
 def get_ids_for_update(movies_collection, data_type):
-    one_month_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    one_month_ago = now - datetime.timedelta(days=30)
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
@@ -278,6 +309,16 @@ def get_ids_for_update(movies_collection, data_type):
             )
             .sort("last_updated", 1)
             .limit(1000)
+        }
+
+        # grab a sample of those which had a failed crawl and are now due for a retry
+        update_ids |= {
+            x["movie_id"]
+            for x in movies_collection.find(
+                # {"scrape_status": "failed"},
+                {"next_retry_at": {"$lte": now}, "scrape_status": "failed"},
+                {"movie_id": 1}
+            ).sort("next_retry_at", 1)
         }
 
         # backfill a chunk of the records that are missing 'content_type' (newly-added)
@@ -336,6 +377,7 @@ def get_ids_for_update(movies_collection, data_type):
         }
 
         all_movies = list(update_ids)
+
     else:
         all_movies = [
             x
@@ -353,7 +395,8 @@ def get_ids_for_update(movies_collection, data_type):
 
 def main(data_type="letterboxd"):
     # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
+    db_name, client = connect_to_db()
+    tmdb_key = os.environ["TMDB_KEY"]
 
     db = client[db_name]
     movies = db.movies
@@ -361,7 +404,7 @@ def main(data_type="letterboxd"):
     movies_for_update = get_ids_for_update(movies, data_type)
 
     loop = asyncio.get_event_loop()
-    chunk_size = 12
+    chunk_size = 20
     num_chunks = len(movies_for_update) // chunk_size + 1
 
     print("Total Movies to Scrape:", len(movies_for_update))
@@ -370,7 +413,7 @@ def main(data_type="letterboxd"):
 
     pbar = tqdm(range(num_chunks))
     for chunk_i in pbar:
-        pbar.set_description(f"Scraping chunk {chunk_i+1} of {num_chunks}")
+        pbar.set_description(f"Scraping chunk {chunk_i + 1} of {num_chunks}")
 
         if chunk_i == num_chunks - 1:
             chunk = movies_for_update[chunk_i * chunk_size :]

@@ -21,10 +21,15 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
         return url
     }, [movie_data.image_url])
 
+    let rawYearReleased = movie_data.year_released;
+    if (rawYearReleased === null && movie_data.release_date !== null && movie_data.release_date !== '') {
+        rawYearReleased = Number(movie_data.release_date.slice(0,4));
+    }
+
     const yearReleased =
-        movie_data.year_released === 0
+        rawYearReleased === 0
             ? 'N/A'
-            : movie_data.year_released.toFixed(0)
+            : rawYearReleased.toFixed(0)
 
     return (
         <li>

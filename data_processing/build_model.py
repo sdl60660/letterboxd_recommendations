@@ -1,47 +1,64 @@
 #!/usr/local/bin/python3.12
 
-import pandas as pd
+import json
+import random
 import pickle
+import numpy as np
+import pandas as pd
 
-from surprise import Dataset
-from surprise import Reader
-from surprise import SVD
+from surprise import SVD, Reader, Dataset, BaselineOnly
 
 from surprise.model_selection import cross_validate
 from surprise.dump import dump
 
-import random
-import numpy as np
+# a global/fallback to use as a default val, based on a traiing run/eval, but this shouldn't ever be used,
+# either when this is called from the web server or from commandline
+SVD_PARAMS = {"lr_all": 0.0028736, "n_epochs": 63, "n_factors": 114, "reg_all": 0.135171, "reg_bi": 0.281263224}
+
+def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_val']):
+    # Surprise dataset loading
+    reader = Reader(rating_scale=rating_scale)
+    data = Dataset.load_from_df(df[cols], reader)
+    return data
 
 
-def build_model(df, user_data):
-    # print(df.head())
-
-    # Set random seed so that returned recs are always the same for same user with same ratings
-    # This might make sense so that results are consistent, or you might want to refresh with different results
-    my_seed = 12
-    random.seed(my_seed)
-    np.random.seed(my_seed)
-
-    user_rated = [x for x in user_data if x["rating_val"] > 0]
+def prep_concat_dataframe(df, sample_movie_list, user_data):
+    user_rated = [x for x in user_data if x["rating_val"] > 0 and x['movie_id'] in sample_movie_list]
 
     user_df = pd.DataFrame(user_rated)
     df = pd.concat([df, user_df]).reset_index(drop=True)
     df.drop_duplicates(inplace=True)
     del user_df
 
-    # Surprise dataset loading
-    reader = Reader(rating_scale=(1, 10))
-    data = Dataset.load_from_df(df[["user_id", "movie_id", "rating_val"]], reader)
+    data = get_dataset(df)
     del df
 
+    return data
+
+
+def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
+    # Set random seed so that returned recs are always the same for same user with same ratings
+    # This might make sense so that results are consistent, or you might want to refresh with different results
+    my_seed = 12
+    random.seed(my_seed)
+    np.random.seed(my_seed)
+
     # Configure algorithm
-    algo = SVD()
-    # cross_validate(algo, data, measures=['RMSE', 'MAE'], cv=3, verbose=True)
+    algo = model(**params)
+
+    if run_cv:
+        cross_validate(algo, data, measures=['RMSE', 'MAE', 'FCP'], cv=3, verbose=True)
 
     trainingSet = data.build_full_trainset()
     algo.fit(trainingSet)
 
+    return algo
+
+
+def build_model(df, sample_movie_list, user_data, model=SVD, params=SVD_PARAMS, run_cv=False):
+    model_data = prep_concat_dataframe(df, sample_movie_list, user_data)
+
+    algo = train_model(model_data, model, params, run_cv)
     user_watched_list = [x["movie_id"] for x in user_data]
 
     return algo, user_watched_list
@@ -49,17 +66,23 @@ def build_model(df, user_data):
 
 if __name__ == "__main__":
     import os
-
     if os.getcwd().endswith("data_processing"):
         from get_user_ratings import get_user_data
     else:
         from data_processing.get_user_ratings import get_user_data
+    
+    default_sample_size = 1000000
 
     # Load ratings data
-    df = pd.read_csv("data/training_data.csv")
+    df = pd.read_parquet(f"data/training_data_samples/training_data_{default_sample_size}.parquet")
+    with open(f"data/movie_lists/sample_movie_list_{default_sample_size}.txt", "rb") as fp:
+        sample_movie_list = pickle.load(fp)
+    
+    with open("models/best_svd_params.json", 'r') as f:
+        svd_params = json.load(f)
 
     user_data = get_user_data("samlearner")[0]
-    algo, user_watched_list = build_model(df, user_data)
+    algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=True)
 
     dump("models/mini_model.pkl", predictions=None, algo=algo, verbose=1)
     with open("models/user_watched.txt", "wb") as fp:

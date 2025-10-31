@@ -1,30 +1,25 @@
+
 [[source]]
 name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
 
-[packages]
-# build helpers — scikit-surprise builds cleanly with Cython < 3
-cython = "==0.29.36"
+[requires]
+python_version = "3.12.7"
 
-# scientific stack (wheels exist for py3.12)
+[packages]
+cython = "==0.29.36"
 numpy = "==1.26.4"
 pandas = "==2.2.2"
 scikit-learn = "==1.4.2"
-
-# web / services
 requests = "==2.32.3"
 beautifulsoup4 = "==4.12.3"
 aiohttp = "==3.9.5"
 lxml = "==5.2.1"
 tqdm = ">=4.50.2"
-
-# mongo stack
 pymongo = "==4.15.3"
 motor = ">=3.3"
 dnspython = ">=2.6,<3"
-
-# api/runtime
 fastapi = "==0.115.4"
 uvicorn = {extras = ["standard"], version = "==0.30.6"}
 gunicorn = "==22.0.0"
@@ -34,12 +29,8 @@ flask-talisman = ">=1.1"
 waitress = ">=2.1"
 rq = "*"
 redis = ">=5.0"
-
 scikit-surprise = "==1.1.4"
-# forked from fork of original repo to support newer python/numpy versions
-# scikit-surprise = {git = "https://github.com/sdl60660/surprise-fork.git", ref = "main"}
+pyarrow = "*"
+fastparquet = "*"
 
 [dev-packages]
-
-[requires]
-python_version = "3.12"

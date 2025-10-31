@@ -18,17 +18,14 @@ from pymongo.errors import BulkWriteError
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
-    from utils import utils
+    from utils.utils import get_backoff_days
     from http_utils import BROWSER_HEADERS
 
 else:
     from data_processing.db_connect import connect_to_db
-    from data_processing.utils import utils
+    from data_processing.utils.utils import get_backoff_days
     from data_processing.http_utils import BROWSER_HEADERS
 
-
-def get_backoff_days(fail_count, max_days = 180):
-    return min(2 ** min(fail_count, 5), max_days)
 
 async def fetch(url, session, input_data={}, *, retries=3):
     for attempt in range(retries):
@@ -83,12 +80,14 @@ async def get_page_counts(usernames, users_cursor):
                 update_operations.append(
                     UpdateOne(
                         {"username": username},
-                        {"$set": {
-                            "scrape_status": "fail",
-                            "last_attempted": now,
-                            "next_retry_at": next_retry,
+                        {
+                            "$set": {
+                                "scrape_status": "fail",
+                                "last_attempted": now,
+                                "next_retry_at": next_retry,
+                                },
+                            "$inc": {"fail_count": 1}
                         },
-                        "$inc": {"fail_count": 1}},
                         upsert=True,
                     )
                 )
@@ -408,7 +407,7 @@ def get_users_to_update_list(users, cap_missing_fields = 1000, cap_due_for_retry
 
 def main():
     # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
+    db_name, client = connect_to_db()
 
     # Find letterboxd database and user collection
     db = client[db_name]

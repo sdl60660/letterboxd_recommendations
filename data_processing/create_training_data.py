@@ -1,113 +1,376 @@
-#!/usr/local/bin/python3.12
-
+import pickle
+import time
 import pandas as pd
 
-import numpy as np
-from numpy import asarray
-from numpy import savetxt
-
-import pickle
-
-import pymongo
+from pymongo import ASCENDING, DESCENDING
+from pymongo.errors import CollectionInvalid
 
 from db_connect import connect_to_db
 
 
-def get_sample(cursor, iteration_size):
-    while True:
-        try:
-            rating_sample = cursor.aggregate([{"$sample": {"size": iteration_size}}])
-            return list(rating_sample)
-        except pymongo.errors.OperationFailure:
-            print("Encountered $sample operation error. Retrying...")
+# --- params (tune these) ---
+USER_MIN = 50               # users must have ≥ this many ratings to end up in sampling pool
+MOVIE_MIN = 50              # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
+PER_USER_CAP = 300          # at most this many ratings per sampled user
 
+# aim ~this many ratings in final sample sets (±5–10%)
+TARGET_SAMPLES = [
+  500_000,
+  1_000_000,
+  # 1_500_000,
+  2_000_000,
+  # 2_500_000,
+  3_000_000,
+  # 4_000_000,
+  # 5_000_000,
+  # 10_000_000
+] 
 
-def create_training_data(db_client, sample_size=200000):
-    ratings = db_client.ratings
+# collection names
+ACTIVE_USERS_COLL = "active_users_tmp"
+MOVIE_COUNTS_COLL = "movie_counts"
+THRESHOLD_MOVIES_COLL = "threshold_movies_tmp"
+SAMPLED_USERS_COLL = "sampled_users_tmp"
+QUALIFYING_MOVIES_COLL = "qualifying_movies_tmp"
+RAW_TRAINING_DATA_SAMPLE_COLL = "training_data_sample_raw"
+TRAINING_DATA_SAMPLE_COLL = "training_data_sample"
 
-    all_ratings = []
-    unique_records = 0
-    while unique_records < sample_size:
-        rating_sample = get_sample(ratings, 100000)
-        all_ratings += rating_sample
-        unique_records = len(set([(x["movie_id"] + x["user_id"]) for x in all_ratings]))
-        print(unique_records)
+def ensure_empty_collection(db, name, wait_secs=2.0):
+    # Drop if present
+    if name in db.list_collection_names():
+        db[name].drop()
+        # wait briefly for namespace to disappear
+        deadline = time.time() + wait_secs
+        while name in db.list_collection_names() and time.time() < deadline:
+            time.sleep(0.1)
 
-    df = pd.DataFrame(all_ratings)
-    df = df[["user_id", "movie_id", "rating_val"]]
-    df.drop_duplicates(inplace=True)
-    df = df.head(sample_size)
+    try:
+        if name not in db.list_collection_names():
+            db.create_collection(name)
+    except CollectionInvalid:
+        pass
+    return db[name]
 
-    print(df.head())
+def get_or_build_collection(db, name, build_fn, use_cache=False, drop_existing=True):  
+  collections = set(db.list_collection_names())
+  if not use_cache or name not in collections:
+      if drop_existing and name in collections:
+          ensure_empty_collection(db, name)
+      coll = build_fn()
+      return coll if coll is not None else db[name]
+  return db[name]
 
-    return df
+def filter_active_users(db):
+  ratings = db.ratings
 
+  ratings.aggregate([
+      {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
+      {"$match": {"n": {"$gte": USER_MIN}}},
+      {"$project": {"_id": 0, "user_id": "$_id"}},   # one field: user_id
+      {"$out": ACTIVE_USERS_COLL}
+  ], allowDiskUse=True)
 
-def create_movie_data_sample(db_client, movie_list):
-    movies = db_client.movies
-    included_movies = movies.find({"movie_id": {"$in": movie_list}})
+  db[ACTIVE_USERS_COLL].create_index([("user_id", 1)], unique=True)
 
-    movie_df = pd.DataFrame(list(included_movies))
-    movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released"]]
-    movie_df["image_url"] = (
-        movie_df["image_url"]
-        .fillna("")
-        .str.replace("https://a.ltrbxd.com/resized/", "", regex=False)
-    )
-    movie_df["image_url"] = (
-        movie_df["image_url"]
-        .fillna("")
-        .str.replace(
-            "https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png",
-            "",
-            regex=False,
-        )
-    )
+  return db[ACTIVE_USERS_COLL]
 
-    return movie_df
+def create_movie_counts(db):
+  ratings = db.ratings
+
+  # Build (or rebuild) movie_counts
+  db[MOVIE_COUNTS_COLL].drop()
+  ratings.aggregate([
+      {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
+      {"$out": MOVIE_COUNTS_COLL},
+  ], allowDiskUse=True)
+
+  # Indexes
+  db[MOVIE_COUNTS_COLL].create_index([("count", DESCENDING)])
+  db[MOVIE_COUNTS_COLL].create_index([("_id", ASCENDING)])
+
+  return db[MOVIE_COUNTS_COLL]
+
+def filter_threshold_movies(db, threshold_ratings_count):
+  db[MOVIE_COUNTS_COLL].aggregate([
+      {"$match": {"count": {"$gte": threshold_ratings_count}}},
+      {"$project": {"_id": 0, "movie_id": "$_id"}},
+      {"$out": THRESHOLD_MOVIES_COLL},
+  ], allowDiskUse=True)
+  
+  db[THRESHOLD_MOVIES_COLL].create_index([("movie_id", 1)], unique=True)
+
+  return db[THRESHOLD_MOVIES_COLL]
+
+def get_sampled_users(db, active_users_coll, target_sample_size):
+  target_user_count = int((target_sample_size / (PER_USER_CAP / 1.25)) * 1.05)
+  active_users_coll.aggregate([
+      {"$sample": {"size": target_user_count}},
+      {"$out": SAMPLED_USERS_COLL}
+  ])
+
+  db[SAMPLED_USERS_COLL].create_index([("user_id", 1)], unique=True)
+
+  return db[SAMPLED_USERS_COLL]
+
+def get_raw_final_sample(db, collection_name, sampled_users, deterministic_user_cap = True, collection_suffix=""):
+  raw_final_sample = db[collection_name]
+  raw_final_sample.create_index(
+      [("user_id", ASCENDING), ("movie_id", ASCENDING)],
+      unique=True,
+      name="user_movie_unique"
+  )
+
+  deterministic_cap_pipeline = [
+    { "$addFields": {
+      "h": { "$toHashedIndexKey": {
+        "$concat": [ { "$toString": "$user_id" }, ":", { "$toString": "$movie_id" } ]
+      }}
+    }},
+    { "$sort": { "h": 1 } },
+    { "$limit": PER_USER_CAP },
+    { "$unset": "h" }
+  ]
+  non_deterministic_cap_pipeline = [{ "$sample": { "size": PER_USER_CAP } }]
+
+  start = time.time()
+
+  pipeline = [
+    # {"$match": {"user_id": {"$in": uids}}},
+    {
+      "$lookup": {
+        "from": "ratings",
+        "let": { "uid": "$user_id" },
+        "pipeline": [
+          # ratings for this user (hits ratings{user_id:1} index)
+          { "$match": { "$expr": { "$eq": ["$user_id", "$$uid"] } } },
+
+          # keep only movies over threshold
+          {
+            "$lookup": {
+              "from": THRESHOLD_MOVIES_COLL,
+              "localField": "movie_id",
+              "foreignField": "movie_id",
+              "as": "pm"
+            }
+          },
+          { "$match": { "pm.0": { "$exists": True } } },
+          { "$unset": "pm" },
+          *(deterministic_cap_pipeline if deterministic_user_cap == True else non_deterministic_cap_pipeline)
+        ],
+        "as": "r"
+      }
+    },
+    { "$unwind": "$r" },
+    { "$replaceRoot": { "newRoot": "$r" } },
+    {
+      "$merge": {
+        "into": collection_name,
+        "on": ["user_id", "movie_id"],
+        "whenMatched": "keepExisting",
+        "whenNotMatched": "insert"
+      }
+    }
+  ]
+
+  sampled_users.aggregate(pipeline, allowDiskUse=True, comment="training_data_sample_build")
+
+  elapsed = time.time() - start
+  written_docs = raw_final_sample.estimated_document_count()
+  written_users = sampled_users.estimated_document_count()
+  print(f"Added {written_docs} ratings for {written_users} filtered users in {elapsed:.1f}s ({(elapsed/written_users):.2f} seconds/user)")
+
+  raw_final_sample.create_index([("movie_id", 1)])
+
+  return raw_final_sample
+
+def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
+  #  this is routh, but it seems to be a decent enough ratio to make the hard-cutoff threshold about half of the original filter pass threshold
+  adjusted_threshold = movie_threshold // 2
+
+  # create temp movie group collection
+  db[QUALIFYING_MOVIES_COLL].drop()
+  db[src].aggregate([
+      {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
+      {"$match": {"n": {"$gte": adjusted_threshold}}},
+      {"$project": {"_id": 0, "movie_id": "$_id"}},
+      {"$out": QUALIFYING_MOVIES_COLL},
+  ], allowDiskUse=True)
+  db[QUALIFYING_MOVIES_COLL].create_index([("movie_id", 1)])
+  
+  pipeline = pipeline = [
+    # Start from the big collection and just *check existence* in the small set
+    {
+        "$lookup": {
+            "from": QUALIFYING_MOVIES_COLL,
+            "localField": "movie_id",
+            "foreignField": "movie_id",
+            "as": "qm"
+        }
+    },
+    { "$match": { "qm.0": { "$exists": True } } },
+    { "$unset": "qm" },
+
+    # Write as we go (so you can poll progress); $merge streams inserts
+    { "$merge": {
+        "into": f"{dst}{collection_suffix}",
+        "whenMatched": "replace",
+        "whenNotMatched": "insert"
+    } }
+]
+
+  db[src].aggregate(pipeline, allowDiskUse=True)
+
+  original_sample_count = db[src].estimated_document_count()
+  pruned_sample_count = db[dst].estimated_document_count()
+  print(f"Original sample count: {original_sample_count}, Pruned count: {pruned_sample_count}")
+
+  return db[dst]
+
+def create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations = False):
+  print(f'Starting build for sample size: {sample_size}')
+
+  sampled_users = get_or_build_collection(
+    db, SAMPLED_USERS_COLL, build_fn=lambda: get_sampled_users(db, active_users, sample_size),
+    use_cache=False
+  )
+
+  # We need to adjust the initial threshold on the number of reviews to account for the fact...
+  # ..that we'll be taking a subsample of the full ratings collection. so if we want our...
+  # ...subsample to end up with movies with a minimum of 20 ratings, but we're only grabbing 10% of users...
+  # ...then we want to set an initial threshold of 20 * 10 = 200 ratings/movie to end up approximately in...
+  # ...the right place. I'll do a little pruning at the end too, but if it's slightly off, it's not a big issue
+  active_users_count = active_users.estimated_document_count()
+  sampled_users_count = sampled_users.estimated_document_count()
+  adjusted_movie_threshold = MOVIE_MIN * (active_users_count / sampled_users_count) * 1.05
+
+  threshold_movies = get_or_build_collection(
+    db, THRESHOLD_MOVIES_COLL,
+    build_fn=lambda: filter_threshold_movies(db, adjusted_movie_threshold),
+    use_cache=False
+  )
+
+  raw_sample_coll_name = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+  final_sample_coll_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+
+  raw_training_data_sample = get_or_build_collection(
+    db, raw_sample_coll_name,
+    build_fn=lambda: get_raw_final_sample(db, raw_sample_coll_name, sampled_users, deterministic_user_cap=False),
+    use_cache=False
+  )
+  
+  final_training_data_sample = get_or_build_collection(
+    db, final_sample_coll_name,
+    build_fn=lambda: prune_orphan_entries(db, raw_sample_coll_name, final_sample_coll_name, MOVIE_MIN),
+    use_cache=False
+  )
+
+  return final_training_data_sample, final_sample_coll_name
+
+def create_movie_data_sample(db, threshold=MOVIE_MIN): 
+  if MOVIE_COUNTS_COLL not in db.list_collection_names():
+    create_movie_counts(db)
+
+  pipeline = [
+    {"$lookup": {
+      "from": MOVIE_COUNTS_COLL,
+      "localField": "movie_id",
+      "foreignField": "_id",
+      "as": "mc"
+    }},
+    {"$unwind": "$mc"},
+    {"$match": {"mc.count": {"$gte": threshold}}},
+    {"$addFields": {"ratings_count": "$mc.count"}}
+  ]
+
+  cursor = db['movies'].aggregate(pipeline, allowDiskUse=True)
+  movie_df = pd.DataFrame(list(cursor))
+
+  movie_df = movie_df[["movie_id", "image_url", "movie_title", "year_released", "ratings_count", "content_type"]]
+  movie_df["image_url"] = (
+      movie_df["image_url"]
+      .fillna("")
+      .str.replace("https://a.ltrbxd.com/resized/", "", regex=False)
+  )
+  
+  movie_df["image_url"] = (
+      movie_df["image_url"]
+      .fillna("")
+      .str.replace(
+          "https://s.ltrbxd.com/static/img/empty-poster-230.c6baa486.png",
+          "",
+          regex=False,
+      )
+  )
+
+  return movie_df
+
+def create_review_counts_df(db, threshold=MOVIE_MIN):
+  # Create review counts dataframe
+  review_count = db.ratings.aggregate(
+    [
+      {"$group": {"_id": "$movie_id", "review_count": {"$sum": 1}}},
+      {"$match": {"review_count": {"$gte": threshold}}},
+    ]
+  )
+  review_counts_df = pd.DataFrame(list(review_count))
+  review_counts_df.rename(
+      columns={"_id": "movie_id", "review_count": "count"}, inplace=True
+  )
+
+  return review_counts_df
+
+def clean_up_temp_collections(db):
+  collections_for_removal = [ACTIVE_USERS_COLL, THRESHOLD_MOVIES_COLL, SAMPLED_USERS_COLL, QUALIFYING_MOVIES_COLL]
+
+  for sample_size in TARGET_SAMPLES:
+    raw_sample_coll = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+    collections_for_removal.append(raw_sample_coll)
+
+  for temp_collection in collections_for_removal:
+    db.drop_collection(temp_collection)
+
+def main(use_cached_aggregations=False, remove_temp_collections=True):
+  db_name, client = connect_to_db()
+  db = client[db_name]
+
+  ratings = db["ratings"]
+
+  active_users = get_or_build_collection(
+    db, ACTIVE_USERS_COLL,
+    build_fn=lambda: filter_active_users(db),
+    use_cache=use_cached_aggregations
+  )
+
+  movie_counts = get_or_build_collection(
+    db, MOVIE_COUNTS_COLL,
+    build_fn=lambda: create_movie_counts(db),
+    use_cache=use_cached_aggregations
+  )
+
+  for sample_size in TARGET_SAMPLES:
+    create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+    output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+
+    # get all files in output collection and load into pandas dataframe, without _id
+    cursor = db[output_collection_name].find({}, {"_id": 0})
+    df = pd.DataFrame(list(cursor))
+    
+    sample_movie_list = {doc["movie_id"] for doc in cursor}
+    with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
+        pickle.dump(sample_movie_list, fp)
+
+    # Export to CSV/Parquet files
+    df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
+  
+  movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
+  movie_df.to_csv("../static/data/movie_data.csv", index=False)
+
+  review_counts_df = create_review_counts_df(db, threshold=MOVIE_MIN)
+  review_counts_df.to_csv("data/review_counts.csv", index=False)
+
+  if remove_temp_collections: 
+    clean_up_temp_collections(db)
 
 
 if __name__ == "__main__":
-    # Connect to MongoDB client
-    db_name, client, tmdb_key = connect_to_db()
-    db = client[db_name]
-
-    min_review_threshold = 20
-
-    # Generate training data sample
-    training_df = create_training_data(db, 1200000)
-
-    # Create review counts dataframe
-    review_count = db.ratings.aggregate(
-        [
-            {"$group": {"_id": "$movie_id", "review_count": {"$sum": 1}}},
-            {"$match": {"review_count": {"$gte": min_review_threshold}}},
-        ]
-    )
-    review_counts_df = pd.DataFrame(list(review_count))
-    review_counts_df.rename(
-        columns={"_id": "movie_id", "review_count": "count"}, inplace=True
-    )
-
-    threshold_movie_list = review_counts_df["movie_id"].to_list()
-
-    # Generate movie data CSV
-    movie_df = create_movie_data_sample(db, threshold_movie_list)
-    print(movie_df.head())
-    print(movie_df.shape)
-
-    # Use movie_df to remove any items from threshold_list that do not have a "year_released"
-    # This virtually always means it's a collection of more popular movies (such as the LOTR trilogy) and we don't want it included in recs
-    retain_list = movie_df.loc[
-        (movie_df["year_released"].notna() & movie_df["year_released"] != 0.0)
-    ]["movie_id"].to_list()
-
-    threshold_movie_list = [x for x in threshold_movie_list if x in retain_list]
-
-    # Store Data
-    with open("models/threshold_movie_list.txt", "wb") as fp:
-        pickle.dump(threshold_movie_list, fp)
-
-    training_df.to_csv("data/training_data.csv", index=False)
-    review_counts_df.to_csv("data/review_counts.csv", index=False)
-    movie_df.to_csv("../static/data/movie_data.csv", index=False)
+  main(use_cached_aggregations=False, remove_temp_collections=True)

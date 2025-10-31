@@ -22,7 +22,7 @@ else:
     from data_processing.http_utils import BROWSER_HEADERS
 
 # Connect to MongoDB client
-db_name, client, tmdb_key = connect_to_db()
+db_name, client = connect_to_db()
 
 db = client[db_name]
 users = db.users

@@ -50,8 +50,8 @@ const Controls = ({
     const POLL_INTERVAL = 1000
 
     const [username, setUsername] = useState('')
-    const [modelStrength, setModelStrength] = useState(500000)
-    const [popularityFilter, setPopularityFilter] = useState(-1)
+    const [modelStrength, setModelStrength] = useState(1000000)
+    // const [popularityFilter, setPopularityFilter] = useState(-1)
     const [dataOptIn, setDataOptIn] = useState(false)
 
     const [runningModel, setRunningModel] = useState(false)
@@ -62,7 +62,7 @@ const Controls = ({
         setQueryData({
             username,
             modelStrength,
-            popularityFilter,
+            // popularityFilter,
             dataOptIn,
         })
 
@@ -74,7 +74,7 @@ const Controls = ({
                 : 'https://letterboxd-recommendations.herokuapp.com'
 
         const response = await fetch(
-            `${url}/get_recs?username=${username}&popularity_filter=${popularityFilter}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
+            `${url}/get_recs?username=${username}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
             {
                 method: 'GET',
             }
@@ -132,16 +132,16 @@ const Controls = ({
                     defaultValue={modelStrength}
                     value={modelStrength}
                     onChange={(e) => setModelStrength(e.target.value)}
-                    step={100000}
-                    min={400000}
-                    max={900000}
+                    step={1000000}
+                    min={1000000}
+                    max={3000000}
                     valueLabelDisplay="off"
                     marks={true}
                     labels={['Faster Results', 'Better Results']}
                 />
             </FormGroup>
 
-            <FormGroup className={'form-slider'}>
+            {/* <FormGroup className={'form-slider'}>
                 <LabeledSlider
                     aria-label="Poplularity filter slider. Increase value to only received less-watched movies."
                     defaultValue={popularityFilter}
@@ -154,7 +154,8 @@ const Controls = ({
                     marks={true}
                     labels={['All Movies', 'Less-Reviewed Movies Only']}
                 />
-            </FormGroup>
+            </FormGroup> 
+            */}
 
             <FormGroup className={'data_opt_in_control'}>
                 <FormControlLabel

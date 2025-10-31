@@ -1,9 +1,9 @@
-#genre-filter {
+#included-genre-filter, #excluded-genre-filter {
     max-height: 3rem;
     background-color: white;
 }
 
-#genre-filter .default-all-display {
+#included-genre-filter .default-all-display, #excluded-genre-filter .default-all-display {
     text-align: left;
     padding-left: 1rem;
 }
