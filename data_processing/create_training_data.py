@@ -21,8 +21,8 @@ TARGET_SAMPLES = [
   2_000_000,
   # 2_500_000,
   3_000_000,
-  # 4_000_000,
-  # 5_000_000,
+  4_000_000,
+  5_000_000,
   # 10_000_000
 ] 
 
@@ -329,6 +329,65 @@ def clean_up_temp_collections(db):
   for temp_collection in collections_for_removal:
     db.drop_collection(temp_collection)
 
+
+def store_sample_movie_list(db, output_collection_name, sample_size):
+  # index on movie id to make next step faster
+  db[output_collection_name].create_index("movie_id")
+  sample_movie_list = set(db[output_collection_name].distinct("movie_id"))
+  with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
+      pickle.dump(sample_movie_list, fp)
+
+  return sample_movie_list
+
+
+def store_sample_rich_movie_data(db, movie_ids, sample_size):
+  movie_fields = {
+    "image_url",
+    "movie_id",
+    "movie_title",
+    "year_released",
+    "genres",
+    "original_language",
+    "popularity",
+    "runtime",
+    "release_date",
+    "content_type"
+  }
+
+  projection = {k: 1 for k in movie_fields} | {"_id": 0}
+
+  # small/medium ID sets: one shot
+  movie_docs = db.movies.find({"movie_id": {"$in": list(movie_ids)}}, projection=projection)
+  movie_data = {d["movie_id"]: d for d in movie_docs}
+
+  # write to parquet for reuse if helpful
+  pd.DataFrame(movie_data.values()).to_parquet(
+      f"./data/movie_lists/sample_movie_data_{sample_size}.parquet", index=False
+  )
+
+def store_sample_ratings(db, output_collection_name, sample_size):
+  # get all files in output collection and load into pandas dataframe, without _id
+  proj = {"_id": 0}
+  cursor = db[output_collection_name].find({}, proj)    
+  df = pd.DataFrame(cursor)
+
+  # Export to CSV/Parquet files
+  df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
+
+
+def create_and_store_sample(db, sample_size, ratings, active_users, use_cached_aggregations):
+  output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
+
+  create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
+
+  # index on movie id to make next steps faster
+  db[output_collection_name].create_index("movie_id")
+  sample_movie_list = store_sample_movie_list(db, output_collection_name, sample_size)
+  store_sample_rich_movie_data(db, sample_movie_list, sample_size)
+
+  store_sample_ratings(db, output_collection_name, sample_size)
+
+
 def main(use_cached_aggregations=False, remove_temp_collections=True):
   db_name, client = connect_to_db()
   db = client[db_name]
@@ -348,24 +407,9 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
   )
 
   for sample_size in TARGET_SAMPLES:
-    print(f"Creating collection and samples for {sample_size} sample size data")
-    output_collection_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
-
-    create_training_set(db, ratings, sample_size, active_users, use_cached_aggregations)
-
-    # index on movie id to make next step faster
-    db[output_collection_name].create_index("movie_id")
-    sample_movie_list = set(db[output_collection_name].distinct("movie_id"))
-    with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "wb") as fp:
-        pickle.dump(sample_movie_list, fp)
+    print(f"Creating collection and samples for {sample_size} rating sample size data")
+    create_and_store_sample(db, sample_size, ratings, active_users, use_cached_aggregations)
     
-    # get all files in output collection and load into pandas dataframe, without _id
-    proj = {"_id": 0}
-    cursor = db[output_collection_name].find({}, proj, batch_size=10_000)    
-    df = pd.DataFrame(cursor)
-    
-    # Export to CSV/Parquet files
-    df.to_parquet(f"./data/training_data_samples/training_data_{sample_size}.parquet", index=False)
   
   movie_df = create_movie_data_sample(db, threshold=MOVIE_MIN)
   movie_df.to_csv("../static/data/movie_data.csv", index=False)
