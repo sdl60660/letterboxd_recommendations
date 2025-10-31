@@ -33,7 +33,7 @@ templates = Jinja2Templates(directory="templates")
 queue_pool = [Queue(channel, connection=conn) for channel in ["high", "default", "low"]]
 popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
 
-USERDATA_CACHE_TTL = 240 
+USERDATA_CACHE_TTL = 300 
 USERDATA_TTL_BUFFER = 10
 
 
