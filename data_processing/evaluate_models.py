@@ -197,8 +197,8 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     df['rank_foldin_precision@k'] = prec_series.rank(method='min', ascending=False).astype(int)
     df['rank_foldin_recall@k']    = rec_series.rank(method='min',  ascending=False).astype(int)
 
-    # Optional: a composite rank (tune weights as you like)
-    w_rmse, w_prec, w_rec = 0.5, 0.25, 0.25
+    # A composite rank turned with these weights
+    w_rmse, w_prec, w_rec = 0.6, 0.3, 0.1
     df['rank_foldin_composite'] = (
         w_rmse * df['rank_foldin_rmse'] +
         w_prec * df['rank_foldin_precision@k'] +
