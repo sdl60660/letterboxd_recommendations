@@ -1,13 +1,12 @@
 [tool.ruff]
-line-length = 88           # same default as Black
-indent-width = 2           # two-space indents
-target-version = "py312"   # your Python version
-lint.extend-select = ["I"]      # import-sorting rule
-lint.ignore = [
-  "E501",  # disable long-line warnings if you wrap manually
-]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I"]     # import sorting
+ignore = ["E501"]         # allow long lines
 
 [tool.ruff.format]
-quote-style = "double"
 indent-style = "space"
+quote-style = "double"
 line-ending = "lf"
