@@ -32,5 +32,6 @@ scikit-surprise = "==1.1.4"
 pyarrow = "*"
 fastparquet = "*"
 ruff = "*"
+tqdm-joblib = "*"
 
 [dev-packages]

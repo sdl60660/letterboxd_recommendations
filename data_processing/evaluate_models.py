@@ -13,6 +13,7 @@ from run_model import run_model
 from surprise import SVD, Prediction, accuracy
 from surprise.model_selection import KFold, RandomizedSearchCV, cross_validate
 from tqdm.auto import tqdm
+from tqdm_joblib import tqdm_joblib
 
 RANDOM_SEED = 12
 
@@ -278,7 +279,7 @@ def eval_fold_in(df, base_model, param_set_df, num_test_users=1000):
     return fold_in_cols_df
 
 
-def run_grid_search(model, dataset):
+def run_grid_search(model, dataset, num_candidates, cv_folds=4):
     param_dists = {
         "n_factors": dists.randint(100, 250),
         "n_epochs": dists.randint(40, 80),
@@ -293,30 +294,28 @@ def run_grid_search(model, dataset):
     rand_search = RandomizedSearchCV(
         model,
         param_dists,
-        n_iter=60,
+        n_iter=num_candidates,
         measures=["rmse", "mae"],
-        cv=4,
-        n_jobs=4,
-        joblib_verbose=1000,
+        cv=cv_folds,
+        n_jobs=cv_folds,
+        joblib_verbose=0,
     )
-    rand_search.fit(dataset)
+
+    with tqdm_joblib(tqdm(total=num_candidates * cv_folds, desc="RandomizedSearchCV")):
+        rand_search.fit(dataset)
 
     results_df = pd.DataFrame.from_dict(rand_search.cv_results)
-    # for index, row in results_df.iterrows():
-    #   eval_fold_in(model, dataset, params=row['params'])
-
-    results_df = results_df[
-        [
-            "mean_test_rmse",
-            "std_test_rmse",
-            "rank_test_rmse",
-            "mean_test_mae",
-            "std_test_mae",
-            "rank_test_mae",
-            "mean_fit_time",
-            "params",
-        ]
+    results_df_cols = [
+        "mean_test_rmse",
+        "std_test_rmse",
+        "rank_test_rmse",
+        "mean_test_mae",
+        "std_test_mae",
+        "rank_test_mae",
+        "mean_fit_time",
+        "params",
     ]
+    results_df = results_df[results_df_cols]
     results_df.to_csv("./models/eval_results/model_param_test_results.csv", index=False)
 
     best_params = rand_search.best_params["rmse"]
@@ -350,10 +349,11 @@ def main():
     models = [{"name": "SVD", "model": SVD}]
     datasets = get_datasets(sample_sizes)
 
-    sample_size_index = 1
+    sample_size_index = 2
+    num_candidates = 80
 
     best_params = run_grid_search(
-        models[0]["model"], datasets[sample_size_index]["dataset"]
+        models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
     )
     with open("./models/eval_results/best_svd_params.json", "w") as f:
         json.dump(best_params, f)
