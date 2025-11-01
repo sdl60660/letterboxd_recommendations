@@ -1,4 +1,4 @@
 # data_processing/data/training_data.csv filter=lfs diff=lfs merge=lfs -text
-data_processing/data/movie_lists/*.txt filter=lfs diff=lfs merge=lfs -text
-data_processing/data/movie_lists/*.parquet filter=lfs diff=lfs merge=lfs -text
-data_processing/data/training_data_samples/*.parquet filter=lfs diff=lfs merge=lfs -text
+# data_processing/data/movie_lists/*.txt filter=lfs diff=lfs merge=lfs -text
+# data_processing/data/movie_lists/*.parquet filter=lfs diff=lfs merge=lfs -text
+# data_processing/data/training_data_samples/*.parquet filter=lfs diff=lfs merge=lfs -text
