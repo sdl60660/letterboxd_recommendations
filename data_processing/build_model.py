@@ -1,17 +1,15 @@
 #!/usr/local/bin/python3.12
 
-import os
 import json
-import random
+import os
 import pickle
+import random
+
 import numpy as np
 import pandas as pd
-
-from surprise import SVD, Reader, Dataset, BaselineOnly
-
-from surprise.model_selection import cross_validate
+from surprise import SVD, Dataset, Reader
 from surprise.dump import dump
-
+from surprise.model_selection import cross_validate
 
 if os.getcwd().endswith("data_processing"):
     from model import Model
@@ -98,7 +96,7 @@ if __name__ == "__main__":
         with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
             sample_movie_list = pickle.load(fp)
         
-        with open("models/best_svd_params.json", 'r') as f:
+        with open("models/eval_results/best_svd_params.json", 'r') as f:
             svd_params = json.load(f)
 
         user_data = get_user_data("samlearner")[0]

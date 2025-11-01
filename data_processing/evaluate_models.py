@@ -315,7 +315,7 @@ def run_grid_search(model, dataset):
       "params",
     ]
   ]
-  results_df.to_csv("./models/model_param_test_results.csv", index=False)
+  results_df.to_csv("./models/eval_results/model_param_test_results.csv", index=False)
 
   best_params = rand_search.best_params["rmse"]
   return best_params
@@ -326,7 +326,7 @@ def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
   best_params = json.loads(
     param_eval_df.loc[best_foldin_row.name, "params"].replace("'", '"')
   )
-  with open("./models/best_svd_params.json", "w") as f:
+  with open("./models/eval_results/best_svd_params.json", "w") as f:
     json.dump(best_params, f, indent=2)
   print(f"Best params (by fold-in RMSE): {best_params}")
 
@@ -336,7 +336,7 @@ def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
     axis=1,
   )
   rich_param_eval_df.to_csv(
-    "./models/model_param_test_results_with_foldin.csv", index=False
+    "./models/eval_results/model_param_test_results_with_foldin.csv", index=False
   )
 
 
@@ -353,9 +353,9 @@ def main():
   best_params = run_grid_search(
     models[0]["model"], datasets[sample_size_index]["dataset"]
   )
-  with open("./models/best_svd_params.json", "w") as f:
+  with open("./models/eval_results/best_svd_params.json", "w") as f:
     json.dump(best_params, f)
-  param_eval_df = pd.read_csv("./models/model_param_test_results.csv")
+  param_eval_df = pd.read_csv("./models/eval_results/model_param_test_results.csv")
 
   training_sample_df = pd.read_parquet(
     f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet"
