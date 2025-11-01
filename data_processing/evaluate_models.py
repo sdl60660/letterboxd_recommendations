@@ -258,6 +258,20 @@ def run_grid_search(model, dataset):
   
   return best_params
 
+def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
+  best_foldin_row = fold_in_cols_df.loc[fold_in_cols_df['rank_foldin_rmse'].idxmin()]
+  best_params = json.loads(param_eval_df.loc[best_foldin_row.name, 'params'].replace("'", "\""))
+  with open('./models/best_svd_params.json', 'w') as f:
+    json.dump(best_params, f, indent=2)
+  print(f"Best params (by fold-in RMSE): {best_params}")
+
+  # merge and write combined results
+  rich_param_eval_df = pd.concat(
+    [param_eval_df.reset_index(drop=True), fold_in_cols_df.reset_index(drop=True)],
+    axis=1
+  )
+  rich_param_eval_df.to_csv('./models/model_param_test_results_with_foldin.csv', index=False)
+
 def main():
   np.random.seed(RANDOM_SEED)
   random.seed(RANDOM_SEED)
@@ -271,15 +285,9 @@ def main():
   # best_params = run_grid_search(models[0]['model'], datasets[sample_size_index]['dataset'])
   param_eval_df = pd.read_csv('./models/model_param_test_results.csv')
 
-  df = pd.read_parquet(f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet")
-  fold_in_cols_df = eval_fold_in(df, base_model=models[0]['model'], param_set_df=param_eval_df)
-
-  rich_param_eval_df = pd.concat(
-      [param_eval_df.reset_index(drop=True), fold_in_cols_df.reset_index(drop=True)],
-      axis=1
-  )
-  rich_param_eval_df = pd.concat([param_eval_df.reset_index(drop=True), fold_in_cols_df.reset_index(drop=True)], axis=1)
-  rich_param_eval_df.to_csv('./models/model_param_test_results_with_foldin.csv', index=False)
+  training_sample_df = pd.read_parquet(f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet")
+  fold_in_cols_df = eval_fold_in(training_sample_df, base_model=models[0]['model'], param_set_df=param_eval_df)
+  export_fold_in_eval_data(fold_in_cols_df, param_eval_df)
 
   # eval_rows = []
   # for dataset in datasets:
