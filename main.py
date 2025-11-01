@@ -68,7 +68,7 @@ def get_recs(
             data_opt_in,
         ),
         description=f"Scraping user data for {username} (sample: {training_data_size}, data_opt_in: {data_opt_in})",
-        result_ttl=45,
+        result_ttl=90,
         ttl=200,
     )
     job_build_model = q.enqueue(
@@ -80,7 +80,7 @@ def get_recs(
         ),
         depends_on=job_get_user_data,
         description=f"Building model for {username} (sample: {training_data_size})",
-        result_ttl=30,
+        result_ttl=45,
         ttl=200,
     )
 
