@@ -356,7 +356,7 @@ def create_and_store_sample(db, sample_size, ratings, active_users, use_cached_a
   db[output_collection_name].create_index("movie_id")
   sample_movie_list = store_sample_movie_list(db, output_collection_name, sample_size)
 
-  get_rich_movie_data(movie_ids=sample_movie_list, output_path=f"./data/movie_lists/sample_movie_data_{sample_size}.parquet")
+  get_rich_movie_data(movie_ids=sample_movie_list, output_path=f"./data/rich_movie_data/sample_movie_data_{sample_size}.parquet")
 
   store_sample_ratings(db, output_collection_name, sample_size)
 

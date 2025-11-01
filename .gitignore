@@ -3,6 +3,7 @@ __pycache__
 */.DS_Store
 .vscode
 */.vscode
+.vscode/settings.json
 
 notes.txt
 
@@ -14,6 +15,7 @@ data_processing/data/ratings_export.csv
 
 # Model output from build_model.py, too large to push to remote
 data_processing/models/mini_model.pkl
+data_processing/models/model*.pkl
 
 node_modules
 frontend/node_modules

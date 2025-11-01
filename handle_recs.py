@@ -1,16 +1,13 @@
-import pandas as pd
-import pickle
 import json
+import pickle
 
+import pandas as pd
 from rq import Queue, get_current_job
-from rq.job import Job
 from rq.registry import FinishedJobRegistry
 
 from data_processing.get_user_ratings import get_user_data
 from data_processing.get_user_watchlist import get_watchlist_data
-from data_processing.build_model import build_model
-from data_processing.run_model import run_model
-
+from data_processing.run_model import get_movie_data, load_compressed_model, run_model
 from worker import conn
 
 
@@ -54,29 +51,34 @@ def build_client_model(
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
     user_data = user_data_job.result
+    # user_watched_list = [x["movie_id"] for x in user_data]
 
     current_job.meta["stage"] = "creating_sample_data"
     current_job.save()
     # Load in training full training dataset and filter it to the selected sample size
     # df = pd.read_csv("data_processing/data/training_data.csv")
     # model_df = df.head(training_data_rows)
-    model_df = pd.read_parquet(f"data_processing/data/training_data_samples/training_data_{training_data_rows}.parquet")
+    # model_df = pd.read_parquet(f"data_processing/data/training_data_samples/training_data_{training_data_rows}.parquet")
 
     # Load in the list of all availble movie ids (passed the threshold of at least five samples in dataset)
     with open(f"data_processing/data/movie_lists/sample_movie_list_{training_data_rows}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
     
-    with open("data_processing/models/best_svd_params.json", 'r') as f:
+    with open("data_processing/models/eval_results/best_svd_params.json", 'r') as f:
         svd_params = json.load(f)
 
     current_job.meta["stage"] = "building_model"
     current_job.save()
     # Build model with appended user data
-    algo, user_watched_list = build_model(model_df, sample_movie_list, user_data, params=svd_params)
-    del model_df
+    # algo, user_watched_list = build_model(model_df, sample_movie_list, user_data, params=svd_params)
+    # del model_df
+
+    # algo = load(f"data_processing/models/model_{training_data_rows}.pkl")[1]
+    algo = load_compressed_model(f"data_processing/models/model_{training_data_rows}.npz")
+    movie_data = get_movie_data(sample_movie_list, sample_size=training_data_rows)
 
     current_job.meta["stage"] = "running_model"
     current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
-    recs = run_model(username, algo, user_watched_list, sample_movie_list, num_items)
+    recs = run_model(username, algo, user_data, sample_movie_list, movie_data, num_items, fold_in=True)
     return recs
