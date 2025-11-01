@@ -67,10 +67,10 @@ def get_movie_data(sample_movie_list, sample_size):
     
     # movie_data = movie_data.set_index('movie_id', drop=False).to_dict('index')
     movie_data = json.loads(
-            movie_data.set_index('movie_id', drop=False).to_json(
+        movie_data.set_index('movie_id', drop=False).to_json(
             orient="index",
-            date_format="iso",     # ISO-8601 for datetimes
-            default_handler=str    # fallback for anything exotic
+            date_format="iso",
+            default_handler=str
         )
     )
 
@@ -84,7 +84,7 @@ def load_compressed_model(path):
 
 
 def run_model(
-    username, algo, user_data, movie_data, sample_movie_list, num_recommendations=20, fold_in=True, verbose=False
+    username, algo, user_data, sample_movie_list, movie_data=None, num_recommendations=20, fold_in=True, verbose=False
 ):
     rating_min, rating_max = getattr(algo, "rating_min", 1.0), getattr(algo, "rating_max", 10.0)
     rated_events, seen_ids = split_user_events(user_data, rating_min, rating_max)
@@ -100,16 +100,23 @@ def run_model(
     results = []
     for movie_id, est_unclipped in top_n_pairs:
         est_clipped = min(rating_max, max(rating_min, est_unclipped))
-        results.append({
+        
+        output_entry = {
             "movie_id": movie_id,
             "predicted_rating": round(est_clipped, 3),
             "unclipped_rating": round(est_unclipped, 3),
-            "movie_data": movie_data[movie_id],
-        })
+        }
+
+        if movie_data:
+            output_entry['movie_data'] = movie_data[movie_id]
+
+        results.append(output_entry)
 
     # filter out any tv shows (based on TMDB data)
     # this conditional is a little funky for now because the "content_type" field hasn't finished backfilling in the movies collection
-    results = [x for x in results if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
+    if movie_data:
+        results = [x for x in results if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
+
     results.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
 
     if verbose:
@@ -133,10 +140,12 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, 
     else:
         user_data = get_user_data(username)[0]
     
+    print(user_data)
+    
     # will use cached file if it exsits, or grab/cache if it doesn't
     movie_data = get_movie_data(sample_movie_list, sample_size)
         
-    recs = run_model(username, algo, user_data, movie_data, sample_movie_list, num_recommendations, fold_in, verbose=verbose)
+    recs = run_model(username, algo, user_data, sample_movie_list, movie_data, num_recommendations, fold_in, verbose=verbose)
     return recs
 
 

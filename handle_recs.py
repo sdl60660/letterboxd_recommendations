@@ -1,18 +1,13 @@
-import pandas as pd
-import pickle
 import json
+import pickle
 
+import pandas as pd
 from rq import Queue, get_current_job
-from rq.job import Job
 from rq.registry import FinishedJobRegistry
 
 from data_processing.get_user_ratings import get_user_data
 from data_processing.get_user_watchlist import get_watchlist_data
-from data_processing.build_model import build_model
-from data_processing.run_model import run_model, load_compressed_model, get_movie_data
-
-from surprise.dump import load
-
+from data_processing.run_model import get_movie_data, load_compressed_model, run_model
 from worker import conn
 
 
@@ -69,7 +64,7 @@ def build_client_model(
     with open(f"data_processing/data/movie_lists/sample_movie_list_{training_data_rows}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
     
-    with open("data_processing/models/best_svd_params.json", 'r') as f:
+    with open("data_processing/models/eval_results/best_svd_params.json", 'r') as f:
         svd_params = json.load(f)
 
     current_job.meta["stage"] = "building_model"
@@ -85,5 +80,5 @@ def build_client_model(
     current_job.meta["stage"] = "running_model"
     current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
-    recs = run_model(username, algo, user_data, movie_data, sample_movie_list, num_items, fold_in=True)
+    recs = run_model(username, algo, user_data, sample_movie_list, movie_data, num_items, fold_in=True)
     return recs
