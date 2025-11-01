@@ -14,6 +14,8 @@ from surprise import SVD, Reader, Dataset, BaselineOnly, SVDpp
 from surprise.model_selection import cross_validate, KFold, RandomizedSearchCV
 from surprise.dump import dump
 
+from model import Model
+
 from build_model import train_model, get_dataset
 from run_model import get_top_n
 
@@ -129,7 +131,31 @@ def main():
   # models = [{'name': 'SVD', 'model': SVD}, {'name': 'SVD++', 'model': SVDpp}]
 
   datasets = get_datasets(sample_sizes)
-  best_params = run_grid_search(models[0]['model'], datasets[1]['dataset'])
+  # best_params = run_grid_search(models[0]['model'], datasets[1]['dataset'])
+
+
+  # load raw dataframe for largest sample
+  df = pd.read_parquet(f"data/training_data_samples/training_data_{sample_sizes[-1]}.parquet")
+
+  # manually split out folds by complete users (or just split into one 1000 user test set and the rest in training)
+  # split train/test data by *users*, leaving out a set of 1000 users to use for fold-in testing
+
+
+  # build dataset on training data
+
+  # create CV folds for each user's ratings
+
+  # for each candidate set of params
+  #   run user fold-in run_model on with the user's train ratings
+  #   evaluate error (RMSE/precision/etc) for the user's test ratings
+  #   maybe do this over multiple CV folds
+  #   find mean error across all 1000 test users and attach to the larger param output data
+
+  # training_data, test_data = pseudo_TK_TK(datasets[1]['dataset'])
+  # algo, training_set = train_model(data=data, model=model['model'], params=params, run_cv=False)
+
+
+
 
   # eval_rows = []
   # for dataset in datasets:
