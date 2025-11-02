@@ -1,17 +1,17 @@
-import React from 'react'
+import React from "react";
 
-import metaData from '../data/meta.json'
-import '../styles/Footer.scss'
-import '../styles/KoFi.scss'
+import metaData from "../data/meta.json";
+import "../styles/Footer.scss";
+import "../styles/KoFi.scss";
 
 const Footer = (props) => {
-    const lastUpdatedDate = new Date(metaData.last_updated)
+  const lastUpdatedDate = new Date(metaData.last_updated);
 
-    return (
-        <div className="container footer">
-            <hr />
-            <section>
-                {/* <p style={{ fontWeight: 'bold' }}>
+  return (
+    <div className="container footer">
+      <hr />
+      <section>
+        {/* <p style={{ fontWeight: 'bold' }}>
                     Project by{' '}
                     <a
                         target="_blank"
@@ -69,94 +69,87 @@ const Footer = (props) => {
                         />
                     </a>
                 </p> */}
-                <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
+        <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
 
-                <div className="btn-container">
-                    <a
-                        title="Support this project"
-                        className="kofi-button"
-                        style={{ backgroundColor: '#000000' }}
-                        href="https://ko-fi.com/J3J74VGK6"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        {' '}
-                        <span className="kofitext">
-                            <img
-                                src="https://storage.ko-fi.com/cdn/cup-border.png"
-                                alt="Ko-fi donations"
-                                className="kofiimg"
-                            />
-                            Support this project
-                        </span>
-                    </a>
-                </div>
-                <p>
-                    Code and data for this project lives{' '}
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://github.com/sdl60660/letterboxd_recommendations"
-                    >
-                        here
-                    </a>
-                    .
-                </p>
-            </section>
-            <section>
-                <p className="heading">Methodology</p>
-                <p>
-                    A user's "star" ratings are scraped their Letterboxd profile
-                    and assigned numerical ratings from 1 to 10 (accounting for
-                    half stars). Their ratings are then combined with a sample
-                    of ratings from the top 4000 most active users on the site
-                    to create a collaborative filtering recommender model using
-                    singular value decomposition (SVD). All movies in the full
-                    dataset that the user has not rated are run through the
-                    model for predicted scores and the items with the top
-                    predicted scores are returned. Due to constraints in time
-                    and computing power, the maxiumum sample size that a user is
-                    allowed to select is 900,000 samples, though there are over
-                    five million ratings in the full dataset from the top 4000
-                    Letterboxd users alone.
-                </p>
-            </section>
-            <section>
-                <p className="heading">Notes</p>
-                <p>
-                    The underlying model is completely blind to genres, themes,
-                    directors, cast, or any other content information; it
-                    recommends only based on similarities in rating patterns
-                    between other users and movies. I've found that it tends to
-                    recommend very popular movies often, regardless of an
-                    individual user's taste ("basically everyone who watches 12
-                    Angry Men seems to like it, so why wouldn't you?"). To help
-                    counteract that, I included a popularity filter that filters
-                    by how many times a movie has been rated in the dataset, so
-                    that users can specifically find more obscure
-                    recommendations. I've also found that it occasionally just
-                    completely whiffs (I guess most people who watch "Taylor
-                    Swift: Reputation Stadium Tour" do like it, but it's not
-                    really my thing). I think that's just the nature of the
-                    beast, to some extent, particularly when working with a
-                    relatively small sample. It'll return 50 recommendations and
-                    that's usually enough to work with if I'm looking for
-                    something to watch, even if there are a couple misses here
-                    or there.
-                </p>
-                <p>
-                    If you opted in to your ratings being included in the model
-                    data and would like your data to be deleted, just reach out
-                    to me at the email address above and I will take care of it.
-                </p>
-            </section>
-            <section>
-                <p>
-                    Last Updated: {lastUpdatedDate.toUTCString().slice(8, 16)}
-                </p>
-            </section>
+        <div className="btn-container">
+          <a
+            title="Support this project"
+            className="kofi-button"
+            style={{ backgroundColor: "#000000" }}
+            href="https://ko-fi.com/J3J74VGK6"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {" "}
+            <span className="kofitext">
+              <img
+                src="https://storage.ko-fi.com/cdn/cup-border.png"
+                alt="Ko-fi donations"
+                className="kofiimg"
+              />
+              Support this project
+            </span>
+          </a>
         </div>
-    )
-}
+        <p>
+          Code and data for this project lives{" "}
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href="https://github.com/sdl60660/letterboxd_recommendations"
+          >
+            here
+          </a>
+          .
+        </p>
+      </section>
+      <section>
+        <p className="heading">Methodology</p>
+        <p>
+          A user's "star" ratings are scraped their Letterboxd profile and
+          assigned numerical ratings from 1 to 10 (accounting for half stars).
+          Their ratings are then combined with a sample of ratings from the top
+          4000 most active users on the site to create a collaborative filtering
+          recommender model using singular value decomposition (SVD). All movies
+          in the full dataset that the user has not rated are run through the
+          model for predicted scores and the items with the top predicted scores
+          are returned. Due to constraints in time and computing power, the
+          maxiumum sample size that a user is allowed to select is 900,000
+          samples, though there are over five million ratings in the full
+          dataset from the top 4000 Letterboxd users alone.
+        </p>
+      </section>
+      <section>
+        <p className="heading">Notes</p>
+        <p>
+          The underlying model is completely blind to genres, themes, directors,
+          cast, or any other content information; it recommends only based on
+          similarities in rating patterns between other users and movies. I've
+          found that it tends to recommend very popular movies often, regardless
+          of an individual user's taste ("basically everyone who watches 12
+          Angry Men seems to like it, so why wouldn't you?"). To help counteract
+          that, I included a popularity filter that filters by how many times a
+          movie has been rated in the dataset, so that users can specifically
+          find more obscure recommendations. I've also found that it
+          occasionally just completely whiffs (I guess most people who watch
+          "Taylor Swift: Reputation Stadium Tour" do like it, but it's not
+          really my thing). I think that's just the nature of the beast, to some
+          extent, particularly when working with a relatively small sample.
+          It'll return 50 recommendations and that's usually enough to work with
+          if I'm looking for something to watch, even if there are a couple
+          misses here or there.
+        </p>
+        <p>
+          If you opted in to your ratings being included in the model data and
+          would like your data to be deleted, just reach out to me at the email
+          address above and I will take care of it.
+        </p>
+      </section>
+      <section>
+        <p>Last Updated: {lastUpdatedDate.toUTCString().slice(8, 16)}</p>
+      </section>
+    </div>
+  );
+};
 
-export default Footer
+export default Footer;

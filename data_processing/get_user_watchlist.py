@@ -1,23 +1,18 @@
 #!/usr/local/bin/python3.12
 
-from re import U
-from bs4 import BeautifulSoup
-from pymongo.operations import ReplaceOne
-import requests
-from itertools import chain
-import os
-
 import asyncio
-from aiohttp import ClientSession, TCPConnector
+import os
+from itertools import chain
 
-import pymongo
-from pymongo import UpdateOne, ReplaceOne
-from pymongo.errors import BulkWriteError
+import requests
+from aiohttp import ClientSession, TCPConnector
+from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("/data_processing"):
     from http_utils import BROWSER_HEADERS
 else:
     from data_processing.http_utils import BROWSER_HEADERS
+
 
 async def fetch(url, session, input_data={}):
     async with session.get(url) as response:
@@ -56,7 +51,9 @@ async def get_user_watchlist(
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
-    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
+    async with ClientSession(
+        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
+    ) as session:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
@@ -97,6 +94,7 @@ def get_page_count(username):
     links = soup.select("li.paginate-page a")
     num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
     return num_pages
+
 
 def get_watchlist_data(username):
     num_pages = get_page_count(username)

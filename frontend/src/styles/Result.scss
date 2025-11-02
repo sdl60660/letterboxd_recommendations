@@ -1,121 +1,121 @@
 $mobile-breakpoint: 660px;
 
 #recommendation-list {
-    font-size: 18px;
-    padding-left: 30px;
-    margin-top: 0;
+  font-size: 18px;
+  padding-left: 30px;
+  margin-top: 0;
 }
 
 .movie-rec-wrapper {
-    display: inline-block;
-    vertical-align: middle;
-    width: 100%;
+  display: inline-block;
+  vertical-align: middle;
+  width: 100%;
 }
 
 .recommendation-data-wrapper {
-    flex-grow: 1;
+  flex-grow: 1;
 
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  div.recommendation-movie-data-wrapper {
     display: flex;
-    align-items: center;
+    align-items: start;
     justify-content: space-between;
-
-    div.recommendation-movie-data-wrapper {
-        display: flex;
-        align-items: start;
-        justify-content: space-between;
-        flex-direction: column;
-        gap: 12px;
-    }
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 .movie-rec {
-    min-width: 250px;
-    min-height: 120px;
-    padding: 16px;
-    background-color: rgba(173, 216, 230, 0.3);
-    border-radius: 10px;
-    margin: 4px 8px;
-    font-size: 17px;
+  min-width: 250px;
+  min-height: 120px;
+  padding: 16px;
+  background-color: rgba(173, 216, 230, 0.3);
+  border-radius: 10px;
+  margin: 4px 8px;
+  font-size: 17px;
 
-    display: flex;
-    justify-content: stretch;
-    gap: 16px;
-    align-items: center;
+  display: flex;
+  justify-content: stretch;
+  gap: 16px;
+  align-items: center;
 
-    box-sizing: border-box;
-    position: relative;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .movie-rec .genre-display {
-    display: flex;
-    gap: 8px;
-    flex-direction: row;
+  display: flex;
+  gap: 8px;
+  flex-direction: row;
 
-    max-width: 410px;
-    overflow-x: scroll;
+  max-width: 410px;
+  overflow-x: scroll;
 
-    @media only screen and (max-width: $mobile-breakpoint) {
-        display: none;
-        flex: 0;
-        max-width: 0;
-    }
+  @media only screen and (max-width: $mobile-breakpoint) {
+    display: none;
+    flex: 0;
+    max-width: 0;
+  }
 
-    // On mid-size tablet devices, we can display the genres,
-    // but the max-width needs to be a little lower
-    @media only screen and (min-width: 661px) and (min-width: 950px) {
-        max-width: 340px;
-    }
+  // On mid-size tablet devices, we can display the genres,
+  // but the max-width needs to be a little lower
+  @media only screen and (min-width: 661px) and (min-width: 950px) {
+    max-width: 340px;
+  }
 
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 
-    &::-webkit-scrollbar {
-        display: none;
-    }
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .poster-container {
-    justify-self: center;
+  justify-self: center;
 }
 
 .predicted-rating-score {
-    padding: 8px;
-    font-size: 20px;
-    font-weight: bold;
-    max-width: 70px;
-    background-color: white;
-    text-align: center;
-    justify-self: center;
+  padding: 8px;
+  font-size: 20px;
+  font-weight: bold;
+  max-width: 70px;
+  background-color: white;
+  text-align: center;
+  justify-self: center;
 }
 
 .title-link {
-    justify-self: left;
-    width: 100%;
-    text-align: left;
+  justify-self: left;
+  width: 100%;
+  text-align: left;
 }
 
 .movie-poster {
-    max-height: 70px;
-    width: auto;
+  max-height: 70px;
+  width: auto;
 }
 
 @media only screen and (max-width: $mobile-breakpoint) {
-    .grid-item.title-link {
-        padding: 0px 8px;
-        padding-left: 5px;
-        font-size: 1rem;
-        text-align: left;
-    }
+  .grid-item.title-link {
+    padding: 0px 8px;
+    padding-left: 5px;
+    font-size: 1rem;
+    text-align: left;
+  }
 
-    #recommendation-list {
-        padding-left: 26px;
-    }
+  #recommendation-list {
+    padding-left: 26px;
+  }
 
-    #recommendation-list li::marker {
-        font-size: 14px;
-    }
+  #recommendation-list li::marker {
+    font-size: 14px;
+  }
 
-    .movie-rec .genre-display {
-        bottom: 8px;
-    }
+  .movie-rec .genre-display {
+    bottom: 8px;
+  }
 }

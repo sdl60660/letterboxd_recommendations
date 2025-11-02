@@ -1,20 +1,17 @@
 #!/usr/local/bin/python3.12
 
-from pymongo.operations import ReplaceOne, UpdateOne
+import os
+import re
+from pprint import pprint
+
 import requests
 from bs4 import BeautifulSoup
-import re
-# import datetime
-
-import pymongo
-from pymongo.errors import BulkWriteError
-
-from pprint import pprint
-from tqdm import tqdm
-
 from db_connect import connect_to_db
 
-import os
+# import datetime
+from pymongo.errors import BulkWriteError
+from pymongo.operations import UpdateOne
+from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from http_utils import BROWSER_HEADERS

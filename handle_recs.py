@@ -44,9 +44,7 @@ def get_client_user_data(username, data_opt_in):
     return user_data[0]
 
 
-def build_client_model(
-    username, training_data_rows=1000000, num_items=30
-):
+def build_client_model(username, training_data_rows=1000000, num_items=30):
     # Load user data from previous Redis job
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
@@ -61,10 +59,13 @@ def build_client_model(
     # model_df = pd.read_parquet(f"data_processing/data/training_data_samples/training_data_{training_data_rows}.parquet")
 
     # Load in the list of all availble movie ids (passed the threshold of at least five samples in dataset)
-    with open(f"data_processing/data/movie_lists/sample_movie_list_{training_data_rows}.txt", "rb") as fp:
+    with open(
+        f"data_processing/data/movie_lists/sample_movie_list_{training_data_rows}.txt",
+        "rb",
+    ) as fp:
         sample_movie_list = pickle.load(fp)
-    
-    with open("data_processing/models/eval_results/best_svd_params.json", 'r') as f:
+
+    with open("data_processing/models/eval_results/best_svd_params.json", "r") as f:
         svd_params = json.load(f)
 
     current_job.meta["stage"] = "building_model"
@@ -74,11 +75,21 @@ def build_client_model(
     # del model_df
 
     # algo = load(f"data_processing/models/model_{training_data_rows}.pkl")[1]
-    algo = load_compressed_model(f"data_processing/models/model_{training_data_rows}.npz")
+    algo = load_compressed_model(
+        f"data_processing/models/model_{training_data_rows}.npz"
+    )
     movie_data = get_movie_data(sample_movie_list, sample_size=training_data_rows)
 
     current_job.meta["stage"] = "running_model"
     current_job.save()
     # Get recommendations from the model, excluding movies a user has watched and return top recommendations (of length num_items)
-    recs = run_model(username, algo, user_data, sample_movie_list, movie_data, num_items, fold_in=True)
+    recs = run_model(
+        username,
+        algo,
+        user_data,
+        sample_movie_list,
+        movie_data,
+        num_items,
+        fold_in=True,
+    )
     return recs

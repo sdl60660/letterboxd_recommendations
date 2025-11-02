@@ -1,24 +1,21 @@
 #!/usr/local/bin/python3.12
 
-import os
 import json
+import os
 import pickle
-import numpy as np
-import pandas as pd
 import random
 
+import pandas as pd
 
 if os.getcwd().endswith("data_processing"):
-    from db_connect import connect_to_db
-    from utils.utils import explicit_exclude_list, get_rich_movie_data
     from get_user_ratings import get_user_data
     from model import Model
+    from utils.utils import explicit_exclude_list, get_rich_movie_data
 
 else:
-    from data_processing.db_connect import connect_to_db
-    from data_processing.utils.utils import explicit_exclude_list, get_rich_movie_data
     from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
+    from data_processing.utils.utils import explicit_exclude_list, get_rich_movie_data
 
 
 def split_user_events(user_data, rating_min=1.0, rating_max=10.0):
@@ -42,6 +39,7 @@ def get_top_n(predictions, n=20):
 
     return top_n[:n]
 
+
 def get_prediction_set(username, user_watched_list, sample_movie_list):
     exclude_list = set(user_watched_list).union(set(explicit_exclude_list))
     # unwatched_movies = [x for x in sample_movie_list if x not in user_watched_list]
@@ -63,14 +61,14 @@ def get_movie_data(sample_movie_list, sample_size):
         except Exception as e:
             print(f"Error loading rich movie data Parquet file '{datafile_path}': {e}")
     else:
-        movie_data = get_rich_movie_data(movie_ids=sample_movie_list, output_path=datafile_path)
-    
+        movie_data = get_rich_movie_data(
+            movie_ids=sample_movie_list, output_path=datafile_path
+        )
+
     # movie_data = movie_data.set_index('movie_id', drop=False).to_dict('index')
     movie_data = json.loads(
-        movie_data.set_index('movie_id', drop=False).to_json(
-            orient="index",
-            date_format="iso",
-            default_handler=str
+        movie_data.set_index("movie_id", drop=False).to_json(
+            orient="index", date_format="iso", default_handler=str
         )
     )
 
@@ -84,9 +82,19 @@ def load_compressed_model(path):
 
 
 def run_model(
-    username, algo, user_data, sample_movie_list, movie_data=None, num_recommendations=20, fold_in=True, verbose=False
+    username,
+    algo,
+    user_data,
+    sample_movie_list,
+    movie_data=None,
+    num_recommendations=20,
+    fold_in=True,
+    verbose=False,
 ):
-    rating_min, rating_max = getattr(algo, "rating_min", 1.0), getattr(algo, "rating_max", 10.0)
+    rating_min, rating_max = (
+        getattr(algo, "rating_min", 1.0),
+        getattr(algo, "rating_max", 10.0),
+    )
     rated_events, seen_ids = split_user_events(user_data, rating_min, rating_max)
 
     if fold_in:
@@ -100,7 +108,7 @@ def run_model(
     results = []
     for movie_id, est_unclipped in top_n_pairs:
         est_clipped = min(rating_max, max(rating_min, est_unclipped))
-        
+
         output_entry = {
             "movie_id": movie_id,
             "predicted_rating": round(est_clipped, 3),
@@ -108,27 +116,39 @@ def run_model(
         }
 
         if movie_data:
-            output_entry['movie_data'] = movie_data[movie_id]
+            output_entry["movie_data"] = movie_data[movie_id]
 
         results.append(output_entry)
 
     # filter out any tv shows (based on TMDB data)
     # this conditional is a little funky for now because the "content_type" field hasn't finished backfilling in the movies collection
     if movie_data:
-        results = [x for x in results if 'content_type' not in x['movie_data'].keys() or x['movie_data']['content_type'] != 'tv']
+        results = [
+            x
+            for x in results
+            if "content_type" not in x["movie_data"].keys()
+            or x["movie_data"]["content_type"] != "tv"
+        ]
 
     results.sort(key=lambda x: (x["unclipped_rating"]), reverse=True)
 
     if verbose:
-        print(f'Top estimated results for user: {username}')
-        print(f'=====================================')
+        print(f"Top estimated results for user: {username}")
+        print("=====================================")
         for item in results[:30]:
             print(f"{item['movie_id']}: {item['predicted_rating']}")
 
     return results
 
 
-def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, use_cached_user_data=False, verbose=True):
+def main(
+    username,
+    sample_size=1000000,
+    fold_in=True,
+    num_recommendations=25,
+    use_cached_user_data=False,
+    verbose=True,
+):
     algo = load_compressed_model(f"models/model_{sample_size}.npz")
 
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
@@ -139,15 +159,31 @@ def main(username, sample_size = 1000000, fold_in=True, num_recommendations=25, 
             user_data = pickle.load(fp)
     else:
         user_data = get_user_data(username)[0]
-    
+
     print(user_data)
-    
+
     # will use cached file if it exsits, or grab/cache if it doesn't
     movie_data = get_movie_data(sample_movie_list, sample_size)
-        
-    recs = run_model(username, algo, user_data, sample_movie_list, movie_data, num_recommendations, fold_in, verbose=verbose)
+
+    recs = run_model(
+        username,
+        algo,
+        user_data,
+        sample_movie_list,
+        movie_data,
+        num_recommendations,
+        fold_in,
+        verbose=verbose,
+    )
     return recs
 
 
 if __name__ == "__main__":
-    main("samlearner", sample_size=2000000, fold_in=True, num_recommendations=25, use_cached_user_data=True, verbose=True)
+    main(
+        "samlearner",
+        sample_size=2000000,
+        fold_in=True,
+        num_recommendations=25,
+        use_cached_user_data=True,
+        verbose=True,
+    )

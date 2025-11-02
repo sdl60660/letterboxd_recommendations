@@ -1,0 +1,57 @@
+# .pre-commit-config.yaml
+repos:
+  # --- Python: Ruff ---
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.3  # update via `pre-commit autoupdate` when you want
+    hooks:
+      # FORMATTER: runs on every commit
+      - id: ruff-format
+        name: ruff (format)
+        types: [python]
+        exclude: |
+          (?x)^(
+            frontend/|
+            node_modules/|
+            dist/|
+            build/|
+            .*/migrations/|
+            data/|
+            data_processing/data/|
+            data_processing/models/|
+            data_processing/testing/|
+            .*\.ipynb_checkpoints/
+          )
+
+      # LINTER: manual only (won't run on commit)
+      - id: ruff
+        name: ruff (lint)
+        stages: [manual]         # <<< key change
+        types: [python]
+        args: [--fix]            # keep if you want manual runs to auto-fix
+        exclude: |
+          (?x)^(
+            frontend/|
+            node_modules/|
+            dist/|
+            build/|
+            .*/migrations/|
+            data/|
+            data_processing/data/|
+            data_processing/models/|
+            data_processing/testing/|
+            .*\.ipynb_checkpoints/
+          )
+
+  # --- Frontend: Prettier ---
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8   # use a valid tag; or run `pre-commit autoupdate`
+    hooks:
+      - id: prettier
+        name: prettier (frontend only)
+        files: ^frontend/
+        exclude: |
+          (?x)^frontend/(
+            node_modules/|
+            build/|
+            dist/
+          )

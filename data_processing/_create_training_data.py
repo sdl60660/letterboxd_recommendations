@@ -1,15 +1,9 @@
 #!/usr/local/bin/python3.12
 
-import pandas as pd
-
-import numpy as np
-from numpy import asarray
-from numpy import savetxt
-
 import pickle
 
+import pandas as pd
 import pymongo
-
 from db_connect import connect_to_db
 
 

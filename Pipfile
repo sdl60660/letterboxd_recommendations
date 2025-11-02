@@ -33,5 +33,6 @@ pyarrow = "*"
 fastparquet = "*"
 ruff = "*"
 tqdm-joblib = "*"
+pre-commit = "*"
 
 [dev-packages]

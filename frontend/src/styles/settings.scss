@@ -1,101 +1,110 @@
 // ==== Variable Fonts ==== //
 
 @font-face {
-    font-family: 'Red Hat Display';
-    src: url('../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-VariableFont_wght.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-VariableFont_wght.woff')
-            format('woff');
-    font-weight: 300 900;
-    font-style: normal;
+  font-family: "Red Hat Display";
+  src:
+    url("../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-VariableFont_wght.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-VariableFont_wght.woff")
+      format("woff");
+  font-weight: 300 900;
+  font-style: normal;
 
-    font-display: swap;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Red Hat Display';
-    src: url('../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-Italic-VariableFont_wght.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-Italic-VariableFont_wght.woff')
-            format('woff');
-    font-weight: 300 900;
-    font-style: italic;
+  font-family: "Red Hat Display";
+  src:
+    url("../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-Italic-VariableFont_wght.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Red_Hat_Display/optimized/RedHatDisplay-Italic-VariableFont_wght.woff")
+      format("woff");
+  font-weight: 300 900;
+  font-style: italic;
 
-    font-display: swap;
+  font-display: swap;
 }
 
 @font-face {
-    font-family: 'Inconsolata';
-    src: url('../../asset/fonts/Inconsolata/optimized/Inconsolata-VariableFont_wdth\,wght.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Inconsolata/optimized/Inconsolata-VariableFont_wdth\,wght.woff')
-            format('woff');
-    font-weight: 200 900;
-    font-style: normal;
+  font-family: "Inconsolata";
+  src:
+    url("../../asset/fonts/Inconsolata/optimized/Inconsolata-VariableFont_wdth\,wght.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Inconsolata/optimized/Inconsolata-VariableFont_wdth\,wght.woff")
+      format("woff");
+  font-weight: 200 900;
+  font-style: normal;
 }
 
 // ==== Non-variable fonts ==== //
 
 @font-face {
-    font-family: 'Yantramanav';
-    font-style: normal;
-    font-weight: 100;
-    src: url('../../asset/fonts/Yantramanav/optimized/yantramanav-thin-webfont.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Yantramanav/optimized/yantramanav-thin-webfont.woff')
-            format('woff');
+  font-family: "Yantramanav";
+  font-style: normal;
+  font-weight: 100;
+  src:
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-thin-webfont.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-thin-webfont.woff")
+      format("woff");
 }
 
 @font-face {
-    font-family: 'Yantramanav';
-    font-style: normal;
-    font-weight: 300;
-    src: url('../../asset/fonts/Yantramanav/optimized/yantramanav-light-webfont.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Yantramanav/optimized/yantramanav-light-webfont.woff')
-            format('woff');
+  font-family: "Yantramanav";
+  font-style: normal;
+  font-weight: 300;
+  src:
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-light-webfont.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-light-webfont.woff")
+      format("woff");
 
-    // font-display: swap;
+  // font-display: swap;
 }
 
 @font-face {
-    font-family: 'Yantramanav';
-    font-style: normal;
-    font-weight: 400;
-    src: url('../../asset/fonts/Yantramanav/optimized/yantramanav-regular-webfont.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Yantramanav/optimized/yantramanav-regular-webfont.woff')
-            format('woff');
+  font-family: "Yantramanav";
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-regular-webfont.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-regular-webfont.woff")
+      format("woff");
 
-    // font-display: swap;
+  // font-display: swap;
 }
 
 @font-face {
-    font-family: 'Yantramanav';
-    font-style: normal;
-    font-weight: 500;
-    src: url('../../asset/fonts/Yantramanav/optimized/yantramanav-medium-webfont.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Yantramanav/optimized/yantramanav-medium-webfont.woff')
-            format('woff');
+  font-family: "Yantramanav";
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-medium-webfont.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-medium-webfont.woff")
+      format("woff");
 }
 
 @font-face {
-    font-family: 'Yantramanav';
-    font-style: normal;
-    font-weight: 700;
-    src: url('../../asset/fonts/Yantramanav/optimized/yantramanav-bold-webfont.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Yantramanav/optimized/yantramanav-bold-webfont.woff')
-            format('woff');
+  font-family: "Yantramanav";
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-bold-webfont.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-bold-webfont.woff")
+      format("woff");
 }
 
 @font-face {
-    font-family: 'Yantramanav';
-    font-style: normal;
-    font-weight: 900;
-    src: url('../../asset/fonts/Yantramanav/optimized/yantramanav-black-webfont.woff2')
-            format('woff2'),
-        url('../../asset/fonts/Yantramanav/optimized/yantramanav-black-webfont.woff')
-            format('woff');
+  font-family: "Yantramanav";
+  font-style: normal;
+  font-weight: 900;
+  src:
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-black-webfont.woff2")
+      format("woff2"),
+    url("../../asset/fonts/Yantramanav/optimized/yantramanav-black-webfont.woff")
+      format("woff");
 }
