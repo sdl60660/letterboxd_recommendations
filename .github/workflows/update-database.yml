@@ -65,8 +65,14 @@ jobs:
           TMDB_KEY: ${{ secrets.TMDB_KEY }}
         run: cd data_processing && pipenv run python get_movies.py
       
-      - name: Prune inactive data
+      - name: Prune inactive movie data from database
         env:
           CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
-        run: cd data_processing && pipenv run python prune_db.py
+        run: cd data_processing && pipenv run python prune_inactive_movies.py
+      
+      - name: Consolidate/migrate data for any movies that now redirect to other pages
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+        run: cd data_processing && pipenv run python consolidate_redirects.py

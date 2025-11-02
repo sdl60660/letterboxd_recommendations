@@ -1,5 +1,5 @@
 #!/usr/local/bin/python3.12
-"""prune_db.py: Find inactive/dead movie links in database and remove entries/corresponding ratings entries (migrate them to retired db)"""
+"""prune_inactive_movies.py: Find inactive/dead movie links in database and remove entries/corresponding ratings entries (migrate them to retired db)"""
 
 import datetime
 
