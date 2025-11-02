@@ -165,7 +165,7 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
 
         rating_el = review.select_one("span.rating")
         if not rating_el:
-            if return_unrated == False:
+            if not return_unrated:
                 continue
             else:
                 rating_val = -1
@@ -263,7 +263,7 @@ async def get_user_ratings(
 
     parse_responses = await asyncio.gather(*tasks)
 
-    if store_in_db == False:
+    if not store_in_db:
         parse_responses = list(
             chain.from_iterable(list(chain.from_iterable(parse_responses)))
         )
