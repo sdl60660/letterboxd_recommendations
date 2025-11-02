@@ -337,7 +337,6 @@ async def get_ratings(usernames, pages_by_user, mongo_db=None, store_in_db=True)
                                 "fail_count": 0,
                                 "last_updated": now,
                                 "last_attempted": now,
-                                "next_retry_at": now,
                             }
                         },
                         upsert=True,
