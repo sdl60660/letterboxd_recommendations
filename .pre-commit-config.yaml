@@ -25,7 +25,7 @@ repos:
       # LINTER: manual only (won't run on commit)
       - id: ruff
         name: ruff (lint)
-        stages: [manual]         # <<< key change
+        stages: [manual]
         types: [python]
         args: [--fix]            # keep if you want manual runs to auto-fix
         exclude: |
