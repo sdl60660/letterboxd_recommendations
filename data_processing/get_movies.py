@@ -1,45 +1,33 @@
 #!/usr/local/bin/python3.12
 
+import asyncio
 import datetime
 import json
-from bs4 import BeautifulSoup
-
-import asyncio
-from aiohttp import ClientSession, TCPConnector
-import requests
+import os
 from pprint import pprint
 
-import pymongo
-import pandas as pd
-
-import time
-from tqdm import tqdm
-
+from aiohttp import ClientSession, TCPConnector
+from bs4 import BeautifulSoup
+from db_connect import connect_to_db
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
-
-from db_connect import connect_to_db
-
-import os
+from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from http_utils import BROWSER_HEADERS
-    from utils.utils import get_backoff_days
 
 else:
     from data_processing.http_utils import BROWSER_HEADERS
-    from data_processing.utils.utils import get_backoff_days
 
 
 def format_img_link_stub(raw_link):
-    image_url = raw_link.replace("https://a.ltrbxd.com/resized/", "").split(
-                ".jpg"
-            )[0]
-    
+    image_url = raw_link.replace("https://a.ltrbxd.com/resized/", "").split(".jpg")[0]
+
     if "https://s.ltrbxd.com/static/img/empty-poster" in raw_link:
         image_url = ""
-    
+
     return image_url
+
 
 def get_meta_data_from_script_tag(soup):
     # find the <script type="application/ld+json"> tag
@@ -47,7 +35,9 @@ def get_meta_data_from_script_tag(soup):
     if data_script and data_script.string:
         # clean out the /* <![CDATA[ */ and /* ]]> */ wrappers if present
         raw_json = data_script.string.strip()
-        raw_json = raw_json.replace("/* <![CDATA[ */", "").replace("/* ]]> */", "").strip()
+        raw_json = (
+            raw_json.replace("/* <![CDATA[ */", "").replace("/* ]]> */", "").strip()
+        )
 
         data = json.loads(raw_json)
         image_url = data.get("image", "")
@@ -56,8 +46,13 @@ def get_meta_data_from_script_tag(soup):
         rating_data = data.get("aggregateRating", {})
         rating_count = rating_data.get("ratingCount")
         avg_rating = rating_data.get("ratingValue")
-        
-        return {"image_url": image_url, "letterboxd_rating_count": rating_count, "letterboxd_avg_rating": avg_rating, "letterboxd_genres": genres }
+
+        return {
+            "image_url": image_url,
+            "letterboxd_rating_count": rating_count,
+            "letterboxd_avg_rating": avg_rating,
+            "letterboxd_genres": genres,
+        }
 
 
 def parse_letterboxd_page_data(response, movie_id):
@@ -72,12 +67,10 @@ def parse_letterboxd_page_data(response, movie_id):
         movie_title = ""
 
     try:
-        year = int(
-            movie_header.find("span", class_="releasedate").find("a").text
-        )
+        year = int(movie_header.find("span", class_="releasedate").find("a").text)
     except AttributeError:
         year = None
-    
+
     try:
         imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
         imdb_id = imdb_link.split("/title")[1].strip("/").split("/")[0]
@@ -93,7 +86,7 @@ def parse_letterboxd_page_data(response, movie_id):
         tmdb_link = ""
         tmdb_id = ""
         content_type = None
-    
+
     movie_update_object = {
         "movie_id": movie_id,
         "movie_title": movie_title,
@@ -105,7 +98,7 @@ def parse_letterboxd_page_data(response, movie_id):
         "content_type": content_type,
         "scrape_status": "ok",
         "fail_count": 0,
-        "next_retry_at": None
+        "next_retry_at": None,
     }
 
     try:
@@ -114,16 +107,16 @@ def parse_letterboxd_page_data(response, movie_id):
         for k, v in script_tag_data.items():
             if v is None:
                 continue
-            elif k == 'image_url':
+            elif k == "image_url":
                 movie_update_object[k] = format_img_link_stub(v)
             else:
                 movie_update_object[k] = v
-                    
+
     except:
         # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
         # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
         # so even if the script data isn't present for some reason, let's ensure that we mark this as an empty string
-        movie_update_object['image_url'] = ""
+        movie_update_object["image_url"] = ""
 
     return movie_update_object
 
@@ -142,21 +135,26 @@ def format_failed_update(movie_id, fail_count):
 
     return movie_update_object
 
+
 async def fetch_letterboxd(url, session, input_data={}):
     async with session.get(url) as r:
         response = await r.read()
 
-        movie_id = input_data['movie_id']
+        movie_id = input_data["movie_id"]
         if r.status == 404:
             fail_count = input_data.get("fail_count", 0) + 1
             movie_update_object = format_failed_update(movie_id, fail_count)
             update_operation = UpdateOne(
-                { "movie_id": input_data["movie_id"]}, {"$set": movie_update_object,  "$inc": {"fail_count": 1}}, upsert=True
+                {"movie_id": input_data["movie_id"]},
+                {"$set": movie_update_object, "$inc": {"fail_count": 1}},
+                upsert=True,
             )
         else:
             movie_update_object = parse_letterboxd_page_data(response, movie_id)
             update_operation = UpdateOne(
-                {"movie_id": input_data["movie_id"]}, {"$set": movie_update_object}, upsert=True
+                {"movie_id": input_data["movie_id"]},
+                {"$set": movie_update_object},
+                upsert=True,
             )
 
         return update_operation
@@ -171,9 +169,7 @@ async def fetch_poster(url, session, input_data={}):
 
         try:
             image_url = (
-                soup.find("div", class_="film-poster")
-                .find("img")["src"]
-                .split("?")[0]
+                soup.find("div", class_="film-poster").find("img")["src"].split("?")[0]
             )
             image_url = image_url.replace("https://a.ltrbxd.com/resized/", "").split(
                 ".jpg"
@@ -263,7 +259,9 @@ async def get_movies(movie_list, db_cursor, mongo_db):
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/{}/{}?api_key={}"
 
-    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
+    async with ClientSession(
+        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
+    ) as session:
         tasks = []
         movie_list = [x for x in movie_list if x["tmdb_id"]]
         # Make a request for each ratings page and add to task queue
@@ -304,8 +302,7 @@ def get_ids_for_update(movies_collection, data_type):
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                {"last_updated": {"$lte": one_month_ago}},
-                {"movie_id": 1}
+                {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
             .limit(1000)
@@ -317,7 +314,7 @@ def get_ids_for_update(movies_collection, data_type):
             for x in movies_collection.find(
                 # {"scrape_status": "failed"},
                 {"next_retry_at": {"$lte": now}, "scrape_status": "failed"},
-                {"movie_id": 1}
+                {"movie_id": 1},
             ).sort("next_retry_at", 1)
         }
 
@@ -325,19 +322,16 @@ def get_ids_for_update(movies_collection, data_type):
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                {        
-                    "content_type": {"$exists": False}
-                },
+                {"content_type": {"$exists": False}},
                 {"movie_id": 1},
-            )
-            .limit(1000)
+            ).limit(1000)
         }
 
         # anything newly added or missing key data (including missing poster image)
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                {        
+                {
                     "$or": [
                         {"movie_title": {"$exists": False}},
                         {"tmdb_id": {"$exists": False}},
@@ -373,7 +367,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"movie_id": 1},
             )
             .sort("last_updated", 1)
-            .limit(500) 
+            .limit(500)
         }
 
         all_movies = list(update_ids)
@@ -383,15 +377,13 @@ def get_ids_for_update(movies_collection, data_type):
             x
             for x in list(
                 movies_collection.find(
-                    {
-                        "genres": {"$exists": False},
-                        "content_type": {"$exists": True}
-                    }
+                    {"genres": {"$exists": False}, "content_type": {"$exists": True}}
                 )
             )
         ]
 
     return all_movies
+
 
 def main(data_type="letterboxd"):
     # Connect to MongoDB client
@@ -431,11 +423,11 @@ def main(data_type="letterboxd"):
                 loop.run_until_complete(future)
             except Exception as e:
                 print(f"Error: {e}")
-                print(f"Error on attempt {attempt+1}, retrying...")
+                print(f"Error on attempt {attempt + 1}, retrying...")
             else:
                 break
         else:
-            print(f"Count not complete requests for chunk {chunk_i+1}")
+            print(f"Count not complete requests for chunk {chunk_i + 1}")
 
     return
 

@@ -1,7 +1,9 @@
 #!/usr/local/bin/python3.12
 
+
 def connect_to_db():
     import os
+
     import pymongo
 
     db_name = os.environ["MONGO_DB"]

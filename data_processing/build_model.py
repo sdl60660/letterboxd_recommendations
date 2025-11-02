@@ -18,9 +18,18 @@ else:
 
 # a global/fallback to use as a default val, based on a traiing run/eval, but this shouldn't ever be used,
 # either when this is called from the web server or from commandline
-SVD_PARAMS = {"lr_all": 0.0062939, "n_epochs": 69, "n_factors": 215, "reg_bi": 0.31902932, "reg_bu": 0.03736959, "reg_pu": 0.0458803, "reg_qi": 0.0457921065}
+SVD_PARAMS = {
+    "lr_all": 0.0062939,
+    "n_epochs": 69,
+    "n_factors": 215,
+    "reg_bi": 0.31902932,
+    "reg_bu": 0.03736959,
+    "reg_pu": 0.0458803,
+    "reg_qi": 0.0457921065,
+}
 
-def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_val']):
+
+def get_dataset(df, rating_scale=(1, 10), cols=["user_id", "movie_id", "rating_val"]):
     # Surprise dataset loading
     reader = Reader(rating_scale=rating_scale)
     data = Dataset.load_from_df(df[cols], reader)
@@ -28,7 +37,11 @@ def get_dataset(df, rating_scale=(1,10), cols=['user_id', 'movie_id', 'rating_va
 
 
 def prep_concat_dataframe(df, sample_movie_list, user_data):
-    user_rated = [x for x in user_data if x["rating_val"] > 0 and x['movie_id'] in sample_movie_list]
+    user_rated = [
+        x
+        for x in user_data
+        if x["rating_val"] > 0 and x["movie_id"] in sample_movie_list
+    ]
 
     user_df = pd.DataFrame(user_rated)
     df = pd.concat([df, user_df]).reset_index(drop=True)
@@ -52,7 +65,7 @@ def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
     algo = model(**params, random_state=my_seed)
 
     if run_cv:
-        cross_validate(algo, data, measures=['RMSE', 'MAE', 'FCP'], cv=3, verbose=True)
+        cross_validate(algo, data, measures=["RMSE", "MAE", "FCP"], cv=3, verbose=True)
 
     training_set = data.build_full_trainset()
     algo.fit(training_set)
@@ -60,7 +73,15 @@ def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
     return algo
 
 
-def build_model(df, sample_movie_list, user_data, model=SVD, params=SVD_PARAMS, run_cv=False, concat_user_data=True):
+def build_model(
+    df,
+    sample_movie_list,
+    user_data,
+    model=SVD,
+    params=SVD_PARAMS,
+    run_cv=False,
+    concat_user_data=True,
+):
     if concat_user_data:
         model_data = prep_concat_dataframe(df, sample_movie_list, user_data)
     else:
@@ -78,35 +99,51 @@ def export_model(algo, sample_size, compressed=True, subdirectory_path="models")
         out_path = f"{subdirectory_path}/model_{sample_size}.npz"
         model.to_npz(out_path, items_only=True)
     else:
-        dump(f"{subdirectory_path}/model_{sample_size}.pkl", predictions=None, algo=algo, verbose=1)
+        dump(
+            f"{subdirectory_path}/model_{sample_size}.pkl",
+            predictions=None,
+            algo=algo,
+            verbose=1,
+        )
 
 
 if __name__ == "__main__":
     import os
+
     if os.getcwd().endswith("data_processing"):
         from get_user_ratings import get_user_data
     else:
         from data_processing.get_user_ratings import get_user_data
-    
+
     sample_sizes = [1_000_000, 2_000_000, 3_000_000]
 
     for i, sample_size in enumerate(sample_sizes):
         # Load ratings data
-        df = pd.read_parquet(f"data/training_data_samples/training_data_{sample_size}.parquet")
+        df = pd.read_parquet(
+            f"data/training_data_samples/training_data_{sample_size}.parquet"
+        )
         with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
             sample_movie_list = pickle.load(fp)
-        
-        with open("models/eval_results/best_svd_params.json", 'r') as f:
+
+        with open("models/eval_results/best_svd_params.json", "r") as f:
             svd_params = json.load(f)
 
         user_data = get_user_data("samlearner")[0]
-        algo, user_watched_list = build_model(df, sample_movie_list, user_data, SVD, params=svd_params, run_cv=False, concat_user_data=False)
+        algo, user_watched_list = build_model(
+            df,
+            sample_movie_list,
+            user_data,
+            SVD,
+            params=svd_params,
+            run_cv=False,
+            concat_user_data=False,
+        )
 
         export_model(algo, sample_size, compressed=True)
 
         if i == 0:
             with open("testing/user_watched.txt", "wb") as fp:
                 pickle.dump(user_watched_list, fp)
-            
+
             with open("testing/user_data.txt", "wb") as fp:
                 pickle.dump(user_data, fp)

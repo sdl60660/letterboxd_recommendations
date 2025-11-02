@@ -1,22 +1,16 @@
 #!/usr/local/bin/python3.12
 
-from re import U
-from bs4 import BeautifulSoup
-from pymongo.operations import ReplaceOne
-import requests
-
 import asyncio
-from aiohttp import ClientSession
-
-import pymongo
-from pymongo import UpdateOne, ReplaceOne
-from pymongo.errors import BulkWriteError
-
 import datetime
-
+import os
 from pprint import pprint
 
-import os
+import pymongo
+import requests
+from bs4 import BeautifulSoup
+from pymongo import ReplaceOne, UpdateOne
+from pymongo.errors import BulkWriteError
+from pymongo.operations import ReplaceOne
 
 if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings

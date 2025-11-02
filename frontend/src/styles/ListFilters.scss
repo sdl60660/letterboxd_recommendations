@@ -1,29 +1,31 @@
-#included-genre-filter, #excluded-genre-filter {
-    max-height: 3rem;
-    background-color: white;
+#included-genre-filter,
+#excluded-genre-filter {
+  max-height: 3rem;
+  background-color: white;
 }
 
-#included-genre-filter .default-all-display, #excluded-genre-filter .default-all-display {
-    text-align: left;
-    padding-left: 1rem;
+#included-genre-filter .default-all-display,
+#excluded-genre-filter .default-all-display {
+  text-align: left;
+  padding-left: 1rem;
 }
 
 .list-filter-controls {
-    padding: 32px 0;
+  padding: 32px 0;
+  box-sizing: border-box;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  background-color: #f3f3f3;
+  overflow-x: hidden;
+
+  .MuiFormControl-root {
     box-sizing: border-box;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    background-color: #f3f3f3;
-    overflow-x: hidden;
+    width: 400px;
+    max-width: 90vw;
 
-    .MuiFormControl-root {
-        box-sizing: border-box;
-        width: 400px;
-        max-width: 90vw;
-
-        @media only screen and (max-width: 500px) {
-            padding: 4px 20px;
-            width: min(400px, 95%);
-        }
+    @media only screen and (max-width: 500px) {
+      padding: 4px 20px;
+      width: min(400px, 95%);
     }
+  }
 }

@@ -1,7 +1,8 @@
 import os
 import sys
+
 import redis
-from rq import Worker, Queue
+from rq import Queue, Worker
 
 listen = ["high", "default", "low"]
 

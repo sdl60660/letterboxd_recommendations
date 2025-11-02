@@ -1,39 +1,34 @@
 #!/usr/local/bin/python3.12
 
+import asyncio
+import datetime
+import math
 import os
 import re
-from tqdm import tqdm
-import math
-import datetime
 from itertools import chain
-
-import asyncio
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
-from bs4 import BeautifulSoup
-
 from pprint import pprint
 
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from bs4 import BeautifulSoup
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
+from tqdm import tqdm
 
 if os.getcwd().endswith("data_processing"):
     from db_connect import connect_to_db
-    from utils.utils import get_backoff_days
     from http_utils import BROWSER_HEADERS
+    from utils.utils import get_backoff_days
 
 else:
     from data_processing.db_connect import connect_to_db
-    from data_processing.utils.utils import get_backoff_days
     from data_processing.http_utils import BROWSER_HEADERS
+    from data_processing.utils.utils import get_backoff_days
 
 
 async def fetch(url, session, input_data={}, *, retries=3):
     for attempt in range(retries):
         try:
-            async with session.get(
-                url,
-                timeout=ClientTimeout(total=20)
-            ) as resp:
+            async with session.get(url, timeout=ClientTimeout(total=20)) as resp:
                 if resp.status == 200:
                     return await resp.read(), input_data
                 # backoff on transient blocks
@@ -53,7 +48,9 @@ async def get_page_counts(usernames, users_cursor):
     now = datetime.datetime.now(datetime.timezone.utc)
     update_operations = []
 
-    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
+    async with ClientSession(
+        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
+    ) as session:
         for username in usernames:
             task = asyncio.ensure_future(
                 fetch(url.format(username), session, {"username": username})
@@ -64,7 +61,9 @@ async def get_page_counts(usernames, users_cursor):
         # responses = [x for x in responses if x and x[0]]
 
         for i, response in enumerate(responses):
-            username = response[1]["username"] if response and response[1] else usernames[i]
+            username = (
+                response[1]["username"] if response and response[1] else usernames[i]
+            )
             username = username.strip().lower()
 
             user = users_cursor.find_one(
@@ -85,18 +84,19 @@ async def get_page_counts(usernames, users_cursor):
                                 "scrape_status": "fail",
                                 "last_attempted": now,
                                 "next_retry_at": next_retry,
-                                },
-                            "$inc": {"fail_count": 1}
+                            },
+                            "$inc": {"fail_count": 1},
                         },
                         upsert=True,
                     )
                 )
                 continue
 
-
             soup = BeautifulSoup(response[0], "lxml")
             links = soup.select("li.paginate-page a")
-            num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
+            num_pages = (
+                int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
+            )
 
             try:
                 previous_num_pages = user["num_ratings_pages"]
@@ -111,7 +111,6 @@ async def get_page_counts(usernames, users_cursor):
             # ...pages in case there were zero previously scraped pages or only a single page, etc
             new_pages = max(0, min(num_pages, num_pages - previous_num_pages + 1))
 
-
             # Also, pages cap at 128, so if they've got 128 pages and we've scraped most of them before, we'll
             # ...just do the most recent 10 pages
             if num_pages >= 128 and new_pages < 10:
@@ -125,20 +124,21 @@ async def get_page_counts(usernames, users_cursor):
                         "$set": {
                             "num_ratings_pages": num_pages,
                             "recent_page_count": new_pages,
-                            "last_updated": datetime.datetime.now(datetime.timezone.utc),
+                            "last_updated": datetime.datetime.now(
+                                datetime.timezone.utc
+                            ),
                         }
                     },
                     upsert=True,
                 )
             )
-            
 
         try:
             if len(update_operations) > 0:
                 users_cursor.bulk_write(update_operations, ordered=False)
         except BulkWriteError as bwe:
             pprint(bwe.details)
-        
+
         return pages_by_user
 
 
@@ -169,10 +169,12 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
                 continue
             else:
                 rating_val = -1
-        
+
         else:
             classes = rating_el.get("class", []) if rating_el else []
-            rated = next((c for c in classes if c.startswith("rated-")), None)  # e.g. "rated-8"
+            rated = next(
+                (c for c in classes if c.startswith("rated-")), None
+            )  # e.g. "rated-8"
             rating_val = int(rated.split("-")[-1]) if rated else -1
 
         rating_object = {
@@ -234,7 +236,9 @@ async def get_user_ratings(
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
-    async with ClientSession(headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)) as session:
+    async with ClientSession(
+        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
+    ) as session:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
@@ -271,18 +275,18 @@ async def get_user_ratings(
 
     for response in parse_responses:
         upsert_ratings_operations += response[0]
-        upsert_movies_operations += response[1] 
+        upsert_movies_operations += response[1]
 
     user_scrape_status = {
         "username": username,
         "ok": bool(upsert_movies_operations),
-        "fail_count": user.get("fail_count", 0) if user else 0
+        "fail_count": user.get("fail_count", 0) if user else 0,
     }
 
     return upsert_ratings_operations, upsert_movies_operations, user_scrape_status
 
 
-async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
+async def get_ratings(usernames, pages_by_user, mongo_db=None, store_in_db=True):
     ratings_collection = mongo_db.ratings
     movies_collection = mongo_db.movies
     users_collection = mongo_db.users
@@ -313,31 +317,33 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
                 )
             )
             tasks.append(task)
-        
+
         # Gather all ratings page responses, concatenate all db upsert operatons for use in a bulk write
         user_responses = await asyncio.gather(*tasks)
 
         for ratings_op, movies_op, user_scrape_status in user_responses:
             db_ratings_operations += ratings_op
             db_movies_operations += movies_op
-            
+
             now = datetime.datetime.now(datetime.timezone.utc)
             # success
             if user_scrape_status["ok"]:
                 db_user_update_operations.append(
                     UpdateOne(
                         {"username": user_scrape_status["username"]},
-                        {"$set": {
-                            "scrape_status": "ok",
-                            "fail_count": 0,
-                            "last_updated": now,
-                            "last_attempted": now,
-                            "next_retry_at": now,
-                        }},
+                        {
+                            "$set": {
+                                "scrape_status": "ok",
+                                "fail_count": 0,
+                                "last_updated": now,
+                                "last_attempted": now,
+                                "next_retry_at": now,
+                            }
+                        },
                         upsert=True,
                     )
                 )
-            
+
             # failure
             else:
                 fail_count = user_scrape_status.get("fail_count", 0) + 1
@@ -346,17 +352,17 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
                 db_user_update_operations.append(
                     UpdateOne(
                         {"username": user_scrape_status["username"]},
-                        {"$set": {
-                            "scrape_status": "fail",
-                            "last_attempted": now,
-                            "next_retry_at": next_retry,
+                        {
+                            "$set": {
+                                "scrape_status": "fail",
+                                "last_attempted": now,
+                                "next_retry_at": next_retry,
+                            },
+                            "$inc": {"fail_count": 1},
                         },
-                        "$inc": {"fail_count": 1}},
                         upsert=True,
                     )
                 )
-                
-
 
         if store_in_db:
             # Execute bulk upsert operations
@@ -367,41 +373,65 @@ async def get_ratings(usernames, pages_by_user,mongo_db=None, store_in_db=True):
 
                 if len(db_movies_operations) > 0:
                     movies_collection.bulk_write(db_movies_operations, ordered=False)
-                
+
                 if len(db_user_update_operations) > 0:
-                    users_collection.bulk_write(db_user_update_operations, ordered=False)
+                    users_collection.bulk_write(
+                        db_user_update_operations, ordered=False
+                    )
 
             except BulkWriteError as bwe:
                 pprint(bwe.details)
 
+
 # I've started attaching timestamps for last_updated, as well as statuses for if a scrape fails/when to retry. This way...
 # instead of updating every user's ratings on every crawl, we can prioritize based on those with missing data or those which...
 # are most stale or due for a retry
-def get_users_to_update_list(users, cap_missing_fields = 1000, cap_due_for_retry = 500, cap_stale = 1000 ):
+def get_users_to_update_list(
+    users, cap_missing_fields=1000, cap_due_for_retry=500, cap_stale=1000
+):
     now = datetime.datetime.now(datetime.timezone.utc)
 
     # grab a sample of those which are missing a last_updated_date/other recently added fields
     # it will take many cycles of updates before these are all backfilled
     missing_fields = list(
-        users.aggregate([
-            {"$match": {"$or": [{"last_updated": {"$exists": False}}, {"last_updated": None}, {"scrape_status": {"$exists": False}}, {"scrape_status": None}]},},
-            {"$sample": {"size": cap_missing_fields}},
-            {"$project": {"username": 1, "_id": 0}},
-        ]))
-        
+        users.aggregate(
+            [
+                {
+                    "$match": {
+                        "$or": [
+                            {"last_updated": {"$exists": False}},
+                            {"last_updated": None},
+                            {"scrape_status": {"$exists": False}},
+                            {"scrape_status": None},
+                        ]
+                    },
+                },
+                {"$sample": {"size": cap_missing_fields}},
+                {"$project": {"username": 1, "_id": 0}},
+            ]
+        )
+    )
+
     # grab a sample of those which had a failed crawl and are now due for a retry
-    due_for_retry = list(users.find(
-        {"next_retry_at": {"$lte": now}, "scrape_status": "fail"},
-        {"username": 1, "_id": 0}
-    ).sort("next_retry_at", 1).limit(cap_due_for_retry))
+    due_for_retry = list(
+        users.find(
+            {"next_retry_at": {"$lte": now}, "scrape_status": "fail"},
+            {"username": 1, "_id": 0},
+        )
+        .sort("next_retry_at", 1)
+        .limit(cap_due_for_retry)
+    )
 
     # grab a sample of the most "stale" entries (where the last updated date is the oldest)
-    stale = list(users.find(
-        {"last_updated": {"$exists": True}},
-        {"username": 1, "_id": 0}
-    ).sort("last_updated", 1).limit(cap_stale))
-    
-    all_users = list(set([x['username'].lower() for x in (missing_fields + due_for_retry + stale)]))
+    stale = list(
+        users.find({"last_updated": {"$exists": True}}, {"username": 1, "_id": 0})
+        .sort("last_updated", 1)
+        .limit(cap_stale)
+    )
+
+    all_users = list(
+        set([x["username"].lower() for x in (missing_fields + due_for_retry + stale)])
+    )
     return all_users
 
 
@@ -421,7 +451,7 @@ def main():
     pbar = tqdm(range(num_chunks))
     for chunk in pbar:
         pbar.set_description(
-            f"Scraping ratings data for user group {chunk+1} of {num_chunks}"
+            f"Scraping ratings data for user group {chunk + 1} of {num_chunks}"
         )
         username_set = all_usernames[
             chunk * large_chunk_size : (chunk + 1) * large_chunk_size
@@ -430,8 +460,12 @@ def main():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            pages_by_user = loop.run_until_complete(get_page_counts(username_set, users))
-            loop.run_until_complete(get_ratings(username_set, pages_by_user, mongo_db=db, store_in_db=True))
+            pages_by_user = loop.run_until_complete(
+                get_page_counts(username_set, users)
+            )
+            loop.run_until_complete(
+                get_ratings(username_set, pages_by_user, mongo_db=db, store_in_db=True)
+            )
         finally:
             loop.close()
 

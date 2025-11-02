@@ -1,30 +1,24 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
-
-from typing import Union
-from urllib.parse import urlparse, urlunparse
-
-import pandas as pd
-
 from rq import Queue
 from rq.exceptions import NoSuchJobError
 from rq.job import Job
 from rq.registry import DeferredJobRegistry
 
+from handle_recs import build_client_model, get_client_user_data
 from worker import conn
-
-from handle_recs import get_client_user_data, build_client_model
-
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"^https?://(localhost(:\d+)?|letterboxd(\.samlearner\.com)?|.*herokuapp\.com)$",
-    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -33,7 +27,7 @@ templates = Jinja2Templates(directory="templates")
 queue_pool = [Queue(channel, connection=conn) for channel in ["high", "default", "low"]]
 popularity_thresholds_500k_samples = [2500, 2000, 1500, 1000, 700, 400, 250, 150]
 
-USERDATA_CACHE_TTL = 300 
+USERDATA_CACHE_TTL = 300
 USERDATA_TTL_BUFFER = 10
 
 
@@ -50,6 +44,7 @@ def _ttl_for_job(job: Job) -> int | None:
         return None
     return t
 
+
 # A direct link to the heroku site will redirect to new domain
 # Should take care of stale link issue
 @app.get("/", response_class=HTMLResponse)
@@ -57,14 +52,14 @@ def homepage():
     return RedirectResponse("https://letterboxd.samlearner.com")
     # return templates.TemplateResponse("index.html", {})
 
+
 @app.get("/health")
 def health():
     return {"ok": True}
 
+
 @app.get("/get_recs")
-def get_recs(
-    username: str, training_data_size: int, data_opt_in: bool
-):
+def get_recs(username: str, training_data_size: int, data_opt_in: bool):
     username = username.strip().lower()
     # popularity_threshold = None
     num_items = 2000
@@ -87,11 +82,21 @@ def get_recs(
         job = Job.fetch(user_job_id, connection=conn)
 
         ttl_remaining = conn.ttl(job.key)
-        reusable = (job.is_finished and job.result is not None and (ttl_remaining == -1 or ttl_remaining is not None and ttl_remaining > USERDATA_TTL_BUFFER))
+        reusable = (
+            job.is_finished
+            and job.result is not None
+            and (
+                ttl_remaining == -1
+                or ttl_remaining is not None
+                and ttl_remaining > USERDATA_TTL_BUFFER
+            )
+        )
 
         if reusable:
             # Top up the TTL to avoid close-call expiry
-            if ttl_remaining not in (-1, None) and ttl_remaining <= (USERDATA_TTL_BUFFER + 5):
+            if ttl_remaining not in (-1, None) and ttl_remaining <= (
+                USERDATA_TTL_BUFFER + 5
+            ):
                 conn.expire(job.key, USERDATA_TTL_BUFFER + 30)
                 ttl_remaining = conn.ttl(job.key)
             job_get_user_data = job
@@ -129,12 +134,16 @@ def get_recs(
         ttl=200,
     )
 
-    job_build_model.meta.update({
-        "reused_cache": reused_cache,
-        "user_job_id": job_get_user_data.get_id(),
-        "user_cache_ttl_at_enqueue": conn.ttl(job_get_user_data.key),   # may be -1 or >0
-        "userdata_result_ttl": USERDATA_CACHE_TTL,
-    })
+    job_build_model.meta.update(
+        {
+            "reused_cache": reused_cache,
+            "user_job_id": job_get_user_data.get_id(),
+            "user_cache_ttl_at_enqueue": conn.ttl(
+                job_get_user_data.key
+            ),  # may be -1 or >0
+            "userdata_result_ttl": USERDATA_CACHE_TTL,
+        }
+    )
     job_build_model.save()
 
     return JSONResponse(
@@ -144,8 +153,8 @@ def get_recs(
             "user_data_cache": {
                 "reused_cache": reused_cache,
                 "cached_data_ttl": ttl_remaining,
-                "total_cache_time_seconds": USERDATA_CACHE_TTL
-            }
+                "total_cache_time_seconds": USERDATA_CACHE_TTL,
+            },
         }
     )
 
@@ -182,12 +191,11 @@ def get_results(redis_build_model_job_id: str, redis_get_user_data_job_id: str):
     except NoSuchJobError:
         pass
 
-
     payload = {
         "statuses": job_statuses,
         "execution_data": execution_data,
         "user_data_cache": {
-            "reused_cache":  bool(end_job.meta.get("reused_cache", False)),
+            "reused_cache": bool(end_job.meta.get("reused_cache", False)),
             "cached_data_ttl": user_cache_ttl,
             "total_cache_time_seconds": end_job.meta.get("userdata_result_ttl"),
             "cached_data_ttl_at_enque": end_job.meta.get("user_cache_ttl_at_enqueue"),
