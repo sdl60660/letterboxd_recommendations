@@ -371,7 +371,7 @@ def get_ids_for_update(movies_collection, data_type):
             for x in movies_collection.find(
                 {"content_type": {"$exists": False}},
                 {"movie_id": 1},
-            ).limit(1000)
+            ).limit(10000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -383,21 +383,6 @@ def get_ids_for_update(movies_collection, data_type):
                         {"movie_title": {"$exists": False}},
                         {"tmdb_id": {"$exists": False}},
                         {"image_url": {"$exists": False}},
-                    ]
-                },
-                {"movie_id": 1},
-            )
-        }
-
-        # likely earlier/unflagged failed crawls
-        update_ids |= {
-            x["movie_id"]
-            for x in movies_collection.find(
-                {
-                    "$and": [
-                        {"content_type": {"$exists": True, "$eq": None}},
-                        {"tmdb_id": {"$in": ["", None]}},
-                        {"scrape_status": {"$exists": False}},
                     ]
                 },
                 {"movie_id": 1},
