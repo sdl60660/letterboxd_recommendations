@@ -203,9 +203,10 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
 
         object_fields = ["genres", "production_countries", "spoken_languages"]
         for field_name in object_fields:
-            try:
-                movie_object[field_name] = [x["name"] for x in response[field_name]]
-            except:
+            data = response.get(field_name)
+            if isinstance(data, list):
+                movie_object[field_name] = [x.get("name") for x in data if "name" in x]
+            else:
                 movie_object[field_name] = None
 
         simple_fields = [
@@ -218,10 +219,7 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
             "original_language",
         ]
         for field_name in simple_fields:
-            try:
-                movie_object[field_name] = response[field_name]
-            except:
-                movie_object[field_name] = None
+            movie_object[field_name] = response.get(field_name)
 
         movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
 
