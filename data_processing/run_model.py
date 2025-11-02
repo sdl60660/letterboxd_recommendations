@@ -154,7 +154,7 @@ def main(
     with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
         sample_movie_list = pickle.load(fp)
 
-    if use_cached_user_data == True and os.path.exists("testing/user_data.txt"):
+    if use_cached_user_data and os.path.exists("testing/user_data.txt"):
         with open("testing/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
     else:

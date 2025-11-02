@@ -5,6 +5,7 @@ import pandas as pd
 from db_connect import connect_to_db
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import CollectionInvalid
+from utils.config import sample_sizes
 from utils.utils import get_rich_movie_data
 
 # --- params (tune these) ---
@@ -13,17 +14,17 @@ MOVIE_MIN = 50  # movies must have ≥ this many ratings (this gets adjusted to 
 PER_USER_CAP = 300  # at most this many ratings per sampled user
 
 # aim ~this many ratings in final sample sets (±5–10%)
-TARGET_SAMPLES = [
-    500_000,
-    1_000_000,
-    # 1_500_000,
-    2_000_000,
-    # 2_500_000,
-    3_000_000,
-    # 4_000_000,
-    5_000_000,
-    # 10_000_000
-]
+# TARGET_SAMPLES = [
+#     500_000,
+#     1_000_000,
+#     # 1_500_000,
+#     2_000_000,
+#     # 2_500_000,
+#     3_000_000,
+#     # 4_000_000,
+#     5_000_000,
+#     # 10_000_000
+# ]
 
 # collection names
 ACTIVE_USERS_COLL = "active_users_tmp"
@@ -395,7 +396,7 @@ def clean_up_temp_collections(db):
         QUALIFYING_MOVIES_COLL,
     ]
 
-    for sample_size in TARGET_SAMPLES:
+    for sample_size in sample_sizes:
         raw_sample_coll = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
         collections_for_removal.append(raw_sample_coll)
 
@@ -458,14 +459,14 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
         use_cache=use_cached_aggregations,
     )
 
-    movie_counts = get_or_build_collection(
+    get_or_build_collection(
         db,
         MOVIE_COUNTS_COLL,
         build_fn=lambda: create_movie_counts(db),
         use_cache=use_cached_aggregations,
     )
 
-    for sample_size in TARGET_SAMPLES:
+    for sample_size in sample_sizes:
         create_and_store_sample(
             db, sample_size, ratings, active_users, use_cached_aggregations
         )

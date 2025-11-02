@@ -56,6 +56,13 @@ jobs:
           TMDB_KEY: ${{ secrets.TMDB_KEY }}
         run: cd data_processing && pipenv run python evaluate_models.py
 
+      - name: Build new cached models
+        env:
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python build_model.py
+
       - name: Update last updated date
         run: cd data_processing && pipenv run python update_last_updated.py
 

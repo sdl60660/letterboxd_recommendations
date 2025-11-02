@@ -12,9 +12,14 @@ from surprise.dump import dump
 from surprise.model_selection import cross_validate
 
 if os.getcwd().endswith("data_processing"):
+    from get_user_ratings import get_user_data
     from model import Model
+    from utils.config import sample_sizes
 else:
+    from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
+    from data_processing.utils.config import sample_sizes
+
 
 # a global/fallback to use as a default val, based on a traiing run/eval, but this shouldn't ever be used,
 # either when this is called from the web server or from commandline
@@ -108,15 +113,6 @@ def export_model(algo, sample_size, compressed=True, subdirectory_path="models")
 
 
 if __name__ == "__main__":
-    import os
-
-    if os.getcwd().endswith("data_processing"):
-        from get_user_ratings import get_user_data
-    else:
-        from data_processing.get_user_ratings import get_user_data
-
-    sample_sizes = [1_000_000, 2_000_000, 3_000_000]
-
     for i, sample_size in enumerate(sample_sizes):
         # Load ratings data
         df = pd.read_parquet(

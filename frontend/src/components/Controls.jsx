@@ -128,9 +128,9 @@ const Controls = ({
           defaultValue={modelStrength}
           value={modelStrength}
           onChange={(e) => setModelStrength(e.target.value)}
-          step={1000000}
+          step={2000000}
           min={1000000}
-          max={3000000}
+          max={5000000}
           valueLabelDisplay="off"
           marks={true}
           labels={["Faster Results", "Better Results"]}

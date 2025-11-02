@@ -14,6 +14,7 @@ from surprise import SVD, Prediction, accuracy
 from surprise.model_selection import KFold, RandomizedSearchCV, cross_validate
 from tqdm.auto import tqdm
 from tqdm_joblib import tqdm_joblib
+from utils.config import sample_sizes
 
 RANDOM_SEED = 12
 
@@ -345,7 +346,7 @@ def main():
     np.random.seed(RANDOM_SEED)
     random.seed(RANDOM_SEED)
 
-    sample_sizes = [500_000, 1_000_000, 2_000_000, 3_000_000]
+    # sample_sizes = [500_000, 1_000_000, 2_000_000, 3_000_000]
     models = [{"name": "SVD", "model": SVD}]
     datasets = get_datasets(sample_sizes)
 
