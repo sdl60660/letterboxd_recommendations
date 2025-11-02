@@ -14,9 +14,7 @@ from surprise import SVD, Prediction, accuracy
 from surprise.model_selection import KFold, RandomizedSearchCV, cross_validate
 from tqdm.auto import tqdm
 from tqdm_joblib import tqdm_joblib
-from utils.config import sample_sizes
-
-RANDOM_SEED = 12
+from utils.config import random_seed, sample_sizes
 
 
 def precision_recall_at_k(predictions, k=20, threshold=6):
@@ -104,7 +102,7 @@ def evaluate_config(dataset, model, params={}, cv_folds=4):
 
 
 def create_user_test_train_sets(
-    user_data_df, test_users, user_train_test_split=0.7, random_seed=RANDOM_SEED
+    user_data_df, test_users, user_train_test_split=0.7, random_seed=random_seed
 ):
     output_set = []
 
@@ -343,15 +341,16 @@ def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
 
 
 def main():
-    np.random.seed(RANDOM_SEED)
-    random.seed(RANDOM_SEED)
+    np.random.seed(random_seed)
+    random.seed(random_seed)
 
-    # sample_sizes = [500_000, 1_000_000, 2_000_000, 3_000_000]
     models = [{"name": "SVD", "model": SVD}]
     datasets = get_datasets(sample_sizes)
 
-    sample_size_index = 2
+    sample_size_index = -2
     num_candidates = 100
+
+    print(datasets[sample_size_index])
 
     best_params = run_grid_search(
         models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates

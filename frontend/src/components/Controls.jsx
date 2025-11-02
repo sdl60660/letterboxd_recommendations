@@ -137,21 +137,20 @@ const Controls = ({
         />
       </FormGroup>
 
-      {/* <FormGroup className={'form-slider'}>
-                <LabeledSlider
-                    aria-label="Poplularity filter slider. Increase value to only received less-watched movies."
-                    defaultValue={popularityFilter}
-                    value={popularityFilter}
-                    onChange={(e) => setPopularityFilter(e.target.value)}
-                    step={1}
-                    min={-1}
-                    max={7}
-                    valueLabelDisplay="off"
-                    marks={true}
-                    labels={['All Movies', 'Less-Reviewed Movies Only']}
-                />
-            </FormGroup> 
-            */}
+      {/* <FormGroup className={"form-slider"}>
+        <LabeledSlider
+          aria-label="Poplularity filter slider. Increase value to only received less-watched movies."
+          defaultValue={popularityFilter}
+          value={popularityFilter}
+          onChange={(e) => setPopularityFilter(e.target.value)}
+          step={1}
+          min={-1}
+          max={7}
+          valueLabelDisplay="off"
+          marks={true}
+          labels={["All Movies", "Less-Reviewed Movies Only"]}
+        />
+      </FormGroup> */}
 
       <FormGroup className={"data_opt_in_control"}>
         <FormControlLabel

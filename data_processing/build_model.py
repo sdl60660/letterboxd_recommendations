@@ -14,11 +14,11 @@ from surprise.model_selection import cross_validate
 if os.getcwd().endswith("data_processing"):
     from get_user_ratings import get_user_data
     from model import Model
-    from utils.config import sample_sizes
+    from utils.config import random_seed, sample_sizes
 else:
     from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
-    from data_processing.utils.config import sample_sizes
+    from data_processing.utils.config import random_seed, sample_sizes
 
 
 # a global/fallback to use as a default val, based on a traiing run/eval, but this shouldn't ever be used,
@@ -62,12 +62,11 @@ def prep_concat_dataframe(df, sample_movie_list, user_data):
 def train_model(data, model=SVD, params=SVD_PARAMS, run_cv=False):
     # Set random seed so that returned recs are always the same for same user with same ratings
     # This might make sense so that results are consistent, or you might want to refresh with different results
-    my_seed = 12
-    random.seed(my_seed)
-    np.random.seed(my_seed)
+    random.seed(random_seed)
+    np.random.seed(random_seed)
 
     # Configure algorithm
-    algo = model(**params, random_state=my_seed)
+    algo = model(**params, random_state=random_seed)
 
     if run_cv:
         cross_validate(algo, data, measures=["RMSE", "MAE", "FCP"], cv=3, verbose=True)
