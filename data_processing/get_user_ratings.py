@@ -10,7 +10,8 @@ import requests
 from bs4 import BeautifulSoup
 from pymongo import ReplaceOne, UpdateOne
 from pymongo.errors import BulkWriteError
-from pymongo.operations import ReplaceOne
+
+# from pymongo.operations import ReplaceOne
 
 if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings

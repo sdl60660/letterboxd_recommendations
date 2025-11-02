@@ -204,7 +204,6 @@ def handle_redirects(r, movie_update_object, movie_id, mongo_db):
             "$set": {
                 "old_id": movie_id,
                 "new_id": redirect_to,
-                "first_seen_at": datetime.datetime.now(datetime.timezone.utc),
                 "last_seen_at": datetime.datetime.now(datetime.timezone.utc),
                 "status": "pending",  # will flip to 'merged' after consolidation
             }
@@ -416,7 +415,7 @@ def get_ids_for_update(movies_collection, data_type):
                                 {"movie_title": {"$in": ["", None]}},
                                 {"tmdb_id": {"$in": ["", None]}},
                                 {"image_url": {"$in": ["", None]}},
-                                # {"content_type": {"$in": ["", None]}},
+                                {"content_type": {"$in": ["", None]}},
                             ]
                         },
                         {
