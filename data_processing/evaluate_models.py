@@ -245,7 +245,7 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def eval_fold_in(df, base_model, param_set_df, num_test_users=1000):
+def eval_fold_in(df, base_model, param_set_df, num_test_users=1500):
     # Parse JSON-ish params column safely
     params_set = [
         json.loads(x.replace("'", '"')) if isinstance(x, str) else x
