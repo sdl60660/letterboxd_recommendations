@@ -30,7 +30,9 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
   }
 
   const yearReleased =
-    rawYearReleased === 0 ? "N/A" : rawYearReleased.toFixed(0);
+    rawYearReleased === 0 || rawYearReleased === null
+      ? "N/A"
+      : rawYearReleased.toFixed(0);
 
   return (
     <li>
