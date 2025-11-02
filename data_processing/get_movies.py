@@ -4,7 +4,10 @@ import asyncio
 import datetime
 import json
 import os
+import re
+import traceback
 from pprint import pprint
+from urllib.parse import urlparse
 
 from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
@@ -20,6 +23,11 @@ else:
     from data_processing.http_utils import BROWSER_HEADERS
 
 
+_IMDB_ID_RE = re.compile(r"/title/([A-Za-z0-9]+)/?")
+_TMDB_MOVIE_RE = re.compile(r"/movie/(\d+)/?")
+_TMDB_TV_RE = re.compile(r"/tv/(\d+)/?")
+
+
 def format_img_link_stub(raw_link):
     image_url = raw_link.replace("https://a.ltrbxd.com/resized/", "").split(".jpg")[0]
 
@@ -27,6 +35,11 @@ def format_img_link_stub(raw_link):
         image_url = ""
 
     return image_url
+
+
+def extract_movie_id_from_url(url: str) -> str | None:
+    m = re.search(r"/film/([^/]+)/", str(url))
+    return m.group(1) if m else None
 
 
 def get_meta_data_from_script_tag(soup):
@@ -55,67 +68,105 @@ def get_meta_data_from_script_tag(soup):
         }
 
 
-def parse_letterboxd_page_data(response, movie_id):
-    # Parse ratings page response for each rating/review, use lxml parser for speed
+def _safe_text(tag, default=""):
+    return tag.get_text(strip=True) if tag else default
+
+
+def _safe_int(s, default=None):
+    try:
+        return int(s)
+    except (TypeError, ValueError):
+        return default
+
+
+def _attr(tag, name, default=None):
+    # returns tag[name] if present; else default
+    try:
+        return tag.attrs.get(name, default)
+    except AttributeError:
+        return default
+
+
+def _extract_imdb_id(url: str | None) -> str:
+    if not url:
+        return ""
+    m = _IMDB_ID_RE.search(url)
+    return m.group(1) if m else ""
+
+
+def _extract_tmdb(url: str | None):
+    if not url:
+        return None, ""
+    path = urlparse(url).path or ""
+    m_movie = _TMDB_MOVIE_RE.search(path)
+    if m_movie:
+        return "movie", m_movie.group(1)
+    m_tv = _TMDB_TV_RE.search(path)
+    if m_tv:
+        return "tv", m_tv.group(1)
+    return None, ""
+
+
+def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
     soup = BeautifulSoup(response, "lxml")
 
-    movie_header = soup.find("section", class_="production-masthead")
+    header = soup.find("section", class_="production-masthead")
 
-    try:
-        movie_title = movie_header.find("h1").text
-    except AttributeError:
-        movie_title = ""
+    # title
+    title_el = header.find("h1") if header else None
+    movie_title = title_el.get_text(strip=True) if title_el else ""
 
+    # year
+    rel_span = header.find("span", class_="releasedate") if header else None
+    rel_a = rel_span.find("a") if rel_span else None
+    year_text = rel_a.get_text(strip=True) if rel_a else None
     try:
-        year = int(movie_header.find("span", class_="releasedate").find("a").text)
-    except AttributeError:
+        year = int(year_text) if year_text and year_text.isdigit() else None
+    except ValueError:
         year = None
 
-    try:
-        imdb_link = soup.find("a", attrs={"data-track-action": "IMDb"})["href"]
-        imdb_id = imdb_link.split("/title")[1].strip("/").split("/")[0]
-    except:
-        imdb_link = ""
-        imdb_id = ""
+    # imdb
+    imdb_link = _attr(soup.find("a", attrs={"data-track-action": "IMDb"}), "href", "")
+    imdb_id = _extract_imdb_id(imdb_link)
 
-    try:
-        tmdb_link = soup.find("a", attrs={"data-track-action": "TMDB"})["href"]
-        content_type = "movie" if "/movie/" in tmdb_link else "tv"
-        tmdb_id = tmdb_link.split(f"/{content_type}")[1].strip("/").split("/")[0]
-    except:
-        tmdb_link = ""
-        tmdb_id = ""
-        content_type = None
+    # tmdb
+    tmdb_link = _attr(soup.find("a", attrs={"data-track-action": "TMDB"}), "href", "")
+    content_type, tmdb_id = _extract_tmdb(tmdb_link)
 
     movie_update_object = {
         "movie_id": movie_id,
         "movie_title": movie_title,
         "year_released": year,
-        "imdb_link": imdb_link,
-        "tmdb_link": tmdb_link,
+        "imdb_link": imdb_link or "",
+        "tmdb_link": tmdb_link or "",
         "imdb_id": imdb_id,
         "tmdb_id": tmdb_id,
-        "content_type": content_type,
+        "content_type": content_type,  # None if unknown
         "scrape_status": "ok",
         "fail_count": 0,
         "next_retry_at": None,
     }
 
+    # script-tag metadata: be explicit about the expected failures
     try:
-        script_tag_data = get_meta_data_from_script_tag(soup)
+        script_tag_data = get_meta_data_from_script_tag(soup)  # your function
+    except (KeyError, TypeError, AttributeError, ValueError):
+        script_tag_data = None
 
+    if script_tag_data:
         for k, v in script_tag_data.items():
             if v is None:
                 continue
             elif k == "image_url":
-                movie_update_object[k] = format_img_link_stub(v)
+                try:
+                    movie_update_object[k] = format_img_link_stub(v)
+                except Exception:
+                    # limit scope; if format fails, still ensure string
+                    movie_update_object[k] = v or ""
             else:
                 movie_update_object[k] = v
-
-    except:
-        # it is particularly important to have a value (or empty value) for the poster so that the frontend knows what to do
-        # our update crawl will treat items differently if they have a null/empty-string value for the poster vs. no value at all
-        # so even if the script data isn't present for some reason, let's ensure that we mark this as an empty string
+    else:
+        # important to set an explicit empty string for poster
         movie_update_object["image_url"] = ""
 
     return movie_update_object
@@ -136,7 +187,33 @@ def format_failed_update(movie_id, fail_count):
     return movie_update_object
 
 
-async def fetch_letterboxd(url, session, input_data={}):
+def handle_redirects(r, movie_update_object, movie_id, mongo_db):
+    redirect_to = extract_movie_id_from_url(r.real_url)
+
+    if redirect_to and redirect_to != movie_id:
+        movie_update_object["redirect_to"] = redirect_to
+        movie_update_object["redirect_seen_at"] = datetime.datetime.now(
+            datetime.timezone.utc
+        )
+
+    # small helper collection
+    redirects_coll = mongo_db.movie_redirects
+    redirects_coll.update_one(
+        {"old_id": movie_id},
+        {
+            "$set": {
+                "old_id": movie_id,
+                "new_id": redirect_to,
+                "first_seen_at": datetime.datetime.now(datetime.timezone.utc),
+                "last_seen_at": datetime.datetime.now(datetime.timezone.utc),
+                "status": "pending",  # will flip to 'merged' after consolidation
+            }
+        },
+        upsert=True,
+    )
+
+
+async def fetch_letterboxd(url, session, mongo_db, input_data={}):
     async with session.get(url) as r:
         response = await r.read()
 
@@ -155,6 +232,12 @@ async def fetch_letterboxd(url, session, input_data={}):
                 {"movie_id": input_data["movie_id"]},
                 {"$set": movie_update_object},
                 upsert=True,
+            )
+
+        # handle logging any redirects (to be updated in the database later, but flagged for now)
+        if r.history:
+            movie_update_object = handle_redirects(
+                r, movie_update_object, movie_id, mongo_db
             )
 
         return update_operation
@@ -203,7 +286,9 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
             task = asyncio.ensure_future(
-                fetch_letterboxd(url.format(movie), session, {"movie_id": movie})
+                fetch_letterboxd(
+                    url.format(movie), session, mongo_db, {"movie_id": movie}
+                )
             )
             tasks.append(task)
 
@@ -305,6 +390,21 @@ def get_ids_for_update(movies_collection, data_type):
             )
         }
 
+        # likely earlier/unflagged failed crawls
+        update_ids |= {
+            x["movie_id"]
+            for x in movies_collection.find(
+                {
+                    "$and": [
+                        {"content_type": {"$exists": True, "$eq": None}},
+                        {"tmdb_id": {"$in": ["", None]}},
+                        {"scrape_status": {"$exists": False}},
+                    ]
+                },
+                {"movie_id": 1},
+            )
+        }
+
         # missing key data (but has been attempted before), limited to a batch of 500 per update
         update_ids |= {
             x["movie_id"]
@@ -316,7 +416,7 @@ def get_ids_for_update(movies_collection, data_type):
                                 {"movie_title": {"$in": ["", None]}},
                                 {"tmdb_id": {"$in": ["", None]}},
                                 {"image_url": {"$in": ["", None]}},
-                                {"content_type": {"$in": ["", None]}},
+                                # {"content_type": {"$in": ["", None]}},
                             ]
                         },
                         {
@@ -340,7 +440,10 @@ def get_ids_for_update(movies_collection, data_type):
             x
             for x in list(
                 movies_collection.find(
-                    {"genres": {"$exists": False}, "content_type": {"$exists": True}}
+                    {
+                        "genres": {"$exists": False},
+                        "content_type": {"$exists": True, "$ne": None},
+                    }
                 )
             )
         ]
@@ -385,6 +488,7 @@ async def main(data_type: str = "letterboxd"):
                     await get_rich_data(chunk, movies, db, tmdb_key)
             except Exception as e:
                 print(f"Error: {e}")
+                print(traceback.format_exc())
                 print(f"Error on attempt {attempt + 1}, retrying...")
                 # short backoff to be nice to the site / network:
                 await asyncio.sleep(1.0 + attempt * 0.5)
