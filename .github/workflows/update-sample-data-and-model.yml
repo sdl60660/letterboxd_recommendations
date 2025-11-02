@@ -27,7 +27,7 @@ jobs:
       - name: Set up Python 3.12.x
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12.7"
+          python-version: "3.12"
 
       - name: Install pipenv
         run: python -m pip install --upgrade pipenv wheel
