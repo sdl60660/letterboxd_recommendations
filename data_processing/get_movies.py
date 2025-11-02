@@ -160,41 +160,6 @@ async def fetch_letterboxd(url, session, input_data={}):
         return update_operation
 
 
-async def fetch_poster(url, session, input_data={}):
-    async with session.get(url) as r:
-        response = await r.read()
-
-        # Parse poster standalone page
-        soup = BeautifulSoup(response, "lxml")
-
-        try:
-            image_url = (
-                soup.find("div", class_="film-poster").find("img")["src"].split("?")[0]
-            )
-            image_url = image_url.replace("https://a.ltrbxd.com/resized/", "").split(
-                ".jpg"
-            )[0]
-            if "https://s.ltrbxd.com/static/img/empty-poster" in image_url:
-                image_url = ""
-        except AttributeError:
-            image_url = ""
-
-        movie_object = {
-            "movie_id": input_data["movie_id"],
-        }
-
-        if image_url != "":
-            movie_object["image_url"] = image_url
-
-        movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
-
-        update_operation = UpdateOne(
-            {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
-        )
-
-        return update_operation
-
-
 async def fetch_tmdb_data(url, session, movie_data, input_data={}):
     async with session.get(url) as r:
         response = await r.json()
@@ -351,7 +316,7 @@ def get_ids_for_update(movies_collection, data_type):
                                 {"movie_title": {"$in": ["", None]}},
                                 {"tmdb_id": {"$in": ["", None]}},
                                 {"image_url": {"$in": ["", None]}},
-                                {"content_type": {"in": ["", None]}},
+                                {"content_type": {"$in": ["", None]}},
                             ]
                         },
                         {
@@ -383,7 +348,7 @@ def get_ids_for_update(movies_collection, data_type):
     return all_movies
 
 
-def main(data_type="letterboxd"):
+async def main(data_type: str = "letterboxd"):
     # Connect to MongoDB client
     db_name, client = connect_to_db()
     tmdb_key = os.environ["TMDB_KEY"]
@@ -393,43 +358,42 @@ def main(data_type="letterboxd"):
 
     movies_for_update = get_ids_for_update(movies, data_type)
 
-    loop = asyncio.get_event_loop()
     chunk_size = 20
-    num_chunks = len(movies_for_update) // chunk_size + 1
+    num_chunks = (len(movies_for_update) + chunk_size - 1) // chunk_size  # ceil div
 
     print("Total Movies to Scrape:", len(movies_for_update))
     print("Total Chunks:", num_chunks)
     print("=======================\n")
 
+    if num_chunks == 0:
+        return
+
     pbar = tqdm(range(num_chunks))
     for chunk_i in pbar:
         pbar.set_description(f"Scraping chunk {chunk_i + 1} of {num_chunks}")
 
-        if chunk_i == num_chunks - 1:
-            chunk = movies_for_update[chunk_i * chunk_size :]
-        else:
-            chunk = movies_for_update[chunk_i * chunk_size : (chunk_i + 1) * chunk_size]
+        start = chunk_i * chunk_size
+        end = start + chunk_size
+        chunk = movies_for_update[start:end]
 
+        # up to 5 attempts per chunk
         for attempt in range(5):
             try:
                 if data_type == "letterboxd":
-                    future = asyncio.ensure_future(get_movies(chunk, movies, db))
+                    await get_movies(chunk, movies, db)
                 else:
-                    future = asyncio.ensure_future(
-                        get_rich_data(chunk, movies, db, tmdb_key)
-                    )
-                loop.run_until_complete(future)
+                    await get_rich_data(chunk, movies, db, tmdb_key)
             except Exception as e:
                 print(f"Error: {e}")
                 print(f"Error on attempt {attempt + 1}, retrying...")
+                # short backoff to be nice to the site / network:
+                await asyncio.sleep(1.0 + attempt * 0.5)
             else:
                 break
         else:
-            print(f"Count not complete requests for chunk {chunk_i + 1}")
-
-    return
+            print(f"Could not complete requests for chunk {chunk_i + 1}")
 
 
 if __name__ == "__main__":
-    main("letterboxd")
-    main("tmdb")
+    asyncio.run(main("letterboxd"))
+    asyncio.run(main("tmdb"))
