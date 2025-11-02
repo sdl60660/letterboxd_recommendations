@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 
 import { useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -14,7 +14,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Slider from "@mui/material/Slider";
 
 import "../styles/ListFilters.scss";
-import LabeledSlider from "./ui/LabeledSlider";
+// import LabeledSlider from "./ui/LabeledSlider";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -71,59 +71,68 @@ const ListFilters = ({
     ];
   }, [results]);
 
-  const popularityRange = useMemo(() => {
-    return [
-      Math.min(
-        ...results
-          .filter((d) => d.movie_data.popularity)
-          .map((d) => d.movie_data.popularity),
-      ),
-      Math.max(
-        ...results
-          .filter((d) => d.movie_data.popularity)
-          .map((d) => d.movie_data.popularity),
-      ),
-    ];
-  }, [results]);
+  // const popularityRange = useMemo(() => {
+  //   return [
+  //     Math.min(
+  //       ...results.filter((d) => d.movie_data.popularity).map((d) => d.movie_data.popularity)
+  //     ),
+  //     Math.max(
+  //       ...results.filter((d) => d.movie_data.popularity).map((d) => d.movie_data.popularity)
+  //     ),
+  //   ];
+  // }, [results]);
 
   const [genres, setGenres] = useState({
     included: allGenres,
     excluded: ["Music"],
   });
-  const [popularity, setPopularity] = useState(popularityRange);
   const [yearRange, setYearRange] = useState(allYears);
+  // const [popularity, setPopularity] = useState(popularityRange);
+
+  useEffect(() => {
+    setYearRange(allYears);
+  }, [allYears]);
 
   const theme = useTheme();
 
-  const handleGenreChange = (event, listType) => {
-    const {
-      target: { value },
-    } = event;
+  const handleGenreChange = useCallback(
+    (event, listType) => {
+      const {
+        target: { value },
+      } = event;
 
-    // On autofill we get a stringified value.
-    const newGenreVal = typeof value === "string" ? value.split(",") : value;
+      // On autofill we get a stringified value.
+      const newGenreVal = typeof value === "string" ? value.split(",") : value;
 
-    setGenres((curr) => {
-      const output = { ...curr, [listType]: newGenreVal };
+      setGenres((curr) => {
+        const output = { ...curr, [listType]: newGenreVal };
 
-      if (listType === "include" && newGenreVal.length === allGenres.length) {
-        setFilteredGenres({ ...output, include: null });
-      } else {
-        setFilteredGenres(output);
-      }
-      return output;
-    });
-  };
+        if (listType === "include" && newGenreVal.length === allGenres.length) {
+          setFilteredGenres({ ...output, include: null });
+        } else {
+          setFilteredGenres(output);
+        }
+        return output;
+      });
+    },
+    [setGenres, setFilteredGenres, allGenres.length],
+  );
 
-  const handlePopularityChange = (event, newValue) => {
-    setPopularity(newValue);
-    setFilteredPopularityRange(newValue);
-  };
+  const handleYearChange = useCallback(
+    (_, newValue) => {
+      setYearRange(newValue);
+      setFilteredYearRange(newValue);
+    },
+    [setYearRange, setFilteredYearRange],
+  );
 
-  const handleYearChange = (event, newValue) => {
-    setYearRange(newValue);
-    setFilteredYearRange(newValue);
-  };
+  // const handlePopularityChange = useCallback(
+  //   (_, newValue) => {
+  //     setPopularity(newValue);
+  //     setFilteredPopularityRange(newValue);
+  //   },
+  //   [setPopularity, setFilteredPopularityRange]
+  // );
 
   return (
     <div className="list-filter-controls">
@@ -137,7 +146,7 @@ const ListFilters = ({
             id="year-filter"
             getAriaLabel={() => "Year Released filter"}
             value={yearRange}
-            onChange={handleYearChange}
+            onChange={(e, val) => handleYearChange(e, val)}
             valueLabelDisplay="auto"
             getAriaValueText={(value) => value}
             min={allYears[0]}
@@ -148,26 +157,26 @@ const ListFilters = ({
       </FormControl>
 
       {/* <FormControl>
-                <Box>
-                    <InputLabel id="popularity-filter-label" shrink={true}>
-                        Popularity
-                    </InputLabel>
-                    <LabeledSlider
-                        labelId="popularity-filter-label"
-                        id="popularity-filter"
-                        aria-label="Poplularity filter slider. Adjust value to only receive recommendations for more- or less-watched movies."
-                        value={popularity}
-                        onChange={handlePopularityChange}
-                        valueLabelDisplay="off"
-                        getAriaValueText={(value) => value}
-                        min={popularityRange[0]}
-                        max={popularityRange[1]}
-                        marks={true}
-                        labels={['Less', 'More']}
-                        step={Math.round(popularityRange[1] - popularityRange[0]) / 10}
-                    />
-                </Box>
-            </FormControl> */}
+        <Box>
+          <InputLabel id="popularity-filter-label" shrink={true}>
+            Popularity
+          </InputLabel>
+          <LabeledSlider
+            labelId="popularity-filter-label"
+            id="popularity-filter"
+            aria-label="Poplularity filter slider. Adjust value to only receive recommendations for more- or less-watched movies."
+            value={popularity}
+            onChange={handlePopularityChange}
+            valueLabelDisplay="off"
+            getAriaValueText={(value) => value}
+            min={popularityRange[0]}
+            max={popularityRange[1]}
+            marks={true}
+            labels={["Less", "More"]}
+            step={Math.round(popularityRange[1] - popularityRange[0]) / 10}
+          />
+        </Box>
+      </FormControl> */}
 
       <FormControl sx={{ m: 1, width: 400, maxWidth: "90vw" }}>
         <InputLabel id="included-genre-filter-label">

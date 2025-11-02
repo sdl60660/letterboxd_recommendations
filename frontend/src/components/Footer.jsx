@@ -4,71 +4,35 @@ import metaData from "../data/meta.json";
 import "../styles/Footer.scss";
 import "../styles/KoFi.scss";
 
-const Footer = (props) => {
+const Footer = () => {
   const lastUpdatedDate = new Date(metaData.last_updated);
 
   return (
     <div className="container footer">
       <hr />
       <section>
-        {/* <p style={{ fontWeight: 'bold' }}>
-                    Project by{' '}
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://www.samlearner.com/"
-                    >
-                        Sam Learner
-                    </a>{' '}
-                    |
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="mailto:learnersd+letterboxd-recs@gmail.com"
-                    >
-                        <img
-                            className="icon-img"
-                            src="images/email.svg"
-                            alt="email link"
-                        />
-                    </a>{' '}
-                    |
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://twitter.com/sam_learner"
-                    >
-                        <img
-                            className="icon-img"
-                            src="images/twitter.svg"
-                            alt="twitter link"
-                        />
-                    </a>{' '}
-                    |
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://github.com/sdl60660"
-                    >
-                        <img
-                            className="icon-img"
-                            src="images/github.svg"
-                            alt="github link"
-                        />
-                    </a>{' '}
-                    |
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://letterboxd.com/samlearner/"
-                    >
-                        <img
-                            className="icon-img"
-                            src="images/letterboxd.svg"
-                            alt="letterboxd link"
-                        />
-                    </a>
-                </p> */}
+        {/* <p style={{ fontWeight: "bold" }}>
+          Project by{" "}
+          <a target="_blank" rel="noreferrer" href="https://www.samlearner.com/">
+            Sam Learner
+          </a>{" "}
+          |
+          <a target="_blank" rel="noreferrer" href="mailto:learnersd+letterboxd-recs@gmail.com">
+            <img className="icon-img" src="images/email.svg" alt="email link" />
+          </a>{" "}
+          |
+          <a target="_blank" rel="noreferrer" href="https://twitter.com/sam_learner">
+            <img className="icon-img" src="images/twitter.svg" alt="twitter link" />
+          </a>{" "}
+          |
+          <a target="_blank" rel="noreferrer" href="https://github.com/sdl60660">
+            <img className="icon-img" src="images/github.svg" alt="github link" />
+          </a>{" "}
+          |
+          <a target="_blank" rel="noreferrer" href="https://letterboxd.com/samlearner/">
+            <img className="icon-img" src="images/letterboxd.svg" alt="letterboxd link" />
+          </a>
+        </p> */}
         <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
 
         <div className="btn-container">
