@@ -74,16 +74,10 @@ def migrate_inactive_ratings(
 
 
 def delete_inactive_movies(movies_coll, filter_exp):
-    to_delete = movies_coll.count_documents(filter_exp)
-    print(to_delete)
-
-    # return movies_coll.delete_many(filter_exp).deleted_count
+    return movies_coll.delete_many(filter_exp).deleted_count
 
 
 def delete_inactive_ratings(ratings_coll, movies_coll, filter_exp):
-    to_delete = ratings_coll.count_documents({"movie_id": {"$in": movie_ids}})
-    print(to_delete)
-
     movie_ids = movies_coll.distinct("movie_id", filter=filter_exp)
 
     if not movie_ids:
