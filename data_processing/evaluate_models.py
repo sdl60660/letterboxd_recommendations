@@ -350,7 +350,7 @@ def main():
     datasets = get_datasets(sample_sizes)
 
     sample_size_index = 2
-    num_candidates = 80
+    num_candidates = 100
 
     best_params = run_grid_search(
         models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
