@@ -79,8 +79,8 @@ const Footer = () => {
           not rated are run through the model for predicted scores and the items
           with the top predicted scores are returned. Due to constraints in time
           and computing power, the maxiumum sample size that a user is allowed
-          to select contains about 5,000,000 ratings, though there are over 50
-          million ratings in the full dataset.
+          to select contains about five million ratings, though there are over
+          50 million ratings in the full dataset.
         </p>
       </section>
       <section>
