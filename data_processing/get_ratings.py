@@ -183,6 +183,10 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
             "user_id": response[1]["username"].lower(),
         }
 
+        # if return_unrated:
+        #     liked = review.select_one("span.like.icon-liked")
+        #     rating_object["liked"] = bool(liked)
+
         # We're going to eventually send a bunch of upsert operations for movies with just IDs
         # For movies already in the database, this won't impact anything
         # But this will allow us to easily figure out which movies we need to scraped data on later,
