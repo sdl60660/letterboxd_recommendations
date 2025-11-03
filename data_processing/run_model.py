@@ -10,21 +10,33 @@ import pandas as pd
 if os.getcwd().endswith("data_processing"):
     from get_user_ratings import get_user_data
     from model import Model
+    from utils.config import sample_sizes
     from utils.utils import explicit_exclude_list, get_rich_movie_data
 
 else:
     from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
+    from data_processing.utils.config import sample_sizes
     from data_processing.utils.utils import explicit_exclude_list, get_rich_movie_data
 
 
-def split_user_events(user_data, rating_min=1.0, rating_max=10.0):
+def split_user_events(
+    user_data, rating_min=1.0, rating_max=10.0, use_synthetic_ratings=False
+):
     rated = []
     seen = set()
 
-    for x in user_data:
-        mid = x["movie_id"]
-        val = float(x["rating_val"])
+    for rating in user_data:
+        mid = rating["movie_id"]
+
+        # if no explicit rating is available, the "synthetic_rating" is calculated based on whether a user liked
+        # a film. the value is a weighted average of the on the avg. rating for "liked" films by the user, where there's overlap
+        # and the avg. rating for "liked" films by all users
+        if use_synthetic_ratings and "synthetic_rating_val" in rating.keys():
+            val = float(rating["synthetic_rating_val"])
+        else:
+            val = float(rating["rating_val"])
+
         seen.add(mid)
 
         if rating_min <= val <= rating_max:
@@ -89,13 +101,16 @@ def run_model(
     movie_data=None,
     num_recommendations=20,
     fold_in=True,
+    use_synthetic_ratings=False,
     verbose=False,
 ):
     rating_min, rating_max = (
         getattr(algo, "rating_min", 1.0),
         getattr(algo, "rating_max", 10.0),
     )
-    rated_events, seen_ids = split_user_events(user_data, rating_min, rating_max)
+    rated_events, seen_ids = split_user_events(
+        user_data, rating_min, rating_max, use_synthetic_ratings
+    )
 
     if fold_in:
         algo = algo.update_algo(username, rated_events)
@@ -147,6 +162,7 @@ def main(
     fold_in=True,
     num_recommendations=25,
     use_cached_user_data=False,
+    use_synthetic_ratings=False,
     verbose=True,
 ):
     algo = load_compressed_model(f"models/model_{sample_size}.npz")
@@ -158,9 +174,12 @@ def main(
         with open("testing/user_data.txt", "rb") as fp:
             user_data = pickle.load(fp)
     else:
-        user_data = get_user_data(username)[0]
+        user_data = get_user_data(
+            username, data_opt_in=False, include_liked_items=True
+        )[0]
 
-    print(user_data)
+        with open("testing/user_data.txt", "wb") as fp:
+            pickle.dump(user_data, fp)
 
     # will use cached file if it exsits, or grab/cache if it doesn't
     movie_data = get_movie_data(sample_movie_list, sample_size)
@@ -173,6 +192,7 @@ def main(
         movie_data,
         num_recommendations,
         fold_in,
+        use_synthetic_ratings=use_synthetic_ratings,
         verbose=verbose,
     )
     return recs
@@ -181,9 +201,10 @@ def main(
 if __name__ == "__main__":
     main(
         "samlearner",
-        sample_size=2000000,
+        sample_size=sample_sizes[-2],
         fold_in=True,
         num_recommendations=25,
         use_cached_user_data=True,
+        use_synthetic_ratings=True,
         verbose=True,
     )
