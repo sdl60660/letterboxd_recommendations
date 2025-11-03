@@ -67,7 +67,7 @@ def get_datasets(sample_sizes):
     return datasets
 
 
-def evaluate_config(dataset, model, params={}, cv_folds=4):
+def evaluate_config(dataset, model, params={}, cv_folds=3):
     data = dataset["dataset"]
     sample_size = dataset["sample_size"]
 
@@ -278,7 +278,7 @@ def eval_fold_in(df, base_model, param_set_df, num_test_users=1500):
     return fold_in_cols_df
 
 
-def run_grid_search(model, dataset, num_candidates, cv_folds=4):
+def run_grid_search(model, dataset, num_candidates, cv_folds=3):
     param_dists = {
         "n_factors": dists.randint(100, 250),
         "n_epochs": dists.randint(40, 80),
