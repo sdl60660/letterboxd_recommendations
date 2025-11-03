@@ -383,6 +383,8 @@ def get_ids_for_update(movies_collection, data_type):
                         {"movie_title": {"$exists": False}},
                         {"tmdb_id": {"$exists": False}},
                         {"image_url": {"$exists": False}},
+                        {"year_released": {"$exists": False}},
+                        {"year_released": {"$in": ["", None]}},
                     ]
                 },
                 {"movie_id": 1},
