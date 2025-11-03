@@ -131,7 +131,7 @@ def main(sample_size=1500):
     user_sample = list(
         users.aggregate(
             [
-                {"$match": {"num_reviews": {"$gte": 300}, "scrape_status": "ok"}},
+                {"$match": {"num_reviews": {"$gte": 150}, "scrape_status": "ok"}},
                 {"$sample": {"size": sample_size}},
                 {"$project": {"_id": 0, "username": 1}},
             ]
