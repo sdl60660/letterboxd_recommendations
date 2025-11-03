@@ -112,7 +112,7 @@ def export_model(algo, sample_size, compressed=True, subdirectory_path="models")
 
 
 if __name__ == "__main__":
-    for i, sample_size in enumerate(sample_sizes):
+    for sample_size in sample_sizes:
         # Load ratings data
         df = pd.read_parquet(
             f"data/training_data_samples/training_data_{sample_size}.parquet"
@@ -135,10 +135,3 @@ if __name__ == "__main__":
         )
 
         export_model(algo, sample_size, compressed=True)
-
-        if i == 0:
-            with open("testing/user_watched.txt", "wb") as fp:
-                pickle.dump(user_watched_list, fp)
-
-            with open("testing/user_data.txt", "wb") as fp:
-                pickle.dump(user_data, fp)
