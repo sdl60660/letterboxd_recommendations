@@ -345,14 +345,14 @@ def get_ids_for_update(movies_collection, data_type):
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 1000 least recently updated items, excluding anything updated in the last month
+        # 5000 least recently updated items, excluding anything updated in the last month
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
                 {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(1000)
+            .limit(5000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
