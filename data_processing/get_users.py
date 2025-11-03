@@ -21,47 +21,64 @@ else:
     from data_processing.utils.mongo_utils import safe_commit_ops
 
 
-# Connect to MongoDB client
-db_name, client = connect_to_db()
+def parse_user_tile(user_item):
+    link = user_item.find("a")["href"]
+    username = link.strip("/").lower()
+    display_name = user_item.find("a", class_="name").text.strip()
+    reviews_link = user_item.select_one('small.metadata a[href$="/reviews/"]')
 
-db = client[db_name]
-users = db.users
+    txt = reviews_link.get_text(" ", strip=True) if reviews_link else ""
+    m = re.search(r"([\d,]+)\s*reviews", txt, flags=re.I)
+    num_reviews = int(m.group(1).replace(",", "")) if m else 0
 
-# base_url = "https://letterboxd.com/members/popular/page/{}"
-base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
+    user = {
+        "username": username,
+        "display_name": display_name,
+        "num_reviews": num_reviews,
+        # "last_updated": datetime.datetime.now(datetime.timezone.utc),
+    }
 
-total_pages = 128
-pbar = tqdm(range(1, total_pages + 1))
-for page in pbar:
-    pbar.set_description(f"Scraping page {page} of {total_pages} of top users")
+    return user
 
-    r = requests.get(base_url.format(page), headers=BROWSER_HEADERS)
-    soup = BeautifulSoup(r.text, "html.parser")
+
+def parse_user_list_page(html):
+    soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table", class_="member-table")
-    rows = table.find_all("td", class_="table-person")
+    table_items = table.find_all("td", class_="table-person")
 
     update_operations = []
-    for row in rows:
-        link = row.find("a")["href"]
-        username = link.strip("/").lower()
-        display_name = row.find("a", class_="name").text.strip()
-        reviews_link = row.select_one('small.metadata a[href$="/reviews/"]')
-
-        txt = reviews_link.get_text(" ", strip=True) if reviews_link else ""
-        m = re.search(r"([\d,]+)\s*reviews", txt, flags=re.I)
-        num_reviews = int(m.group(1).replace(",", "")) if m else 0
-
-        user = {
-            "username": username,
-            "display_name": display_name,
-            "num_reviews": num_reviews,
-            # "last_updated": datetime.datetime.now(datetime.timezone.utc),
-        }
-
+    for user_tile in table_items:
+        user = parse_user_tile(user_tile)
         update_operations.append(
             UpdateOne({"username": user["username"]}, {"$set": user}, upsert=True)
         )
 
-        # users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
+    return update_operations
+
+
+def process_user_page(base_url, page, users):
+    r = requests.get(base_url.format(page), headers=BROWSER_HEADERS)
+    update_operations = parse_user_list_page(r.text)
 
     safe_commit_ops(users, update_operations)
+
+
+def main():
+    # Connect to MongoDB client
+    db_name, client = connect_to_db()
+
+    db = client[db_name]
+    users = db.users
+
+    # base_url = "https://letterboxd.com/members/popular/page/{}"
+    base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
+
+    total_pages = 128
+    pbar = tqdm(range(1, total_pages + 1))
+    for page in pbar:
+        pbar.set_description(f"Scraping page {page} of {total_pages} of top users")
+        process_user_page(base_url, page, users)
+
+
+if __name__ == "__main__":
+    main()
