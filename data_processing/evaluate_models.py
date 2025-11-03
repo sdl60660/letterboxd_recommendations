@@ -1,7 +1,8 @@
 #!/usr/local/bin/python3.12
 
 import json
-import random
+
+# import random
 from collections import defaultdict
 
 import numpy as np
@@ -487,9 +488,6 @@ def run_grid_search(model, dataset, num_candidates, current_best_params, cv_fold
         cv=cv_folds,
         n_jobs=cv_folds,
         joblib_verbose=0,
-        # we want deterministic random seed for things like the dataset split, but...
-        # ideally we actually get different random distributions of params on each run here
-        random_state=None,
     )
 
     with tqdm_joblib(tqdm(total=n_iter * cv_folds, desc="RandomizedSearchCV")):
@@ -544,8 +542,8 @@ def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
 
 def main():
     # Set consistent random seed
-    np.random.seed(random_seed)
-    random.seed(random_seed)
+    # np.random.seed(random_seed)
+    # random.seed(random_seed)
 
     # Config vars
     sample_size_index = 0
