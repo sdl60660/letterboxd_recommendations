@@ -102,29 +102,72 @@ def evaluate_config(dataset, model, params={}, cv_folds=3):
 
 
 def create_user_test_train_sets(
-    user_data_df, test_users, user_train_test_split=0.7, random_seed=random_seed
+    user_data_df: pd.DataFrame,
+    test_users,
+    user_train_test_split: float = 0.7,
+    random_seed: int = random_seed,
+    min_test_items: int = 10,
+    min_explicit_train_items: int = 20,
 ):
     output_set = []
+    # has_explicit_rating = user_data_df["rating_val"].ge(0)
 
     for user_id in test_users:
         user_data = user_data_df[user_data_df["user_id"] == user_id]
 
-        user_train_data = user_data.sample(
+        # Split to train/test (row-level)
+        user_train = user_data.sample(
             frac=user_train_test_split, random_state=random_seed
         )
-        user_test_data = user_data.loc[~user_data.index.isin(user_train_data.index)]
+        user_test = user_data.loc[~user_data.index.isin(user_train.index)]
+
+        # --- test set: explicit-only ---
+        user_test_explicit = user_test[user_test["rating_val"] >= 0].copy()
+        if len(user_test_explicit) < min_test_items:
+            # Not enough ground-truth to evaluate—skip this user
+            continue
+
+        # --- train (explicit-only) ---
+        user_train_explicit = user_train[user_train["rating_val"] >= 0].copy()
+        if len(user_train_explicit) < min_explicit_train_items:
+            # Ensure the explicit-only baseline has enough signal
+            continue
+
+        # --- train_with_likes: project synthetic into rating_val where needed ---
+        user_train_with_synth = user_train.copy()
+        # Keep original rating for potential debugging down the line
+        user_train_with_synth["explicit_rating_val"] = user_train_with_synth[
+            "rating_val"
+        ]
+
+        # Fill rating_val from synthetic where no rating_val (< 0), liked is True, has synthetic_rating_val
+        mask_unrated = user_train_with_synth["rating_val"].lt(0)
+        mask_liked = user_train_with_synth.get("liked", False).astype(bool)
+        mask_has_synth = user_train_with_synth.get("synthetic_rating_val", -1).ge(0)
+
+        fill_mask = mask_unrated & mask_liked & mask_has_synth
+        user_train_with_synth.loc[fill_mask, "rating_val"] = user_train_with_synth.loc[
+            fill_mask, "synthetic_rating_val"
+        ]
+        user_train_with_synth = user_train_with_synth[
+            user_train_with_synth["rating_val"] >= 0
+        ].copy()
+
+        # let's also validate here that the user's training set without the synthetic vals has at least ~20 items
+        # to avoid cases where a set of almost entirely liked/synthetic items leaves us with almost no "true" ratings to
+        # use in training for the user
+        if len(user_test_explicit) < min_test_items:
+            continue
 
         all_movies = user_data["movie_id"].unique()
-
-        if len(user_test_data) < 5:
-            continue
 
         output_set.append(
             {
                 "username": user_id,
-                "train": user_train_data.to_dict(orient="records"),
-                "test": user_test_data.to_dict(orient="records"),
-                "test_key": user_test_data.set_index("movie_id").to_dict(
+                "train": user_train_explicit.to_dict(orient="records"),
+                "train_with_likes": user_train_with_synth.to_dict(orient="records"),
+                "test": user_test_explicit.to_dict(orient="records"),
+                "test_key": user_test_explicit.set_index("movie_id").to_dict(
                     orient="index"
                 ),
                 "movie_set": set(all_movies),
@@ -245,7 +288,9 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def eval_fold_in(df, base_model, param_set_df, num_test_users=1500):
+def eval_fold_in(
+    training_df, testing_df, base_model, param_set_df, num_test_users=1500
+):
     # Parse JSON-ish params column safely
     params_set = [
         json.loads(x.replace("'", '"')) if isinstance(x, str) else x
@@ -253,10 +298,12 @@ def eval_fold_in(df, base_model, param_set_df, num_test_users=1500):
     ]
 
     # user split
-    all_users = df["user_id"].unique()
-    test_users = all_users[-num_test_users:]
-    training_data = df[~df["user_id"].isin(test_users)]
-    test_data = df[df["user_id"].isin(test_users)]
+    # all_model_users = training_df["user_id"].unique()
+    all_model_movies = training_df["movie_id"].unique()
+    test_users = testing_df["user_id"].unique()
+    # training_users = all_users[-num_test_users:]
+    training_data = training_df[~training_df["user_id"].isin(test_users)]
+    test_data = testing_df[testing_df["movie_id"].isin(all_model_movies)]
 
     # build training dataset for Surprise
     training_dataset = get_dataset(training_data)
@@ -354,28 +401,21 @@ def main():
         f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet"
     )
 
-    best_params = run_grid_search(
-        models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
-    )
-    with open("./models/eval_results/best_svd_params.json", "w") as f:
-        json.dump(best_params, f)
+    # best_params = run_grid_search(
+    #     models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
+    # )
+    # with open("./models/eval_results/best_svd_params.json", "w") as f:
+    #     json.dump(best_params, f)
 
     param_eval_df = pd.read_csv("./models/eval_results/model_param_test_results.csv")
-
+    test_user_data = pd.read_parquet("./testing/test_user_data.parquet")
     fold_in_cols_df = eval_fold_in(
-        training_sample_df, base_model=models[0]["model"], param_set_df=param_eval_df
+        training_df=training_sample_df,
+        testing_df=test_user_data,
+        base_model=models[0]["model"],
+        param_set_df=param_eval_df,
     )
     export_fold_in_eval_data(fold_in_cols_df, param_eval_df)
-
-    # eval_rows = []
-    # for dataset in datasets:
-    #   for model in models:
-    #     config_eval = evaluate_config(dataset, model, params=best_params)
-    #     eval_rows.append(config_eval)
-
-    # pd.set_option('display.max_columns', 10)
-    # eval_table = pd.DataFrame(eval_rows)
-    # print(eval_table.head(20))
 
 
 if __name__ == "__main__":

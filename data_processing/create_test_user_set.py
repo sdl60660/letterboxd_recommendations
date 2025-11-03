@@ -2,6 +2,7 @@ import os
 from pprint import pprint
 from statistics import mean
 
+import pandas as pd
 from pymongo import ReplaceOne
 from pymongo.errors import BulkWriteError
 from tqdm.auto import tqdm
@@ -119,6 +120,16 @@ def is_keepable(r: dict) -> bool:
     return (isinstance(rv, (int, float)) and rv >= 0) or (r.get("liked") is True)
 
 
+def store_test_ratings(collection):
+    # get all files in output collection and load into pandas dataframe, without _id
+    proj = {"_id": 0}
+    cursor = collection.find({}, proj)
+    df = pd.DataFrame(cursor)
+
+    # Export to CSV/Parquet files
+    df.to_parquet("./testing/test_user_data.parquet", index=False)
+
+
 def main(sample_size=1500):
     # Connect to MongoDB client
     db_name, client = connect_to_db()
@@ -131,7 +142,12 @@ def main(sample_size=1500):
     user_sample = list(
         users.aggregate(
             [
-                {"$match": {"num_reviews": {"$gte": 150}, "scrape_status": "ok"}},
+                {
+                    "$match": {
+                        "num_reviews": {"$gte": 150, "$lte": 2000},
+                        "scrape_status": "ok",
+                    }
+                },
                 {"$sample": {"size": sample_size}},
                 {"$project": {"_id": 0, "username": 1}},
             ]
@@ -162,6 +178,7 @@ def main(sample_size=1500):
 
     try:
         test_sample_ratings.bulk_write(ops, ordered=False)
+        store_test_ratings(test_sample_ratings)
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
