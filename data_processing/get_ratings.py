@@ -41,6 +41,14 @@ async def fetch(url, session, input_data={}, *, retries=3):
     return None, None
 
 
+def parse_num_pages(html):
+    soup = BeautifulSoup(html, "lxml")
+    links = soup.select("li.paginate-page a")
+    num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
+
+    return num_pages
+
+
 async def get_page_counts(usernames, users_cursor):
     url = "https://letterboxd.com/{}/films/"
     tasks = []
@@ -58,7 +66,6 @@ async def get_page_counts(usernames, users_cursor):
             tasks.append(task)
 
         responses = await asyncio.gather(*tasks)
-        # responses = [x for x in responses if x and x[0]]
 
         for i, response in enumerate(responses):
             username = (
@@ -92,11 +99,7 @@ async def get_page_counts(usernames, users_cursor):
                 )
                 continue
 
-            soup = BeautifulSoup(response[0], "lxml")
-            links = soup.select("li.paginate-page a")
-            num_pages = (
-                int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
-            )
+            num_pages = parse_num_pages(response[0])
 
             try:
                 previous_num_pages = user["num_ratings_pages"]
@@ -142,7 +145,7 @@ async def get_page_counts(usernames, users_cursor):
         return pages_by_user
 
 
-async def generate_ratings_operations(
+def generate_ratings_operations(
     response, send_to_db=True, return_unrated=False, attach_liked_flag=False
 ):
     if not response or not response[0]:
@@ -259,19 +262,15 @@ async def get_user_ratings(
         scrape_responses = [x for x in scrape_responses if x]
 
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
-    tasks = []
-    for response in scrape_responses:
-        task = asyncio.ensure_future(
-            generate_ratings_operations(
-                response,
-                send_to_db=store_in_db,
-                return_unrated=return_unrated,
-                attach_liked_flag=attach_liked_flag,
-            )
+    parse_responses = [
+        generate_ratings_operations(
+            response,
+            send_to_db=store_in_db,
+            return_unrated=return_unrated,
+            attach_liked_flag=attach_liked_flag,
         )
-        tasks.append(task)
-
-    parse_responses = await asyncio.gather(*tasks)
+        for response in scrape_responses
+    ]
 
     if not store_in_db:
         parse_responses = list(

@@ -10,3 +10,6 @@ ignore = ["E501"]         # allow long lines
 indent-style = "space"
 quote-style = "double"
 line-ending = "lf"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

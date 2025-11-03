@@ -30,6 +30,34 @@ _TMDB_MOVIE_RE = re.compile(r"/movie/(\d+)/?")
 _TMDB_TV_RE = re.compile(r"/tv/(\d+)/?")
 
 
+def _is_mongomock_collection(coll) -> bool:
+    return coll.__class__.__module__.startswith("mongomock")
+
+
+def _bulk_write_compat(coll, ops, **kwargs):
+    """
+    Use bulk_write on real Mongo. On mongomock, replay ops individually
+    to avoid unsupported kwargs (sort/array_filters/collation).
+    """
+    if not ops:
+        return
+
+    if _is_mongomock_collection(coll):
+        for op in ops:
+            if isinstance(op, UpdateOne):
+                # Access UpdateOne internals (fine for test-only fallback)
+                coll.update_one(op._filter, op._doc, upsert=op._upsert)
+            else:
+                # Add other op types if you use them (InsertOne, ReplaceOne, etc.)
+                raise NotImplementedError(
+                    f"Unsupported op in mongomock fallback: {type(op)}"
+                )
+        return
+
+    # Real MongoDB: use the fast path.
+    coll.bulk_write(ops, **kwargs)
+
+
 def format_img_link_stub(raw_link):
     image_url = raw_link.replace("https://a.ltrbxd.com/resized/", "").split(".jpg")[0]
 
@@ -68,17 +96,6 @@ def get_meta_data_from_script_tag(soup):
             "letterboxd_avg_rating": avg_rating,
             "letterboxd_genres": genres,
         }
-
-
-def _safe_text(tag, default=""):
-    return tag.get_text(strip=True) if tag else default
-
-
-def _safe_int(s, default=None):
-    try:
-        return int(s)
-    except (TypeError, ValueError):
-        return default
 
 
 def _attr(tag, name, default=None):
@@ -299,8 +316,9 @@ async def get_movies(movie_list, db_cursor, mongo_db):
     try:
         if len(upsert_operations) > 0:
             # Create/reference "ratings" collection in db
-            movies = mongo_db.movies
-            movies.bulk_write(upsert_operations, ordered=False)
+            # movies = mongo_db.movies
+            _bulk_write_compat(mongo_db.movies, upsert_operations, ordered=False)
+            # movies.bulk_write(upsert_operations, ordered=False)
     except BulkWriteError as bwe:
         pprint(bwe.details)
 

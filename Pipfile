@@ -36,3 +36,11 @@ tqdm-joblib = "*"
 pre-commit = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-asyncio = "*"
+aioresponses = "*"
+vcrpy = "*"
+pytest-recording = "*"
+pymongo = "*"
+python-dotenv = "*"
+mongomock = "*"
