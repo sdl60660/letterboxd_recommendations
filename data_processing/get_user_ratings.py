@@ -67,6 +67,7 @@ def attach_synthetic_ratings(
 
     # 1) Per-user mean over liked & rated
     liked_rated_by_user = {}
+
     for r in all_ratings:
         uid = r.get("user_id")
         if not uid:
@@ -144,14 +145,12 @@ def get_user_data(username, data_opt_in=False, include_liked_items=True):
         send_to_db(username, display_name, user_ratings=sanitized_ratings)
 
     if include_liked_items:
-        user_ratings_with_likes = [
-            x for x in user_ratings if x["rating_val"] >= 0 or x["liked"]
-        ]
-        attach_synthetic_ratings(user_ratings_with_likes, global_mean=7.9826)
+        # user_ratings_with_likes = [
+        #     x for x in user_ratings if x["rating_val"] >= 0 or x["liked"]
+        # ]
+        attach_synthetic_ratings(user_ratings, global_mean=8)
 
-    print(user_ratings_with_likes)
-
-    return user_ratings_with_likes, "success"
+    return user_ratings, "success"
 
 
 def send_to_db(username, display_name, user_ratings):
