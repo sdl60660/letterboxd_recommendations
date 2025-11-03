@@ -17,10 +17,10 @@ from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
-    from http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS
 
 else:
-    from data_processing.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import BROWSER_HEADERS
 
 
 _IMDB_ID_RE = re.compile(r"/title/([A-Za-z0-9]+)/?")

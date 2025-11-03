@@ -9,9 +9,9 @@ from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("/data_processing"):
-    from http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS
 else:
-    from data_processing.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import BROWSER_HEADERS
 
 
 async def fetch(url, session, input_data={}):

@@ -13,19 +13,6 @@ USER_MIN = 50  # users must have ≥ this many ratings to end up in sampling poo
 MOVIE_MIN = 50  # movies must have ≥ this many ratings (this gets adjusted to account for subsampling)
 PER_USER_CAP = 300  # at most this many ratings per sampled user
 
-# aim ~this many ratings in final sample sets (±5–10%)
-# TARGET_SAMPLES = [
-#     500_000,
-#     1_000_000,
-#     # 1_500_000,
-#     2_000_000,
-#     # 2_500_000,
-#     3_000_000,
-#     # 4_000_000,
-#     5_000_000,
-#     # 10_000_000
-# ]
-
 # collection names
 ACTIVE_USERS_COLL = "active_users_tmp"
 MOVIE_COUNTS_COLL = "movie_counts"
@@ -291,7 +278,7 @@ def create_training_set(
         MOVIE_MIN * (active_users_count / sampled_users_count) * 1.05
     )
 
-    threshold_movies = get_or_build_collection(
+    get_or_build_collection(
         db,
         THRESHOLD_MOVIES_COLL,
         build_fn=lambda: filter_threshold_movies(db, adjusted_movie_threshold),
@@ -301,7 +288,7 @@ def create_training_set(
     raw_sample_coll_name = f"{RAW_TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
     final_sample_coll_name = f"{TRAINING_DATA_SAMPLE_COLL}_{sample_size}"
 
-    raw_training_data_sample = get_or_build_collection(
+    get_or_build_collection(
         db,
         raw_sample_coll_name,
         build_fn=lambda: get_raw_final_sample(

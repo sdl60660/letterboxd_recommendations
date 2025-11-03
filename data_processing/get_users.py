@@ -14,9 +14,9 @@ from pymongo.operations import UpdateOne
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
-    from http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS
 else:
-    from data_processing.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import BROWSER_HEADERS
 
 # Connect to MongoDB client
 db_name, client = connect_to_db()
