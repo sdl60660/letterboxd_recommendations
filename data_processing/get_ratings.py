@@ -15,12 +15,12 @@ from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("data_processing"):
-    from db_connect import connect_to_db
+    from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
     from utils.utils import get_backoff_days
 
 else:
-    from data_processing.db_connect import connect_to_db
+    from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
     from data_processing.utils.utils import get_backoff_days
 

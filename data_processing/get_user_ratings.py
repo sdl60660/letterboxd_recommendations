@@ -14,13 +14,13 @@ from pymongo.errors import BulkWriteError
 
 
 if os.getcwd().endswith("/data_processing"):
-    from db_connect import connect_to_db
     from get_ratings import get_user_ratings
+    from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
 
 else:
-    from data_processing.db_connect import connect_to_db
     from data_processing.get_ratings import get_user_ratings
+    from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
 
 

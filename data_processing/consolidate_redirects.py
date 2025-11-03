@@ -3,11 +3,12 @@
 import argparse
 import datetime as datetime
 
-# Use your existing DB helper
-from db_connect import connect_to_db
 from pymongo import ASCENDING
 from pymongo.errors import PyMongoError
 from tqdm import tqdm
+
+# Use your existing DB helper
+from utils.db_connect import connect_to_db
 
 
 def archive_old_ratings(db, retired_db, old_id: str, new_id: str) -> None:

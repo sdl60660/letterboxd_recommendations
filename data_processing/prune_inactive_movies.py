@@ -3,7 +3,7 @@
 
 import datetime
 
-from db_connect import connect_to_db
+from utils.db_connect import connect_to_db
 
 
 def get_filter_exp(inactive_fail_count=3):

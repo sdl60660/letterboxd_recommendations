@@ -7,12 +7,12 @@ from pymongo.errors import BulkWriteError
 from tqdm.auto import tqdm
 
 if os.getcwd().endswith("data_processing"):
-    from db_connect import connect_to_db
     from get_user_ratings import get_user_data
+    from utils.db_connect import connect_to_db
 
 else:
-    from data_processing.db_connect import connect_to_db
     from data_processing.get_user_ratings import get_user_data
+    from data_processing.utils.db_connect import connect_to_db
 
 
 def prepare_test_sample_ratings(db):

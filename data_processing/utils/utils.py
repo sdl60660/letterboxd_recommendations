@@ -3,9 +3,9 @@ import os
 import pandas as pd
 
 if os.getcwd().endswith("data_processing"):
-    from db_connect import connect_to_db
+    from utils.db_connect import connect_to_db
 else:
-    from data_processing.db_connect import connect_to_db
+    from data_processing.utils.db_connect import connect_to_db
 
 
 def format_seconds(seconds):

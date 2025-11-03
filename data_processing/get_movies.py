@@ -11,15 +11,17 @@ from urllib.parse import urlparse
 
 from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
-from db_connect import connect_to_db
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
+    from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
 
+
 else:
+    from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
 
 

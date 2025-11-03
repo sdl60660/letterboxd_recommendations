@@ -4,7 +4,7 @@ import pickle
 
 import pandas as pd
 import pymongo
-from db_connect import connect_to_db
+from utils.db_connect import connect_to_db
 
 
 def get_sample(cursor, iteration_size):
