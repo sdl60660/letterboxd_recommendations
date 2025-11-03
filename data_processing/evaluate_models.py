@@ -385,7 +385,7 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
         "reg_qi": dists.uniform(0.01, 0.04),
         "reg_pu": dists.uniform(0.01, 0.04),
         "reg_bu": dists.uniform(0.03, 0.08),
-        "reg_bi": dists.uniform(0.08, 0.25),
+        "reg_bi": dists.uniform(0.1, 0.25),
         "init_std_dev": dists.uniform(0.05, 0.25),
     }
 
