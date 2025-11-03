@@ -10,11 +10,17 @@ import scipy.stats.distributions as dists
 from build_model import get_dataset, train_model
 from model import Model
 from run_model import run_model
+from sklearn.metrics.pairwise import cosine_similarity
 from surprise import SVD, Prediction, accuracy
 from surprise.model_selection import KFold, RandomizedSearchCV, cross_validate
 from tqdm.auto import tqdm
 from tqdm_joblib import tqdm_joblib
 from utils.config import random_seed, sample_sizes
+
+BEST_PARAMS_FILEPATH = "./models/eval_results/best_svd_params.json"
+EVAL_RESULTS_FILEPATH = "./models/eval_results/model_param_test_results.csv"
+RICH_EVAL_RESULTS_FILEPATH = "./models/eval_results/model_param_rich_test_results.csv"
+TEST_USER_DATASET_FILEPATH = "./testing/test_user_data.parquet"
 
 
 def precision_recall_at_k(predictions, k=20, threshold=6):
@@ -178,7 +184,7 @@ def create_user_test_train_sets(
     return output_set
 
 
-def eval_fold_in_user(user_data_set, model, explicit_ratings_only=True):
+def eval_fold_in_user(user_data_set, model, top_k=50, explicit_ratings_only=True):
     username = user_data_set["username"]
 
     if explicit_ratings_only:
@@ -212,16 +218,20 @@ def eval_fold_in_user(user_data_set, model, explicit_ratings_only=True):
     ]
 
     rmse_value = accuracy.rmse(predictions, verbose=False)
-    precisions, recalls = precision_recall_at_k(predictions, k=50, threshold=7)
+    precisions, recalls = precision_recall_at_k(predictions, k=top_k, threshold=7)
 
     precision = sum(prec for prec in precisions.values()) / len(precisions)
     recall = sum(rec for rec in recalls.values()) / len(recalls)
+
+    top_k_recs = [x.iid for x in predictions[:top_k]]
 
     user_metrics = {
         "rmse": rmse_value,
         "precision": precision,
         "recall": recall,
         "total_test_predictions": len(predictions),
+        "top_k_recs": top_k_recs,
+        "user_id": username,
     }
 
     return user_metrics
@@ -238,7 +248,9 @@ def _safe_weighted_means(sums):
     )
 
 
-def eval_param_set_fold_in(base_model, params, training_dataset, user_data_sets):
+def eval_param_set_fold_in(
+    base_model, params, training_dataset, user_data_sets, all_model_movies
+):
     # Train the Surprise model once
     algo = train_model(training_dataset, base_model, params=params, run_cv=False)
     model = Model.from_surprise(algo)
@@ -248,36 +260,52 @@ def eval_param_set_fold_in(base_model, params, training_dataset, user_data_sets)
     sums_explicit = {"rmse": 0.0, "prec": 0.0, "rec": 0.0, "preds": 0}
     sums_withlikes = {"rmse": 0.0, "prec": 0.0, "rec": 0.0, "preds": 0}
 
-    for uds in tqdm(user_data_sets, desc="Fold-in users", leave=False):
+    personalization_testing_data_explicit = {}
+    personalization_testing_data_with_likes = {}
+
+    for user_data_set in tqdm(user_data_sets, desc="Fold-in users", leave=False):
         # ---- explicit-only ----
-        m_exp = eval_fold_in_user(uds, model, explicit_ratings_only=True)
+        m_exp = eval_fold_in_user(user_data_set, model, explicit_ratings_only=True)
         n_exp = m_exp["total_test_predictions"]
         sums_explicit["rmse"] += m_exp["rmse"] * n_exp
         sums_explicit["prec"] += m_exp["precision"] * n_exp
         sums_explicit["rec"] += m_exp["recall"] * n_exp
         sums_explicit["preds"] += n_exp
 
+        personalization_testing_data_explicit[m_exp["user_id"]] = m_exp["top_k_recs"]
+
         # ---- explicit + likes/synthetic ----
-        m_lik = eval_fold_in_user(uds, model, explicit_ratings_only=False)
+        m_lik = eval_fold_in_user(user_data_set, model, explicit_ratings_only=False)
         n_lik = m_lik["total_test_predictions"]
         sums_withlikes["rmse"] += m_lik["rmse"] * n_lik
         sums_withlikes["prec"] += m_lik["precision"] * n_lik
         sums_withlikes["rec"] += m_lik["recall"] * n_lik
         sums_withlikes["preds"] += n_lik
 
+        personalization_testing_data_with_likes[m_lik["user_id"]] = m_lik["top_k_recs"]
+
     # Weighted means (by # predictions)
     rmse_e, prec_e, rec_e = _safe_weighted_means(sums_explicit)
     rmse_l, prec_l, rec_l = _safe_weighted_means(sums_withlikes)
+
+    personalization_e = personalization_score(
+        personalization_testing_data_explicit, all_model_movies
+    )
+    personalization_l = personalization_score(
+        personalization_testing_data_with_likes, all_model_movies
+    )
 
     return {
         # explicit-only
         "fold_in_rmse_explicit": rmse_e,
         "fold_in_precision@k_explicit": prec_e,
         # "fold_in_recall@k_explicit": rec_e,
+        "personalization_score_explicit": personalization_e,
         # explicit + likes/synthetic
         "fold_in_rmse_with_likes": rmse_l,
         "fold_in_precision@k_with_likes": prec_l,
         # "fold_in_recall@k_with_likes": rec_l,
+        "personalization_score_with_likes": personalization_l,
     }
 
 
@@ -295,16 +323,18 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     df["rank_foldin_precision@k_explicit"] = _rank(
         df["fold_in_precision@k_explicit"], False
     )
-    # df["rank_foldin_recall@k_explicit"] = _rank(df["fold_in_recall@k_explicit"], False)
+    df["rank_personalization_explicit"] = _rank(
+        df["personalization_score_explicit"], False
+    )
 
     # --- with-likes ranks ---
     df["rank_foldin_rmse_with_likes"] = _rank(df["fold_in_rmse_with_likes"], True)
     df["rank_foldin_precision@k_with_likes"] = _rank(
         df["fold_in_precision@k_with_likes"], False
     )
-    # df["rank_foldin_recall@k_with_likes"] = _rank(
-    #     df["fold_in_recall@k_with_likes"], False
-    # )
+    df["rank_personalization_with_likes"] = _rank(
+        df["personalization_score_with_likes"], False
+    )
 
     # A composite rank will be tuned with these weights
     # (though this isn't actually used for selection at the moment)
@@ -332,9 +362,40 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Assigning a primary column for model selection downstream of here
-    df["rank_foldin_primary"] = df["rank_foldin_composite_explicit"]
+    df["rank_foldin_primary"] = df["rank_foldin_rmse_with_likes"]
 
-    return df
+    return df[
+        [
+            "rank_foldin_primary",
+            "rank_foldin_rmse_explicit",
+            "rank_foldin_rmse_with_likes",
+            "rank_personalization_explicit",
+            "rank_personalization_with_likes",
+        ]
+    ]
+
+
+def personalization_score(recommendations, all_items):
+    """
+    recommendations: dict {user_id: [list of recommended movie_ids]}
+    """
+    all_items = list(all_items)
+    item_to_idx = {item: i for i, item in enumerate(all_items)}
+
+    # Create a binary recommendation matrix (users x items)
+    user_vectors = []
+    for user, recs in recommendations.items():
+        vec = np.zeros(len(all_items))
+        for item in recs:
+            if item in item_to_idx:
+                vec[item_to_idx[item]] = 1
+        user_vectors.append(vec)
+
+    user_vectors = np.array(user_vectors)
+    sim_matrix = cosine_similarity(user_vectors)
+    # Average similarity between different users
+    upper_tri = sim_matrix[np.triu_indices_from(sim_matrix, k=1)]
+    return 1 - np.mean(upper_tri)
 
 
 def eval_fold_in(
@@ -365,17 +426,44 @@ def eval_fold_in(
     fold_in_eval_rows = []
     for i, params in enumerate(tqdm(params_set, desc="Param sets")):
         param_metrics = eval_param_set_fold_in(
-            base_model, params, training_dataset, user_data_sets
+            base_model, params, training_dataset, user_data_sets, all_model_movies
         )
         fold_in_eval_rows.append(param_metrics)
 
     fold_in_cols_df = pd.DataFrame(fold_in_eval_rows)
-    fold_in_cols_df = add_foldin_ranks(fold_in_cols_df)
+    foldin_ranks = add_foldin_ranks(fold_in_cols_df)
+
+    fold_in_cols_df = fold_in_cols_df.join(foldin_ranks)
 
     return fold_in_cols_df
 
 
-def run_grid_search(model, dataset, num_candidates, cv_folds=3):
+def _dump_best_params(best_params, filepath=BEST_PARAMS_FILEPATH):
+    with open(filepath, "w") as f:
+        json.dump(best_params, f, indent=2)
+
+
+def get_current_champion_results(model, dataset, params, cv_folds=3):
+    best_model = model(**params)
+    cv = cross_validate(
+        best_model, dataset, measures=["rmse"], cv=cv_folds, verbose=False
+    )
+    mean_rmse = np.mean(cv["test_rmse"])
+    std_rmse = np.std(cv["test_rmse"])
+    mean_fit = np.mean(cv["fit_time"])
+
+    extra_row = {
+        "mean_test_rmse": mean_rmse,
+        "std_test_rmse": std_rmse,
+        "rank_test_rmse": np.nan,  # will re-rank after
+        "mean_fit_time": mean_fit,
+        "params": params,
+    }
+
+    return extra_row
+
+
+def run_grid_search(model, dataset, num_candidates, current_best_params, cv_folds=3):
     param_dists = {
         "n_factors": dists.randint(100, 250),
         "n_epochs": dists.randint(40, 80),
@@ -387,17 +475,24 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
         "init_std_dev": dists.uniform(0.05, 0.25),
     }
 
+    n_iter = num_candidates
+    if current_best_params:
+        n_iter = num_candidates - 1
+
     rand_search = RandomizedSearchCV(
         model,
         param_dists,
-        n_iter=num_candidates,
+        n_iter=n_iter,
         measures=["rmse"],
         cv=cv_folds,
         n_jobs=cv_folds,
         joblib_verbose=0,
+        # we want deterministic random seed for things like the dataset split, but...
+        # ideally we actually get different random distributions of params on each run here
+        random_state=None,
     )
 
-    with tqdm_joblib(tqdm(total=num_candidates * cv_folds, desc="RandomizedSearchCV")):
+    with tqdm_joblib(tqdm(total=n_iter * cv_folds, desc="RandomizedSearchCV")):
         rand_search.fit(dataset)
 
     results_df = pd.DataFrame.from_dict(rand_search.cv_results)
@@ -409,9 +504,24 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
         "params",
     ]
     results_df = results_df[results_df_cols]
-    results_df.to_csv("./models/eval_results/model_param_test_results.csv", index=False)
 
-    best_params = rand_search.best_params["rmse"]
+    # if we've passed in the "current champion", calculate its results with this new dataset and add it to the set/re-rank
+    # we can't just re-use results because the sample data may have changed, but this allows us to not select a worse param set
+    # as our new "best" set just due to the randomized search and this will be passed into the fold-in eval after
+    if current_best_params:
+        extra_row = get_current_champion_results(
+            model, dataset, params=current_best_params, cv_folds=cv_folds
+        )
+        results_df = pd.concat(
+            [results_df, pd.DataFrame([extra_row])], ignore_index=True
+        )
+        results_df["rank_test_rmse"] = results_df["mean_test_rmse"].rank(method="min")
+
+    results_df.to_csv(EVAL_RESULTS_FILEPATH, index=False)
+
+    best_params = results_df.loc[results_df["mean_test_rmse"].idxmin(), "params"]
+    _dump_best_params(best_params)
+
     return best_params
 
 
@@ -422,41 +532,46 @@ def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
     best_params = json.loads(
         param_eval_df.loc[best_foldin_row.name, "params"].replace("'", '"')
     )
-    with open("./models/eval_results/best_svd_params.json", "w") as f:
-        json.dump(best_params, f, indent=2)
-    print(f"Best params (by fold-in RMSE): {best_params}")
+    _dump_best_params(best_params)
 
     # merge and write combined results
     rich_param_eval_df = pd.concat(
         [param_eval_df.reset_index(drop=True), fold_in_cols_df.reset_index(drop=True)],
         axis=1,
     )
-    rich_param_eval_df.to_csv(
-        "./models/eval_results/model_param_test_results_with_foldin.csv", index=False
-    )
+    rich_param_eval_df.to_csv(RICH_EVAL_RESULTS_FILEPATH, index=False)
 
 
 def main():
+    # Set consistent random seed
     np.random.seed(random_seed)
     random.seed(random_seed)
 
+    # Config vars
     sample_size_index = 0
-    num_candidates = 80
+    num_candidates = 3
 
+    # Load in data
     models = [{"name": "SVD", "model": SVD}]
     datasets = get_datasets(sample_sizes)
     training_sample_df = pd.read_parquet(
         f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet"
     )
+    test_user_data = pd.read_parquet(TEST_USER_DATASET_FILEPATH)
+    with open(BEST_PARAMS_FILEPATH, "r") as f:
+        current_best_params = json.load(f)
 
-    best_params = run_grid_search(
-        models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
+    # 1) Run initial param grid search and evaluate against current best params
+    #   this will give us a set of randomized params and results to then test with fold-in
+    run_grid_search(
+        models[0]["model"],
+        datasets[sample_size_index]["dataset"],
+        num_candidates,
+        current_best_params,
     )
-    with open("./models/eval_results/best_svd_params.json", "w") as f:
-        json.dump(best_params, f)
 
-    param_eval_df = pd.read_csv("./models/eval_results/model_param_test_results.csv")
-    test_user_data = pd.read_parquet("./testing/test_user_data.parquet")
+    # 2) Test candidate param sets over fold-in methodology and attach additional metrics
+    param_eval_df = pd.read_csv(EVAL_RESULTS_FILEPATH)
     fold_in_cols_df = eval_fold_in(
         training_df=training_sample_df,
         testing_df=test_user_data,
