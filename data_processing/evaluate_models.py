@@ -275,11 +275,11 @@ def eval_param_set_fold_in(base_model, params, training_dataset, user_data_sets)
         # explicit-only
         "fold_in_rmse_explicit": rmse_e,
         "fold_in_precision@k_explicit": prec_e,
-        "fold_in_recall@k_explicit": rec_e,
+        # "fold_in_recall@k_explicit": rec_e,
         # explicit + likes/synthetic
         "fold_in_rmse_with_likes": rmse_l,
         "fold_in_precision@k_with_likes": prec_l,
-        "fold_in_recall@k_with_likes": rec_l,
+        # "fold_in_recall@k_with_likes": rec_l,
     }
 
 
@@ -297,26 +297,27 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     df["rank_foldin_precision@k_explicit"] = _rank(
         df["fold_in_precision@k_explicit"], False
     )
-    df["rank_foldin_recall@k_explicit"] = _rank(df["fold_in_recall@k_explicit"], False)
+    # df["rank_foldin_recall@k_explicit"] = _rank(df["fold_in_recall@k_explicit"], False)
 
     # --- with-likes ranks ---
     df["rank_foldin_rmse_with_likes"] = _rank(df["fold_in_rmse_with_likes"], True)
     df["rank_foldin_precision@k_with_likes"] = _rank(
         df["fold_in_precision@k_with_likes"], False
     )
-    df["rank_foldin_recall@k_with_likes"] = _rank(
-        df["fold_in_recall@k_with_likes"], False
-    )
+    # df["rank_foldin_recall@k_with_likes"] = _rank(
+    #     df["fold_in_recall@k_with_likes"], False
+    # )
 
     # A composite rank will be tuned with these weights
     # (though this isn't actually used for selection at the moment)
-    w_rmse, w_prec, w_rec = 0.6, 0.3, 0.1
+    # w_rmse, w_prec, w_rec = 0.6, 0.3, 0.1
+    w_rmse, w_prec = 0.7, 0.3
 
     df["rank_foldin_composite_explicit"] = (
         (
             w_rmse * df["rank_foldin_rmse_explicit"]
             + w_prec * df["rank_foldin_precision@k_explicit"]
-            + w_rec * df["rank_foldin_recall@k_explicit"]
+            # + w_rec * df["rank_foldin_recall@k_explicit"]
         )
         .rank(method="min", ascending=True)
         .astype(int)
@@ -326,7 +327,7 @@ def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
         (
             w_rmse * df["rank_foldin_rmse_with_likes"]
             + w_prec * df["rank_foldin_precision@k_with_likes"]
-            + w_rec * df["rank_foldin_recall@k_with_likes"]
+            # + w_rec * df["rank_foldin_recall@k_with_likes"]
         )
         .rank(method="min", ascending=True)
         .astype(int)

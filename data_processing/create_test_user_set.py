@@ -8,11 +8,11 @@ from pymongo.errors import BulkWriteError
 from tqdm.auto import tqdm
 
 if os.getcwd().endswith("data_processing"):
-    from get_user_ratings import get_user_data
+    from get_user_ratings import attach_synthetic_ratings, get_user_data
     from utils.db_connect import connect_to_db
 
 else:
-    from data_processing.get_user_ratings import get_user_data
+    from data_processing.get_user_ratings import attach_synthetic_ratings, get_user_data
     from data_processing.utils.db_connect import connect_to_db
 
 
@@ -52,66 +52,6 @@ def get_global_mean_liked_rated(all_ratings):
     ]
     global_mean = mean(global_liked_rated) if global_liked_rated else None
     return global_mean
-
-
-def attach_synthetic_ratings(
-    all_ratings: list, global_mean: float, global_weight: int = 5
-) -> None:
-    """
-    Mutates `all_ratings` in place, adding `synthetic_rating_val`:
-        - If rating_val >= 0: synthetic = rating_val
-        - Else if liked == True: synthetic = weighted mean of (user liked+rated mean, global liked+rated mean)
-        - Else: leave unset
-    """
-
-    # 1) Per-user mean over liked & rated
-    liked_rated_by_user = {}
-    for r in all_ratings:
-        uid = r.get("user_id")
-        if not uid:
-            continue
-        if (
-            r.get("liked") is True
-            and isinstance(r.get("rating_val"), (int, float))
-            and r["rating_val"] >= 0
-        ):
-            liked_rated_by_user.setdefault(uid, []).append(r["rating_val"])
-
-    user_mean_cache = {
-        uid: (mean(vals), len(vals)) for uid, vals in liked_rated_by_user.items()
-    }
-
-    # 2) Attach synthetic per row
-    for r in all_ratings:
-        rv = r.get("rating_val")
-        if isinstance(rv, (int, float)) and rv >= 0:
-            # Explicit rating: prefer it
-            r["synthetic_rating_val"] = rv
-            continue
-
-        # Only compute synthetic for unrated-but-liked
-        if r.get("liked") is not True:
-            continue
-
-        uid = r.get("user_id")
-        u_mean, u_n = user_mean_cache.get(uid, (None, 0))
-
-        # Decide synthetic value
-        synthetic = None
-        if u_mean is not None and global_mean is not None:
-            synthetic = (u_n * u_mean + global_weight * global_mean) / (
-                u_n + global_weight
-            )
-        elif u_mean is not None:
-            synthetic = u_mean
-        elif global_mean is not None:
-            synthetic = global_mean
-        else:
-            synthetic = None
-
-        if synthetic is not None:
-            # keep as float; if you prefer ints, you could round here
-            r["synthetic_rating_val"] = float(synthetic)
 
 
 def is_keepable(r: dict) -> bool:
