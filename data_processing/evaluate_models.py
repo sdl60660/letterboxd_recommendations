@@ -149,6 +149,7 @@ def eval_fold_in_user(user_data_set, model):
         num_recommendations=len(sample_movie_list),
         fold_in=True,
     )
+
     predictions = [
         Prediction(
             uid=username,
@@ -344,24 +345,23 @@ def main():
     np.random.seed(random_seed)
     random.seed(random_seed)
 
-    models = [{"name": "SVD", "model": SVD}]
-    datasets = get_datasets(sample_sizes)
-
     sample_size_index = -2
     num_candidates = 100
 
-    print(datasets[sample_size_index])
+    models = [{"name": "SVD", "model": SVD}]
+    datasets = get_datasets(sample_sizes)
+    training_sample_df = pd.read_parquet(
+        f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet"
+    )
 
     best_params = run_grid_search(
         models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
     )
     with open("./models/eval_results/best_svd_params.json", "w") as f:
         json.dump(best_params, f)
+
     param_eval_df = pd.read_csv("./models/eval_results/model_param_test_results.csv")
 
-    training_sample_df = pd.read_parquet(
-        f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet"
-    )
     fold_in_cols_df = eval_fold_in(
         training_sample_df, base_model=models[0]["model"], param_set_df=param_eval_df
     )
