@@ -44,8 +44,6 @@ def test_parse_user_ratings_to_raw_ratings_liked(html_sample_path):
         attach_liked_flag=True,
     )
 
-    print(out[0])
-
     assert len(out[0]) == 63
     assert "liked" in out[0][0].keys()
     assert out[0][0]["liked"] is False

@@ -17,11 +17,13 @@ from tqdm import tqdm
 if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
+    from utils.mongo_utils import bulk_write_compat
     from utils.utils import get_backoff_days
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.mongo_utils import bulk_write_compat
     from data_processing.utils.utils import get_backoff_days
 
 
@@ -374,18 +376,25 @@ async def get_ratings(usernames, pages_by_user, mongo_db=None, store_in_db=True)
 
         if store_in_db:
             # Execute bulk upsert operations
+            update_sets = [
+                {"collection": ratings_collection, "update_ops": db_ratings_operations},
+                {"collection": movies_collection, "update_ops": db_movies_operations},
+                {
+                    "collection": users_collection,
+                    "update_ops": db_user_update_operations,
+                },
+            ]
+            update_sets = [x for x in update_sets if len(x["update_ops"]) > 0]
+
             try:
-                if len(db_ratings_operations) > 0:
+                for update_set in update_sets:
+                    collection = update_set["collection"]
                     # Bulk write all upsert operations into ratings collection in db
-                    ratings_collection.bulk_write(db_ratings_operations, ordered=False)
-
-                if len(db_movies_operations) > 0:
-                    movies_collection.bulk_write(db_movies_operations, ordered=False)
-
-                if len(db_user_update_operations) > 0:
-                    users_collection.bulk_write(
-                        db_user_update_operations, ordered=False
+                    # this is a bulk_write() wrapper to accommodate mongomock in testing
+                    bulk_write_compat(
+                        collection, update_set["update_ops"], ordered=False
                     )
+                    # collection.bulk_write(update_set['update_ops'], ordered=False)
 
             except BulkWriteError as bwe:
                 pprint(bwe.details)

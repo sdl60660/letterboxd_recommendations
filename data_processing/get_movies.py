@@ -6,7 +6,6 @@ import json
 import os
 import re
 import traceback
-from pprint import pprint
 from urllib.parse import urlparse
 
 from aiohttp import ClientSession, TCPConnector
@@ -18,44 +17,17 @@ from tqdm import tqdm
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
-
+    from utils.mongo_utils import bulk_write_compat
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.mongo_utils import bulk_write_compat
 
 
 _IMDB_ID_RE = re.compile(r"/title/([A-Za-z0-9]+)/?")
 _TMDB_MOVIE_RE = re.compile(r"/movie/(\d+)/?")
 _TMDB_TV_RE = re.compile(r"/tv/(\d+)/?")
-
-
-def _is_mongomock_collection(coll) -> bool:
-    return coll.__class__.__module__.startswith("mongomock")
-
-
-def _bulk_write_compat(coll, ops, **kwargs):
-    """
-    Use bulk_write on real Mongo. On mongomock, replay ops individually
-    to avoid unsupported kwargs (sort/array_filters/collation).
-    """
-    if not ops:
-        return
-
-    if _is_mongomock_collection(coll):
-        for op in ops:
-            if isinstance(op, UpdateOne):
-                # Access UpdateOne internals (fine for test-only fallback)
-                coll.update_one(op._filter, op._doc, upsert=op._upsert)
-            else:
-                # Add other op types if you use them (InsertOne, ReplaceOne, etc.)
-                raise NotImplementedError(
-                    f"Unsupported op in mongomock fallback: {type(op)}"
-                )
-        return
-
-    # Real MongoDB: use the fast path.
-    coll.bulk_write(ops, **kwargs)
 
 
 def format_img_link_stub(raw_link):
@@ -296,6 +268,22 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
         return update_operation
 
 
+def _commit_movie_ops(mongo_db, upsert_operations, label="movies"):
+    """Write a batch of UpdateOne ops to the movies collection (safe for mongomock)."""
+    if not upsert_operations:
+        return 0
+
+    try:
+        # this is basically just a simple bulk_write() op with the upsert_operations (see below)
+        # but for compatibility with the mongomock stuff in testing, I need to wrap it in this util
+        bulk_write_compat(mongo_db.movies, upsert_operations, ordered=False)
+        # movies.bulk_write(upsert_operations, ordered=False)
+        return len(upsert_operations)
+    except BulkWriteError as bwe:
+        print(f"[WARN] Bulk write error in {label}: {bwe.details}")
+        return 0
+
+
 async def get_movies(movie_list, db_cursor, mongo_db):
     url = "https://letterboxd.com/film/{}/"
 
@@ -313,14 +301,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
 
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            # movies = mongo_db.movies
-            _bulk_write_compat(mongo_db.movies, upsert_operations, ordered=False)
-            # movies.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    _commit_movie_ops(mongo_db, upsert_operations, label="get_movies")
 
 
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
@@ -347,13 +328,7 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
 
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            movies = mongo_db.movies
-            movies.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    _commit_movie_ops(mongo_db, upsert_operations, label="get_movies")
 
 
 def get_ids_for_update(movies_collection, data_type):
