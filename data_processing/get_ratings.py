@@ -142,7 +142,9 @@ async def get_page_counts(usernames, users_cursor):
         return pages_by_user
 
 
-async def generate_ratings_operations(response, send_to_db=True, return_unrated=False):
+async def generate_ratings_operations(
+    response, send_to_db=True, return_unrated=False, attach_liked_flag=False
+):
     if not response or not response[0]:
         return [], []
 
@@ -183,9 +185,9 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
             "user_id": response[1]["username"].lower(),
         }
 
-        # if return_unrated:
-        #     liked = review.select_one("span.like.icon-liked")
-        #     rating_object["liked"] = bool(liked)
+        if attach_liked_flag:
+            liked = review.select_one("span.like.icon-liked")
+            rating_object["liked"] = bool(liked)
 
         # We're going to eventually send a bunch of upsert operations for movies with just IDs
         # For movies already in the database, this won't impact anything
@@ -222,6 +224,7 @@ async def get_user_ratings(
     store_in_db=True,
     num_pages=None,
     return_unrated=False,
+    attach_liked_flag=False,
 ):
     url = "https://letterboxd.com/{}/films/by/date/page/{}/"
     user = None
@@ -260,7 +263,10 @@ async def get_user_ratings(
     for response in scrape_responses:
         task = asyncio.ensure_future(
             generate_ratings_operations(
-                response, send_to_db=store_in_db, return_unrated=return_unrated
+                response,
+                send_to_db=store_in_db,
+                return_unrated=return_unrated,
+                attach_liked_flag=attach_liked_flag,
             )
         )
         tasks.append(task)

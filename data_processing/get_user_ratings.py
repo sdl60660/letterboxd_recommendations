@@ -66,13 +66,19 @@ def get_user_data(username, data_opt_in=False):
             store_in_db=False,
             num_pages=num_pages,
             return_unrated=True,
+            attach_liked_flag=True,
         )
     )
     loop.run_until_complete(future)
 
     user_ratings = [x for x in future.result() if x["rating_val"] >= 0]
+
     if data_opt_in:
-        send_to_db(username, display_name, user_ratings=user_ratings)
+        # Remove "liked" flag, if it exists, before sending to DB
+        sanitized_ratings = [
+            {k: v for k, v in r.items() if k != "liked"} for r in user_ratings
+        ]
+        send_to_db(username, display_name, user_ratings=sanitized_ratings)
 
     return future.result(), "success"
 
@@ -102,7 +108,7 @@ def send_to_db(username, display_name, user_ratings):
 
         upsert_ratings_operations = []
         upsert_movies_operations = []
-        # print(len(user_ratings))
+
         for rating in user_ratings:
             upsert_ratings_operations.append(
                 ReplaceOne(
