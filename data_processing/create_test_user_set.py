@@ -41,14 +41,7 @@ def prepare_test_sample_ratings(db):
     return coll
 
 
-def attach_synthetic_ratings(all_ratings: list, global_weight: int = 5) -> None:
-    """
-    Mutates `all_ratings` in place, adding `synthetic_rating_val`:
-        - If rating_val >= 0: synthetic = rating_val
-        - Else if liked == True: synthetic = weighted mean of (user liked+rated mean, global liked+rated mean)
-        - Else: leave unset
-    """
-    # 1) Global mean over liked & rated
+def get_global_mean_liked_rated(all_ratings):
     global_liked_rated = [
         r["rating_val"]
         for r in all_ratings
@@ -57,8 +50,20 @@ def attach_synthetic_ratings(all_ratings: list, global_weight: int = 5) -> None:
         and r["rating_val"] >= 0
     ]
     global_mean = mean(global_liked_rated) if global_liked_rated else None
+    return global_mean
 
-    # 2) Per-user mean over liked & rated
+
+def attach_synthetic_ratings(
+    all_ratings: list, global_mean: float, global_weight: int = 5
+) -> None:
+    """
+    Mutates `all_ratings` in place, adding `synthetic_rating_val`:
+        - If rating_val >= 0: synthetic = rating_val
+        - Else if liked == True: synthetic = weighted mean of (user liked+rated mean, global liked+rated mean)
+        - Else: leave unset
+    """
+
+    # 1) Per-user mean over liked & rated
     liked_rated_by_user = {}
     for r in all_ratings:
         uid = r.get("user_id")
@@ -75,7 +80,7 @@ def attach_synthetic_ratings(all_ratings: list, global_weight: int = 5) -> None:
         uid: (mean(vals), len(vals)) for uid, vals in liked_rated_by_user.items()
     }
 
-    # 3) Attach synthetic per row
+    # 2) Attach synthetic per row
     for r in all_ratings:
         rv = r.get("rating_val")
         if isinstance(rv, (int, float)) and rv >= 0:
@@ -138,7 +143,10 @@ def main(sample_size=1500):
         user_ratings, _status = get_user_data(user["username"])
         all_test_sample_ratings += user_ratings
 
-    attach_synthetic_ratings(all_test_sample_ratings, global_weight=5)
+    global_mean_liked_rated = get_global_mean_liked_rated(all_test_sample_ratings)
+    attach_synthetic_ratings(
+        all_test_sample_ratings, global_mean_liked_rated, global_weight=5
+    )
 
     keepable = [r for r in all_test_sample_ratings if is_keepable(r)]
 
