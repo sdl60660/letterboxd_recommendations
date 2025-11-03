@@ -15,6 +15,7 @@ if os.getcwd().endswith("data_processing"):
     from get_user_ratings import get_user_data
     from model import Model
     from utils.config import random_seed, sample_sizes
+
 else:
     from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
@@ -92,9 +93,9 @@ def build_model(
         model_data = get_dataset(df)
 
     algo = train_model(model_data, model, params, run_cv)
-    user_watched_list = [x["movie_id"] for x in user_data]
+    # user_watched_list = [x["movie_id"] for x in user_data]
 
-    return algo, user_watched_list
+    return algo
 
 
 def export_model(algo, sample_size, compressed=True, subdirectory_path="models"):
@@ -111,27 +112,43 @@ def export_model(algo, sample_size, compressed=True, subdirectory_path="models")
         )
 
 
+def main(sample_size, params, user_data=[], run_cv=False, concat_user_data=False):
+    # Load ratings data
+    df = pd.read_parquet(
+        f"data/training_data_samples/training_data_{sample_size}.parquet"
+    )
+    with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
+        sample_movie_list = pickle.load(fp)
+
+    algo = build_model(
+        df,
+        sample_movie_list,
+        user_data,
+        SVD,
+        params=params,
+        run_cv=run_cv,
+        concat_user_data=concat_user_data,
+    )
+
+    export_model(algo, sample_size, compressed=True)
+
+
 if __name__ == "__main__":
-    for sample_size in sample_sizes:
-        # Load ratings data
-        df = pd.read_parquet(
-            f"data/training_data_samples/training_data_{sample_size}.parquet"
-        )
-        with open(f"data/movie_lists/sample_movie_list_{sample_size}.txt", "rb") as fp:
-            sample_movie_list = pickle.load(fp)
+    with open("models/eval_results/best_svd_params.json", "r") as f:
+        svd_params = json.load(f)
 
-        with open("models/eval_results/best_svd_params.json", "r") as f:
-            svd_params = json.load(f)
-
+    concat_user_data = False
+    if concat_user_data:
         user_data = get_user_data("samlearner")[0]
-        algo, user_watched_list = build_model(
-            df,
-            sample_movie_list,
-            user_data,
-            SVD,
+    else:
+        user_data = []
+
+    for sample_size in sample_sizes:
+        print(f"Building model for: {sample_size:,} rating sample...")
+        main(
+            sample_size=sample_size,
             params=svd_params,
+            user_data=user_data,
             run_cv=False,
             concat_user_data=False,
         )
-
-        export_model(algo, sample_size, compressed=True)

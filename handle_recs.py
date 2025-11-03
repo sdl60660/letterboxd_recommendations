@@ -67,7 +67,7 @@ def build_client_model(username, training_data_rows=1000000, num_items=30):
     current_job.save()
 
     # Build model with appended user data
-    # algo, user_watched_list = build_model(model_df, sample_movie_list, user_data, params=svd_params)
+    # algo = build_model(model_df, sample_movie_list, user_data, params=svd_params)
     # del model_df
     # algo = load(f"data_processing/models/model_{training_data_rows}.pkl")[1]
 

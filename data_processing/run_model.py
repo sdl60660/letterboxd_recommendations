@@ -10,11 +10,13 @@ import pandas as pd
 if os.getcwd().endswith("data_processing"):
     from get_user_ratings import get_user_data
     from model import Model
+    from utils.config import sample_sizes
     from utils.utils import explicit_exclude_list, get_rich_movie_data
 
 else:
     from data_processing.get_user_ratings import get_user_data
     from data_processing.model import Model
+    from data_processing.utils.config import sample_sizes
     from data_processing.utils.utils import explicit_exclude_list, get_rich_movie_data
 
 
@@ -199,7 +201,7 @@ def main(
 if __name__ == "__main__":
     main(
         "samlearner",
-        sample_size=1000000,
+        sample_size=sample_sizes[-2],
         fold_in=True,
         num_recommendations=25,
         use_cached_user_data=True,

@@ -71,7 +71,7 @@ def evaluate_config(dataset, model, params={}, cv_folds=3):
     data = dataset["dataset"]
     sample_size = dataset["sample_size"]
 
-    print(f"Testing model: {model['name']} at sample size {sample_size}...")
+    print(f"Testing model: {model['name']} at sample size {sample_size:,}...")
     algo, training_set = train_model(
         data=data, model=model["model"], params=params, run_cv=False
     )
@@ -85,9 +85,7 @@ def evaluate_config(dataset, model, params={}, cv_folds=3):
     mean_precision = sum(prec for prec in precisions.values()) / len(precisions)
     mean_recall = sum(rec for rec in recalls.values()) / len(recalls)
 
-    cv = cross_validate(
-        algo, data, measures=["RMSE", "MAE", "FCP"], cv=cv_folds, verbose=False
-    )
+    cv = cross_validate(algo, data, measures=["RMSE"], cv=cv_folds, verbose=False)
 
     eval_row = {
         "model": model["name"],
@@ -385,7 +383,7 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
         "reg_qi": dists.uniform(0.01, 0.04),
         "reg_pu": dists.uniform(0.01, 0.04),
         "reg_bu": dists.uniform(0.03, 0.08),
-        "reg_bi": dists.uniform(0.1, 0.25),
+        "reg_bi": dists.uniform(0.08, 0.2),
         "init_std_dev": dists.uniform(0.05, 0.25),
     }
 
@@ -393,7 +391,7 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
         model,
         param_dists,
         n_iter=num_candidates,
-        measures=["rmse", "mae"],
+        measures=["rmse"],
         cv=cv_folds,
         n_jobs=cv_folds,
         joblib_verbose=0,
@@ -407,9 +405,6 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
         "mean_test_rmse",
         "std_test_rmse",
         "rank_test_rmse",
-        "mean_test_mae",
-        "std_test_mae",
-        "rank_test_mae",
         "mean_fit_time",
         "params",
     ]
@@ -454,11 +449,11 @@ def main():
         f"data/training_data_samples/training_data_{sample_sizes[sample_size_index]}.parquet"
     )
 
-    # best_params = run_grid_search(
-    #     models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
-    # )
-    # with open("./models/eval_results/best_svd_params.json", "w") as f:
-    #     json.dump(best_params, f)
+    best_params = run_grid_search(
+        models[0]["model"], datasets[sample_size_index]["dataset"], num_candidates
+    )
+    with open("./models/eval_results/best_svd_params.json", "w") as f:
+        json.dump(best_params, f)
 
     param_eval_df = pd.read_csv("./models/eval_results/model_param_test_results.csv")
     test_user_data = pd.read_parquet("./testing/test_user_data.parquet")
