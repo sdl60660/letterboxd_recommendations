@@ -547,7 +547,7 @@ def main():
 
     # Config vars
     sample_size_index = 0
-    num_candidates = 3
+    num_candidates = 60
 
     # Load in data
     models = [{"name": "SVD", "model": SVD}]
