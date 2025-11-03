@@ -345,8 +345,8 @@ def main():
     np.random.seed(random_seed)
     random.seed(random_seed)
 
-    sample_size_index = -2
-    num_candidates = 100
+    sample_size_index = 0
+    num_candidates = 80
 
     models = [{"name": "SVD", "model": SVD}]
     datasets = get_datasets(sample_sizes)
