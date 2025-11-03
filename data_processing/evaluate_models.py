@@ -144,8 +144,11 @@ def create_user_test_train_sets(
         mask_unrated = user_train_with_synth["rating_val"].lt(0)
         mask_liked = user_train_with_synth.get("liked", False).astype(bool)
         mask_has_synth = user_train_with_synth.get("synthetic_rating_val", -1).ge(0)
-
         fill_mask = mask_unrated & mask_liked & mask_has_synth
+
+        user_train_with_synth["rating_val"] = user_train_with_synth[
+            "rating_val"
+        ].astype(float)
         user_train_with_synth.loc[fill_mask, "rating_val"] = user_train_with_synth.loc[
             fill_mask, "synthetic_rating_val"
         ]
@@ -177,9 +180,14 @@ def create_user_test_train_sets(
     return output_set
 
 
-def eval_fold_in_user(user_data_set, model):
+def eval_fold_in_user(user_data_set, model, explicit_ratings_only=True):
     username = user_data_set["username"]
-    user_data = user_data_set["train"]
+
+    if explicit_ratings_only:
+        user_data = user_data_set["train"]
+    else:
+        user_data = user_data_set["train_with_likes"]
+
     sample_movie_list = user_data_set["movie_set"]
     test_key = user_data_set["test_key"]
 
@@ -221,69 +229,111 @@ def eval_fold_in_user(user_data_set, model):
     return user_metrics
 
 
+def _safe_weighted_means(sums):
+    # sums: dict with keys rmse, prec, rec, preds
+    if sums["preds"] == 0:
+        return float("nan"), float("nan"), float("nan")
+    return (
+        sums["rmse"] / sums["preds"],
+        sums["prec"] / sums["preds"],
+        sums["rec"] / sums["preds"],
+    )
+
+
 def eval_param_set_fold_in(base_model, params, training_dataset, user_data_sets):
-    # train_model returns a Surprise algo in your codebase; if it returns (algo, trainset), unpack accordingly
+    # Train the Surprise model once
     algo = train_model(training_dataset, base_model, params=params, run_cv=False)
     model = Model.from_surprise(algo)
 
-    sum_rmse = 0.0
-    sum_prec = 0.0
-    sum_rec = 0.0
-    sum_preds = 0
+    # Accumulators for both variants of user fold-in testing
+    # (explicit rating_vals only/including synthetic ratings based on likes)
+    sums_explicit = {"rmse": 0.0, "prec": 0.0, "rec": 0.0, "preds": 0}
+    sums_withlikes = {"rmse": 0.0, "prec": 0.0, "rec": 0.0, "preds": 0}
 
-    for user_data_set in tqdm(user_data_sets, desc="Fold-in users", leave=False):
-        user_metrics = eval_fold_in_user(user_data_set, model)
-        n = user_metrics["total_test_predictions"]
-        sum_rmse += user_metrics["rmse"] * n
-        sum_prec += user_metrics["precision"] * n
-        sum_rec += user_metrics["recall"] * n
-        sum_preds += n
+    for uds in tqdm(user_data_sets, desc="Fold-in users", leave=False):
+        # ---- explicit-only ----
+        m_exp = eval_fold_in_user(uds, model, explicit_ratings_only=True)
+        n_exp = m_exp["total_test_predictions"]
+        sums_explicit["rmse"] += m_exp["rmse"] * n_exp
+        sums_explicit["prec"] += m_exp["precision"] * n_exp
+        sums_explicit["rec"] += m_exp["recall"] * n_exp
+        sums_explicit["preds"] += n_exp
 
-    if sum_preds == 0:
-        # Guard against divide-by-zero (e.g., empty test sets)
-        return {
-            "fold_in_rmse": float("nan"),
-            "fold_in_precision@k": float("nan"),
-            "fold_in_recall@k": float("nan"),
-        }
+        # ---- explicit + likes/synthetic ----
+        m_lik = eval_fold_in_user(uds, model, explicit_ratings_only=False)
+        n_lik = m_lik["total_test_predictions"]
+        sums_withlikes["rmse"] += m_lik["rmse"] * n_lik
+        sums_withlikes["prec"] += m_lik["precision"] * n_lik
+        sums_withlikes["rec"] += m_lik["recall"] * n_lik
+        sums_withlikes["preds"] += n_lik
 
-    param_set_metrics = {
-        "fold_in_rmse": sum_rmse / sum_preds,
-        "fold_in_precision@k": sum_prec / sum_preds,
-        "fold_in_recall@k": sum_rec / sum_preds,
+    # Weighted means (by # predictions)
+    rmse_e, prec_e, rec_e = _safe_weighted_means(sums_explicit)
+    rmse_l, prec_l, rec_l = _safe_weighted_means(sums_withlikes)
+
+    return {
+        # explicit-only
+        "fold_in_rmse_explicit": rmse_e,
+        "fold_in_precision@k_explicit": prec_e,
+        "fold_in_recall@k_explicit": rec_e,
+        # explicit + likes/synthetic
+        "fold_in_rmse_with_likes": rmse_l,
+        "fold_in_precision@k_with_likes": prec_l,
+        "fold_in_recall@k_with_likes": rec_l,
     }
-    return param_set_metrics
+
+
+def _rank(series: pd.Series, ascending: bool) -> pd.Series:
+    # NaNs -> worst
+    filler = np.inf if ascending else -np.inf
+    return series.fillna(filler).rank(method="min", ascending=ascending).astype(int)
 
 
 def add_foldin_ranks(fold_in_cols_df: pd.DataFrame) -> pd.DataFrame:
     df = fold_in_cols_df.copy()
 
-    # Handle NaNs so they rank to the bottom appropriately
-    # (RMSE NaN -> worst; Precision/Recall NaN -> worst)
-    rmse_series = df["fold_in_rmse"].fillna(np.inf)
-    prec_series = df["fold_in_precision@k"].fillna(-np.inf)
-    rec_series = df["fold_in_recall@k"].fillna(-np.inf)
+    # --- explicit-only ranks ---
+    df["rank_foldin_rmse_explicit"] = _rank(df["fold_in_rmse_explicit"], True)
+    df["rank_foldin_precision@k_explicit"] = _rank(
+        df["fold_in_precision@k_explicit"], False
+    )
+    df["rank_foldin_recall@k_explicit"] = _rank(df["fold_in_recall@k_explicit"], False)
 
-    # Individual ranks (1 = best). Use method='min' to match scikit-learn’s style.
-    df["rank_foldin_rmse"] = rmse_series.rank(method="min", ascending=True).astype(int)
-    df["rank_foldin_precision@k"] = prec_series.rank(
-        method="min", ascending=False
-    ).astype(int)
-    df["rank_foldin_recall@k"] = rec_series.rank(method="min", ascending=False).astype(
-        int
+    # --- with-likes ranks ---
+    df["rank_foldin_rmse_with_likes"] = _rank(df["fold_in_rmse_with_likes"], True)
+    df["rank_foldin_precision@k_with_likes"] = _rank(
+        df["fold_in_precision@k_with_likes"], False
+    )
+    df["rank_foldin_recall@k_with_likes"] = _rank(
+        df["fold_in_recall@k_with_likes"], False
     )
 
-    # A composite rank turned with these weights
+    # A composite rank will be tuned with these weights
+    # (though this isn't actually used for selection at the moment)
     w_rmse, w_prec, w_rec = 0.6, 0.3, 0.1
-    df["rank_foldin_composite"] = (
+
+    df["rank_foldin_composite_explicit"] = (
         (
-            w_rmse * df["rank_foldin_rmse"]
-            + w_prec * df["rank_foldin_precision@k"]
-            + w_rec * df["rank_foldin_recall@k"]
+            w_rmse * df["rank_foldin_rmse_explicit"]
+            + w_prec * df["rank_foldin_precision@k_explicit"]
+            + w_rec * df["rank_foldin_recall@k_explicit"]
         )
         .rank(method="min", ascending=True)
         .astype(int)
     )
+
+    df["rank_foldin_composite_with_likes"] = (
+        (
+            w_rmse * df["rank_foldin_rmse_with_likes"]
+            + w_prec * df["rank_foldin_precision@k_with_likes"]
+            + w_rec * df["rank_foldin_recall@k_with_likes"]
+        )
+        .rank(method="min", ascending=True)
+        .astype(int)
+    )
+
+    # Assigning a primary column for model selection downstream of here
+    df["rank_foldin_primary"] = df["rank_foldin_composite_explicit"]
 
     return df
 
@@ -301,7 +351,7 @@ def eval_fold_in(
     # all_model_users = training_df["user_id"].unique()
     all_model_movies = training_df["movie_id"].unique()
     test_users = testing_df["user_id"].unique()
-    # training_users = all_users[-num_test_users:]
+
     training_data = training_df[~training_df["user_id"].isin(test_users)]
     test_data = testing_df[testing_df["movie_id"].isin(all_model_movies)]
 
@@ -370,7 +420,9 @@ def run_grid_search(model, dataset, num_candidates, cv_folds=3):
 
 
 def export_fold_in_eval_data(fold_in_cols_df, param_eval_df):
-    best_foldin_row = fold_in_cols_df.loc[fold_in_cols_df["rank_foldin_rmse"].idxmin()]
+    best_foldin_row = fold_in_cols_df.loc[
+        fold_in_cols_df["rank_foldin_primary"].idxmin()
+    ]
     best_params = json.loads(
         param_eval_df.loc[best_foldin_row.name, "params"].replace("'", '"')
     )
