@@ -3,13 +3,11 @@
 import asyncio
 import datetime
 import os
-from pprint import pprint
 from statistics import mean
 
 import requests
 from bs4 import BeautifulSoup
 from pymongo import ReplaceOne, UpdateOne
-from pymongo.errors import BulkWriteError
 
 # from pymongo.operations import ReplaceOne
 
@@ -18,11 +16,13 @@ if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
+    from utils.mongo_utils import safe_commit_ops
 
 else:
     from data_processing.get_ratings import get_user_ratings
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.mongo_utils import safe_commit_ops
 
 
 def get_page_count(username):
@@ -193,13 +193,8 @@ def send_to_db(username, display_name, user_ratings):
             )
         )
 
-    try:
-        if len(upsert_ratings_operations) > 0:
-            ratings.bulk_write(upsert_ratings_operations, ordered=False)
-        if len(upsert_movies_operations) > 0:
-            movies.bulk_write(upsert_movies_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    safe_commit_ops(ratings, upsert_movies_operations)
+    safe_commit_ops(movies, upsert_movies_operations)
 
     return
 

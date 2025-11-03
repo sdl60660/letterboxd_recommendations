@@ -2,23 +2,23 @@
 
 import os
 import re
-from pprint import pprint
 
 import requests
 from bs4 import BeautifulSoup
 
 # import datetime
-from pymongo.errors import BulkWriteError
 from pymongo.operations import UpdateOne
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
+    from utils.mongo_utils import safe_commit_ops
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.mongo_utils import safe_commit_ops
 
 
 # Connect to MongoDB client
@@ -64,8 +64,4 @@ for page in pbar:
 
         # users.update_one({"username": user["username"]}, {"$set": user}, upsert=True)
 
-    try:
-        if len(update_operations) > 0:
-            users.bulk_write(update_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    safe_commit_ops(users, update_operations)

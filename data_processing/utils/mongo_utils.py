@@ -1,4 +1,5 @@
 from pymongo import DeleteMany, DeleteOne, InsertOne, ReplaceOne, UpdateOne
+from pymongo.errors import BulkWriteError
 
 
 def _is_mongomock_collection(coll) -> bool:
@@ -36,3 +37,19 @@ def bulk_write_compat(coll, ops, **kwargs):
                     f"Unsupported op in mongomock fallback: {type(op)}"
                 )
         return
+
+
+def safe_commit_ops(collection, upsert_operations):
+    """Write a batch of update ops to a target collection (safe for mongomock)."""
+    if not upsert_operations or len(upsert_operations) == 0:
+        return 0
+
+    try:
+        # this is basically just a simple bulk_write() op with the upsert_operations (see below)
+        # but for compatibility with the mongomock stuff in testing, I need to wrap it in this util
+        bulk_write_compat(collection, upsert_operations, ordered=False)
+        # collection.bulk_write(upsert_operations, ordered=False)
+        return len(upsert_operations)
+    except BulkWriteError as bwe:
+        print(f"[WARN] Bulk write error in {collection.name}: {bwe.details}")
+        return 0

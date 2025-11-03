@@ -11,18 +11,17 @@ from urllib.parse import urlparse
 from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
-from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
-    from utils.mongo_utils import bulk_write_compat
+    from utils.mongo_utils import safe_commit_ops
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
-    from data_processing.utils.mongo_utils import bulk_write_compat
+    from data_processing.utils.mongo_utils import safe_commit_ops
 
 
 _IMDB_ID_RE = re.compile(r"/title/([A-Za-z0-9]+)/?")
@@ -268,22 +267,6 @@ async def fetch_tmdb_data(url, session, movie_data, input_data={}):
         return update_operation
 
 
-def _commit_movie_ops(mongo_db, upsert_operations, label="movies"):
-    """Write a batch of UpdateOne ops to the movies collection (safe for mongomock)."""
-    if not upsert_operations:
-        return 0
-
-    try:
-        # this is basically just a simple bulk_write() op with the upsert_operations (see below)
-        # but for compatibility with the mongomock stuff in testing, I need to wrap it in this util
-        bulk_write_compat(mongo_db.movies, upsert_operations, ordered=False)
-        # movies.bulk_write(upsert_operations, ordered=False)
-        return len(upsert_operations)
-    except BulkWriteError as bwe:
-        print(f"[WARN] Bulk write error in {label}: {bwe.details}")
-        return 0
-
-
 async def get_movies(movie_list, db_cursor, mongo_db):
     url = "https://letterboxd.com/film/{}/"
 
@@ -301,7 +284,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
 
-    _commit_movie_ops(mongo_db, upsert_operations, label="get_movies")
+    safe_commit_ops(mongo_db.movies, upsert_operations)
 
 
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
@@ -328,7 +311,7 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
 
-    _commit_movie_ops(mongo_db, upsert_operations, label="get_movies")
+    safe_commit_ops(mongo_db.movies, upsert_operations)
 
 
 def get_ids_for_update(movies_collection, data_type):

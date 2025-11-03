@@ -6,24 +6,22 @@ import math
 import os
 import re
 from itertools import chain
-from pprint import pprint
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
-from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
-    from utils.mongo_utils import bulk_write_compat
+    from utils.mongo_utils import safe_commit_ops
     from utils.utils import get_backoff_days
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
-    from data_processing.utils.mongo_utils import bulk_write_compat
+    from data_processing.utils.mongo_utils import safe_commit_ops
     from data_processing.utils.utils import get_backoff_days
 
 
@@ -138,11 +136,7 @@ async def get_page_counts(usernames, users_cursor):
                 )
             )
 
-        try:
-            if len(update_operations) > 0:
-                users_cursor.bulk_write(update_operations, ordered=False)
-        except BulkWriteError as bwe:
-            pprint(bwe.details)
+        safe_commit_ops(users_cursor, update_operations)
 
         return pages_by_user
 
@@ -386,18 +380,11 @@ async def get_ratings(usernames, pages_by_user, mongo_db=None, store_in_db=True)
             ]
             update_sets = [x for x in update_sets if len(x["update_ops"]) > 0]
 
-            try:
-                for update_set in update_sets:
-                    collection = update_set["collection"]
-                    # Bulk write all upsert operations into ratings collection in db
-                    # this is a bulk_write() wrapper to accommodate mongomock in testing
-                    bulk_write_compat(
-                        collection, update_set["update_ops"], ordered=False
-                    )
-                    # collection.bulk_write(update_set['update_ops'], ordered=False)
-
-            except BulkWriteError as bwe:
-                pprint(bwe.details)
+            for update_set in update_sets:
+                collection = update_set["collection"]
+                safe_commit_ops(
+                    collection=collection, upsert_operations=update_set["update_ops"]
+                )
 
 
 # I've started attaching timestamps for last_updated, as well as statuses for if a scrape fails/when to retry. This way...
