@@ -1,4 +1,3 @@
-import json
 import pickle
 
 import pandas as pd
@@ -31,8 +30,8 @@ def filter_threshold_list(threshold_movie_list, review_count_threshold=2000):
     return threshold_movie_list
 
 
-def get_client_user_data(username, data_opt_in):
-    user_data = get_user_data(username, data_opt_in)
+def get_client_user_data(username, data_opt_in, include_liked_items=True):
+    user_data = get_user_data(username, data_opt_in, include_liked_items)
     user_watchlist = get_watchlist_data(username)
 
     current_job = get_current_job(conn)
@@ -65,8 +64,8 @@ def build_client_model(username, training_data_rows=1000000, num_items=30):
     ) as fp:
         sample_movie_list = pickle.load(fp)
 
-    with open("data_processing/models/eval_results/best_svd_params.json", "r") as f:
-        svd_params = json.load(f)
+    # with open("data_processing/models/eval_results/best_svd_params.json", "r") as f:
+    #     svd_params = json.load(f)
 
     current_job.meta["stage"] = "building_model"
     current_job.save()
