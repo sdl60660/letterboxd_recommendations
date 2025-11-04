@@ -6,22 +6,35 @@ import math
 import os
 import re
 from itertools import chain
-from pprint import pprint
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
-from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
+    from utils.mongo_utils import safe_commit_ops
+    from utils.selectors import (
+        LBX_REVIEW_LIKED,
+        LBX_REVIEW_RATING,
+        LBX_REVIEW_TILE,
+        LBX_USER_RATINGS_PAGE_LINKS,
+    )
     from utils.utils import get_backoff_days
+
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.selectors import (
+        LBX_REVIEW_LIKED,
+        LBX_REVIEW_RATING,
+        LBX_REVIEW_TILE,
+        LBX_USER_RATINGS_PAGE_LINKS,
+    )
     from data_processing.utils.utils import get_backoff_days
 
 
@@ -41,6 +54,14 @@ async def fetch(url, session, input_data={}, *, retries=3):
     return None, None
 
 
+def parse_num_pages(html):
+    soup = BeautifulSoup(html, "lxml")
+    links = soup.select(LBX_USER_RATINGS_PAGE_LINKS)
+    num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
+
+    return num_pages
+
+
 async def get_page_counts(usernames, users_cursor):
     url = "https://letterboxd.com/{}/films/"
     tasks = []
@@ -58,7 +79,6 @@ async def get_page_counts(usernames, users_cursor):
             tasks.append(task)
 
         responses = await asyncio.gather(*tasks)
-        # responses = [x for x in responses if x and x[0]]
 
         for i, response in enumerate(responses):
             username = (
@@ -92,11 +112,7 @@ async def get_page_counts(usernames, users_cursor):
                 )
                 continue
 
-            soup = BeautifulSoup(response[0], "lxml")
-            links = soup.select("li.paginate-page a")
-            num_pages = (
-                int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
-            )
+            num_pages = parse_num_pages(response[0])
 
             try:
                 previous_num_pages = user["num_ratings_pages"]
@@ -133,16 +149,12 @@ async def get_page_counts(usernames, users_cursor):
                 )
             )
 
-        try:
-            if len(update_operations) > 0:
-                users_cursor.bulk_write(update_operations, ordered=False)
-        except BulkWriteError as bwe:
-            pprint(bwe.details)
+        safe_commit_ops(users_cursor, update_operations)
 
         return pages_by_user
 
 
-async def generate_ratings_operations(
+def generate_ratings_operations(
     response, send_to_db=True, return_unrated=False, attach_liked_flag=False
 ):
     if not response or not response[0]:
@@ -154,7 +166,7 @@ async def generate_ratings_operations(
     except Exception:
         return [], []
 
-    reviews = soup.find_all("li", class_="griditem")
+    reviews = soup.find_all(*LBX_REVIEW_TILE)
 
     # Create empty array to store list of bulk operations or rating objects
     ratings_operations = []
@@ -165,7 +177,7 @@ async def generate_ratings_operations(
         rc = review.select_one("div.react-component")
         movie_id = rc.get("data-item-slug") if rc else None
 
-        rating_el = review.select_one("span.rating")
+        rating_el = review.find(*LBX_REVIEW_RATING)
         if not rating_el:
             if not return_unrated:
                 continue
@@ -186,7 +198,7 @@ async def generate_ratings_operations(
         }
 
         if attach_liked_flag:
-            liked = review.select_one("span.like.icon-liked")
+            liked = review.find(*LBX_REVIEW_LIKED)
             rating_object["liked"] = bool(liked)
 
         # We're going to eventually send a bunch of upsert operations for movies with just IDs
@@ -259,19 +271,15 @@ async def get_user_ratings(
         scrape_responses = [x for x in scrape_responses if x]
 
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
-    tasks = []
-    for response in scrape_responses:
-        task = asyncio.ensure_future(
-            generate_ratings_operations(
-                response,
-                send_to_db=store_in_db,
-                return_unrated=return_unrated,
-                attach_liked_flag=attach_liked_flag,
-            )
+    parse_responses = [
+        generate_ratings_operations(
+            response,
+            send_to_db=store_in_db,
+            return_unrated=return_unrated,
+            attach_liked_flag=attach_liked_flag,
         )
-        tasks.append(task)
-
-    parse_responses = await asyncio.gather(*tasks)
+        for response in scrape_responses
+    ]
 
     if not store_in_db:
         parse_responses = list(
@@ -375,21 +383,21 @@ async def get_ratings(usernames, pages_by_user, mongo_db=None, store_in_db=True)
 
         if store_in_db:
             # Execute bulk upsert operations
-            try:
-                if len(db_ratings_operations) > 0:
-                    # Bulk write all upsert operations into ratings collection in db
-                    ratings_collection.bulk_write(db_ratings_operations, ordered=False)
+            update_sets = [
+                {"collection": ratings_collection, "update_ops": db_ratings_operations},
+                {"collection": movies_collection, "update_ops": db_movies_operations},
+                {
+                    "collection": users_collection,
+                    "update_ops": db_user_update_operations,
+                },
+            ]
+            update_sets = [x for x in update_sets if len(x["update_ops"]) > 0]
 
-                if len(db_movies_operations) > 0:
-                    movies_collection.bulk_write(db_movies_operations, ordered=False)
-
-                if len(db_user_update_operations) > 0:
-                    users_collection.bulk_write(
-                        db_user_update_operations, ordered=False
-                    )
-
-            except BulkWriteError as bwe:
-                pprint(bwe.details)
+            for update_set in update_sets:
+                collection = update_set["collection"]
+                safe_commit_ops(
+                    collection=collection, upsert_operations=update_set["update_ops"]
+                )
 
 
 # I've started attaching timestamps for last_updated, as well as statuses for if a scrape fails/when to retry. This way...

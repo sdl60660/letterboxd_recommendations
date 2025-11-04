@@ -44,6 +44,19 @@ jobs:
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: pipenv install --deploy --dev
 
+      - name: Ensure dev deps (pipenv)
+        run: |
+          pipenv sync --dev
+
+      - name: Run unit + integration + smoke tests
+        env:
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: |
+          # Show versions for debugging
+          python -V
+          pipenv --version
+          pipenv run pytest -ra
+
       - name: Crawl users data
         env:
           CONNECTION_URL: ${{ secrets.CONNECTION_URL }}

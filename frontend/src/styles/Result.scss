@@ -35,7 +35,7 @@ $mobile-breakpoint: 660px;
   background-color: rgba(173, 216, 230, 0.3);
   border-radius: 10px;
   margin: 4px 8px;
-  font-size: 17px;
+  font-size: 16px;
 
   display: flex;
   justify-content: stretch;
@@ -44,6 +44,11 @@ $mobile-breakpoint: 660px;
 
   box-sizing: border-box;
   position: relative;
+
+  @media only screen and (max-width: $mobile-breakpoint) {
+    gap: 12px;
+    padding: 12px 16px;
+  }
 }
 
 .movie-rec .genre-display {
@@ -82,7 +87,8 @@ $mobile-breakpoint: 660px;
   padding: 8px;
   font-size: 20px;
   font-weight: bold;
-  max-width: 70px;
+  width: 56px;
+  min-width: 50px;
   background-color: white;
   text-align: center;
   justify-self: center;

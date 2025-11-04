@@ -6,23 +6,38 @@ import json
 import os
 import re
 import traceback
-from pprint import pprint
 from urllib.parse import urlparse
 
 from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
-from pymongo.errors import BulkWriteError
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
-
+    from utils.mongo_utils import safe_commit_ops
+    from utils.selectors import (
+        LBX_IMDB_ANCHOR,
+        LBX_JSON_LD_SCRIPT,
+        LBX_MOVIE_HEADER,
+        LBX_MOVIE_TITLE,
+        LBX_MOVIE_YEAR,
+        LBX_TMDB_ANCHOR,
+    )
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.selectors import (
+        LBX_IMDB_ANCHOR,
+        LBX_JSON_LD_SCRIPT,
+        LBX_MOVIE_HEADER,
+        LBX_MOVIE_TITLE,
+        LBX_MOVIE_YEAR,
+        LBX_TMDB_ANCHOR,
+    )
 
 
 _IMDB_ID_RE = re.compile(r"/title/([A-Za-z0-9]+)/?")
@@ -46,7 +61,7 @@ def extract_movie_id_from_url(url: str) -> str | None:
 
 def get_meta_data_from_script_tag(soup):
     # find the <script type="application/ld+json"> tag
-    data_script = soup.find("script", attrs={"type": "application/ld+json"})
+    data_script = soup.find(*LBX_JSON_LD_SCRIPT)
     if data_script and data_script.string:
         # clean out the /* <![CDATA[ */ and /* ]]> */ wrappers if present
         raw_json = data_script.string.strip()
@@ -68,17 +83,6 @@ def get_meta_data_from_script_tag(soup):
             "letterboxd_avg_rating": avg_rating,
             "letterboxd_genres": genres,
         }
-
-
-def _safe_text(tag, default=""):
-    return tag.get_text(strip=True) if tag else default
-
-
-def _safe_int(s, default=None):
-    try:
-        return int(s)
-    except (TypeError, ValueError):
-        return default
 
 
 def _attr(tag, name, default=None):
@@ -112,14 +116,14 @@ def _extract_tmdb(url: str | None):
 def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
     soup = BeautifulSoup(response, "lxml")
 
-    header = soup.find("section", class_="production-masthead")
+    header = soup.find(*LBX_MOVIE_HEADER)
 
     # title
-    title_el = header.find("h1") if header else None
+    title_el = header.find(*LBX_MOVIE_TITLE) if header else None
     movie_title = title_el.get_text(strip=True) if title_el else ""
 
     # year
-    rel_span = header.find("span", class_="releasedate") if header else None
+    rel_span = header.find(*LBX_MOVIE_YEAR) if header else None
     rel_a = rel_span.find("a") if rel_span else None
     year_text = rel_a.get_text(strip=True) if rel_a else None
     try:
@@ -128,11 +132,11 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
         year = None
 
     # imdb
-    imdb_link = _attr(soup.find("a", attrs={"data-track-action": "IMDb"}), "href", "")
+    imdb_link = _attr(soup.find(*LBX_IMDB_ANCHOR), "href", "")
     imdb_id = _extract_imdb_id(imdb_link)
 
     # tmdb
-    tmdb_link = _attr(soup.find("a", attrs={"data-track-action": "TMDB"}), "href", "")
+    tmdb_link = _attr(soup.find(*LBX_TMDB_ANCHOR), "href", "")
     content_type, tmdb_id = _extract_tmdb(tmdb_link)
 
     movie_update_object = {
@@ -296,13 +300,7 @@ async def get_movies(movie_list, db_cursor, mongo_db):
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
 
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            movies = mongo_db.movies
-            movies.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    safe_commit_ops(mongo_db.movies, upsert_operations)
 
 
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
@@ -329,13 +327,7 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
 
-    try:
-        if len(upsert_operations) > 0:
-            # Create/reference "ratings" collection in db
-            movies = mongo_db.movies
-            movies.bulk_write(upsert_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    safe_commit_ops(mongo_db.movies, upsert_operations)
 
 
 def get_ids_for_update(movies_collection, data_type):

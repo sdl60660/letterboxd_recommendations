@@ -55,3 +55,13 @@ repos:
             build/|
             dist/
           )
+  
+  # --- Python tests (local hook) ---
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (unit+integration only)
+        language: system
+        pass_filenames: false
+        entry: bash -c 'pipenv run pytest -q -m "not smoke"'
+        types: [python]

@@ -60,6 +60,29 @@ services:
       - web # frontend waits for backend
     stdin_open: true
     tty: true
+  
+  tests:
+    build:
+      context: .
+    profiles: ["test"]         # optional: only runs if you enable the profile
+    env_file: .env             # OK to use .env; DB ops use mongomock in tests anyway
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    # Mount the source so you don’t have to rebuild to re-run tests locally
+    volumes:
+      - .:/app
+    # DNS helps avoid flaky name resolution in some CI/docker networks
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Run the full suite; 'live' tests will auto-skip when offline
+    command: >
+      bash -lc '
+        pipenv run pytest -q
+      '
 
 volumes:
   mongo-data:

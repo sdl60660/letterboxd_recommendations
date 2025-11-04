@@ -10,3 +10,19 @@ ignore = ["E501"]         # allow long lines
 indent-style = "space"
 quote-style = "double"
 line-ending = "lf"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+  "smoke: High-level smoke tests",
+  "live: Tests that hit live external services (Letterboxd, etc.)",
+  "tmdb: Tests that require a TMDB API key"
+]
+minversion = "8.0"
+# By default, *exclude* live network tests unless explicitly -m "live"
+# addopts = "-m 'not live'"
+addopts = "-ra"
+filterwarnings = [
+  "ignore::DeprecationWarning:bs4.*",
+]
+asyncio_mode = "strict"

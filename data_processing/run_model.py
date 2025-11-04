@@ -204,7 +204,7 @@ if __name__ == "__main__":
         sample_size=sample_sizes[-2],
         fold_in=True,
         num_recommendations=25,
-        use_cached_user_data=True,
+        use_cached_user_data=False,
         use_synthetic_ratings=True,
         verbose=True,
     )

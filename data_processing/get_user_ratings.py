@@ -3,56 +3,21 @@
 import asyncio
 import datetime
 import os
-from pprint import pprint
 from statistics import mean
 
-import requests
-from bs4 import BeautifulSoup
 from pymongo import ReplaceOne, UpdateOne
-from pymongo.errors import BulkWriteError
-
-# from pymongo.operations import ReplaceOne
-
 
 if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS
+    from utils.mongo_utils import safe_commit_ops
+    from utils.utils import get_page_count
 
 else:
     from data_processing.get_ratings import get_user_ratings
     from data_processing.utils.db_connect import connect_to_db
-    from data_processing.utils.http_utils import BROWSER_HEADERS
-
-
-def get_page_count(username):
-    url = "https://letterboxd.com/{}/films/by/date"
-    r = requests.get(url.format(username), headers=BROWSER_HEADERS)
-
-    soup = BeautifulSoup(r.text, "lxml")
-    body = soup.find("body")
-
-    try:
-        if "error" in body["class"]:
-            return -1, None
-    except KeyError:
-        print(body)
-        return -1, None
-
-    try:
-        links = soup.select("li.paginate-page a")
-        if links:
-            num_pages = int(links[-1].get_text(strip=True).replace(",", ""))
-        else:
-            num_pages = 1
-
-        header = soup.select_one("section.profile-header h1.title-3")
-        display_name = header.get_text(strip=True) if header else None
-    except Exception:
-        num_pages = 1
-        display_name = None
-
-    return num_pages, display_name
+    from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.utils import get_page_count
 
 
 def attach_synthetic_ratings(
@@ -117,7 +82,9 @@ def attach_synthetic_ratings(
 
 
 def get_user_data(username, data_opt_in=False, include_liked_items=True):
-    num_pages, display_name = get_page_count(username)
+    num_pages, display_name = get_page_count(
+        username, url="https://letterboxd.com/{}/films/by/date"
+    )
     if num_pages == -1:
         return [], "user_not_found"
 
@@ -193,13 +160,8 @@ def send_to_db(username, display_name, user_ratings):
             )
         )
 
-    try:
-        if len(upsert_ratings_operations) > 0:
-            ratings.bulk_write(upsert_ratings_operations, ordered=False)
-        if len(upsert_movies_operations) > 0:
-            movies.bulk_write(upsert_movies_operations, ordered=False)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+    safe_commit_ops(ratings, upsert_movies_operations)
+    safe_commit_ops(movies, upsert_movies_operations)
 
     return
 
