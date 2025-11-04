@@ -17,11 +17,25 @@ if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
     from utils.mongo_utils import safe_commit_ops
+    from utils.selectors import (
+        LBX_IMDB_ANCHOR,
+        LBX_MOVIE_HEADER,
+        LBX_MOVIE_TITLE,
+        LBX_MOVIE_YEAR,
+        LBX_TMDB_ANCHOR,
+    )
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
     from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.selectors import (
+        LBX_IMDB_ANCHOR,
+        LBX_MOVIE_HEADER,
+        LBX_MOVIE_TITLE,
+        LBX_MOVIE_YEAR,
+        LBX_TMDB_ANCHOR,
+    )
 
 
 _IMDB_ID_RE = re.compile(r"/title/([A-Za-z0-9]+)/?")
@@ -100,14 +114,14 @@ def _extract_tmdb(url: str | None):
 def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
     soup = BeautifulSoup(response, "lxml")
 
-    header = soup.find("section", class_="production-masthead")
+    header = soup.find(*LBX_MOVIE_HEADER)
 
     # title
-    title_el = header.find("h1") if header else None
+    title_el = header.find(*LBX_MOVIE_TITLE) if header else None
     movie_title = title_el.get_text(strip=True) if title_el else ""
 
     # year
-    rel_span = header.find("span", class_="releasedate") if header else None
+    rel_span = header.find(*LBX_MOVIE_YEAR) if header else None
     rel_a = rel_span.find("a") if rel_span else None
     year_text = rel_a.get_text(strip=True) if rel_a else None
     try:
@@ -116,11 +130,11 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
         year = None
 
     # imdb
-    imdb_link = _attr(soup.find("a", attrs={"data-track-action": "IMDb"}), "href", "")
+    imdb_link = _attr(soup.find(*LBX_IMDB_ANCHOR), "href", "")
     imdb_id = _extract_imdb_id(imdb_link)
 
     # tmdb
-    tmdb_link = _attr(soup.find("a", attrs={"data-track-action": "TMDB"}), "href", "")
+    tmdb_link = _attr(soup.find(*LBX_TMDB_ANCHOR), "href", "")
     content_type, tmdb_id = _extract_tmdb(tmdb_link)
 
     movie_update_object = {

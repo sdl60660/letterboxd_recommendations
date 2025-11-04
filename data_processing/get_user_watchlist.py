@@ -4,14 +4,19 @@ import asyncio
 import os
 from itertools import chain
 
-import requests
 from aiohttp import ClientSession, TCPConnector
 from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("/data_processing"):
     from utils.http_utils import BROWSER_HEADERS
+    from utils.selectors import LBX_REVIEW_TILE
+    from utils.utils import get_page_count
 else:
     from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.selectors import (
+        LBX_REVIEW_TILE,
+    )
+    from data_processing.utils.utils import get_page_count
 
 
 async def fetch(url, session, input_data={}):
@@ -25,7 +30,7 @@ async def fetch(url, session, input_data={}):
 async def parse_watchlist_page(response):
     # Parse ratings page response for each watchlist item, use lxml parser for speed
     soup = BeautifulSoup(response[0], "lxml")
-    watchlist_movies = soup.find_all("li", class_="griditem")
+    watchlist_movies = soup.find_all(*LBX_REVIEW_TILE)
 
     # Create empty array to store list of watchlist movie IDs
     movie_ids = []
@@ -78,26 +83,8 @@ async def get_user_watchlist(
     return parse_responses
 
 
-def get_page_count(username):
-    url = f"https://letterboxd.com/{username}/watchlist"
-    r = requests.get(url, headers=BROWSER_HEADERS, timeout=20)
-
-    soup = BeautifulSoup(r.text, "lxml")
-    body = soup.find("body")
-
-    try:
-        if body and "error" in body.get("class", []):
-            return -1
-    except Exception:
-        return -1
-
-    links = soup.select("li.paginate-page a")
-    num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
-    return num_pages
-
-
 def get_watchlist_data(username):
-    num_pages = get_page_count(username)
+    num_pages, _ = get_page_count(username, url="https://letterboxd.com/{}/watchlist")
 
     if num_pages == -1:
         return [], "user_not_found"

@@ -1,11 +1,17 @@
 import os
 
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
+    from utils.http_utils import BROWSER_HEADERS
+    from utils.selectors import LBX_USER_RATINGS_PAGE_LINKS
 else:
     from data_processing.utils.db_connect import connect_to_db
+    from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.selectors import LBX_USER_RATINGS_PAGE_LINKS
 
 
 def format_seconds(seconds):
@@ -50,6 +56,35 @@ def get_rich_movie_data(movie_ids, output_path=None):
         pd.DataFrame(movie_data.values()).to_parquet(output_path, index=False)
 
     return movie_data
+
+
+def get_page_count(username, url="https://letterboxd.com/{}/films/by/date"):
+    r = requests.get(url.format(username), headers=BROWSER_HEADERS)
+
+    soup = BeautifulSoup(r.text, "lxml")
+    body = soup.find("body")
+
+    try:
+        if "error" in body["class"]:
+            return -1, None
+    except KeyError:
+        print(body)
+        return -1, None
+
+    try:
+        links = soup.select(LBX_USER_RATINGS_PAGE_LINKS)
+        if links:
+            num_pages = int(links[-1].get_text(strip=True).replace(",", ""))
+        else:
+            num_pages = 1
+
+        header = soup.select_one("section.profile-header h1.title-3")
+        display_name = header.get_text(strip=True) if header else None
+    except Exception:
+        num_pages = 1
+        display_name = None
+
+    return num_pages, display_name
 
 
 # There are some pseudo-TV shows (docs about shows, etc) that people use to log a rating for a TV show

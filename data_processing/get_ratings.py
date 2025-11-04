@@ -16,12 +16,25 @@ if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
     from utils.mongo_utils import safe_commit_ops
+    from utils.selectors import (
+        LBX_REVIEW_LIKED,
+        LBX_REVIEW_RATING,
+        LBX_REVIEW_TILE,
+        LBX_USER_RATINGS_PAGE_LINKS,
+    )
     from utils.utils import get_backoff_days
+
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
     from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.selectors import (
+        LBX_REVIEW_LIKED,
+        LBX_REVIEW_RATING,
+        LBX_REVIEW_TILE,
+        LBX_USER_RATINGS_PAGE_LINKS,
+    )
     from data_processing.utils.utils import get_backoff_days
 
 
@@ -43,7 +56,7 @@ async def fetch(url, session, input_data={}, *, retries=3):
 
 def parse_num_pages(html):
     soup = BeautifulSoup(html, "lxml")
-    links = soup.select("li.paginate-page a")
+    links = soup.select(LBX_USER_RATINGS_PAGE_LINKS)
     num_pages = int(links[-1].get_text(strip=True).replace(",", "")) if links else 1
 
     return num_pages
@@ -153,7 +166,7 @@ def generate_ratings_operations(
     except Exception:
         return [], []
 
-    reviews = soup.find_all("li", class_="griditem")
+    reviews = soup.find_all(*LBX_REVIEW_TILE)
 
     # Create empty array to store list of bulk operations or rating objects
     ratings_operations = []
@@ -164,7 +177,7 @@ def generate_ratings_operations(
         rc = review.select_one("div.react-component")
         movie_id = rc.get("data-item-slug") if rc else None
 
-        rating_el = review.select_one("span.rating")
+        rating_el = review.find(*LBX_REVIEW_RATING)
         if not rating_el:
             if not return_unrated:
                 continue
@@ -185,7 +198,7 @@ def generate_ratings_operations(
         }
 
         if attach_liked_flag:
-            liked = review.select_one("span.like.icon-liked")
+            liked = review.find(*LBX_REVIEW_LIKED)
             rating_object["liked"] = bool(liked)
 
         # We're going to eventually send a bunch of upsert operations for movies with just IDs

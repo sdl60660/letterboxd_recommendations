@@ -14,11 +14,13 @@ if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
     from utils.http_utils import BROWSER_HEADERS
     from utils.mongo_utils import safe_commit_ops
+    from utils.selectors import LBX_USER_ROW, LBX_USER_TABLE
 
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import BROWSER_HEADERS
     from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.selectors import LBX_USER_ROW, LBX_USER_TABLE
 
 
 def parse_user_tile(user_item):
@@ -43,8 +45,8 @@ def parse_user_tile(user_item):
 
 def parse_user_list_page(html, data_as_ops=True):
     soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table", class_="member-table")
-    table_items = table.find_all("td", class_="table-person")
+    table = soup.find(*LBX_USER_TABLE)
+    table_items = table.find_all(*LBX_USER_ROW)
 
     user_data_list = []
     for user_tile in table_items:
