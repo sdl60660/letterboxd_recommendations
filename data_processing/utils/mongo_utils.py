@@ -1,5 +1,7 @@
+from typing import Iterable, List
 from pymongo import DeleteMany, DeleteOne, InsertOne, ReplaceOne, UpdateOne
 from pymongo.errors import BulkWriteError
+from tqdm.auto import tqdm
 
 
 def _is_mongomock_collection(coll) -> bool:
@@ -53,3 +55,42 @@ def safe_commit_ops(collection, upsert_operations):
     except BulkWriteError as bwe:
         print(f"[WARN] Bulk write error in {collection.name}: {bwe.details}")
         return 0
+
+
+def _chunked(seq: List, size: int) -> Iterable[List]:
+    """Yield successive chunks from a list."""
+    if size <= 0:
+        raise ValueError("chunk size must be > 0")
+    for i in range(0, len(seq), size):
+        yield seq[i : i + size]
+
+
+def safe_commit_ops_chunked(
+    collection,
+    upsert_operations: List,
+    batch_size: int = 2000,
+    desc: str = "Committing ops",
+) -> int:
+    """
+    Write update ops to a target collection in batches with a tqdm progress bar.
+    Uses bulk_write_compat for mongomock compatibility. Returns the number of
+    operations attempted (sum of chunk sizes).
+    """
+    n_ops = len(upsert_operations) if upsert_operations else 0
+    if n_ops == 0:
+        return 0
+
+    committed = 0
+    with tqdm(total=n_ops, desc=desc, unit="op") as pbar:
+        for chunk in _chunked(upsert_operations, batch_size):
+            try:
+                # ordered=False lets MongoDB continue past individual errors
+                bulk_write_compat(collection, chunk, ordered=False)
+            except BulkWriteError as bwe:
+                # Log and carry on; with ordered=False many ops still apply
+                print(f"[WARN] Bulk write error in {collection.name}: {bwe.details}")
+            finally:
+                committed += len(chunk)
+                pbar.update(len(chunk))
+
+    return committed

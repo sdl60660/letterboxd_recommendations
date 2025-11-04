@@ -1,5 +1,6 @@
 import os
 import random
+import warnings
 from statistics import mean
 
 import pandas as pd
@@ -9,15 +10,19 @@ from tqdm.auto import tqdm
 if os.getcwd().endswith("data_processing"):
     from get_user_ratings import attach_synthetic_ratings, get_user_data
     from utils.db_connect import connect_to_db
-    from utils.mongo_utils import safe_commit_ops
+    from utils.mongo_utils import safe_commit_ops, safe_commit_ops_chunked
 
 else:
     from data_processing.get_user_ratings import attach_synthetic_ratings, get_user_data
     from data_processing.utils.db_connect import connect_to_db
-    from data_processing.utils.mongo_utils import safe_commit_ops
+    from data_processing.utils.mongo_utils import (
+        safe_commit_ops,
+        safe_commit_ops_chunked,
+    )
 
 
 TEST_USER_COLLECTION_NAME = "test_sample_ratings"
+STATIC_FILE_PATH = "./testing/test_user_data.parquet"
 
 
 def prepare_test_sample_ratings(db, name="test_sample_ratings"):
@@ -62,14 +67,29 @@ def is_keepable(r: dict) -> bool:
     return (isinstance(rv, (int, float)) and rv >= 0) or (r.get("liked") is True)
 
 
-def store_test_ratings(collection):
+def store_test_ratings(collection, outfile_path=STATIC_FILE_PATH):
+    collection_doc_count = collection.count_documents({})
+
+    existing_data = pd.read_parquet(outfile_path)
+    existing_row_count = existing_data.shape[0]
+
+    # Just adding a safety check in case something goes wrong, so that...
+    # we don't overwrite the working test user file if the collection ends up empty/near-empty
+    if collection_doc_count / existing_row_count < 0.5:
+        warnings.warn(
+            f"WARNING: not overwriting existing user test set because new data count ({collection_doc_count:,}) is too small relative to existing data count ({existing_row_count:,}). Must be at least half as large."
+        )
+        return
+
     # get all files in output collection and load into pandas dataframe, without _id
     proj = {"_id": 0}
     cursor = collection.find({}, proj)
     df = pd.DataFrame(cursor)
 
+    collection_doc_count = collection.count_documents({})
+
     # Export to CSV/Parquet files
-    df.to_parquet("./testing/test_user_data.parquet", index=False)
+    df.to_parquet(outfile_path, index=False)
 
 
 def get_user_sample(users, num_users, review_range=[150, 1200]):
@@ -156,12 +176,14 @@ def main(total_sample_size=1500, cycled_users=150):
     ops = get_new_sample_ratings(user_sample)
 
     # Send all update ops to collection
-    safe_commit_ops(test_sample_ratings, ops)
+    safe_commit_ops_chunked(
+        test_sample_ratings,
+        ops,
+        batch_size=5000,
+        desc="Adding ratings (wtih likes) to test user collection",
+    )
 
-    # Just adding a safety check in case something goes wrong, so that...
-    # we don't overwrite the working test user file if the collection ends up empty/near-empty
-    if test_sample_ratings.count_documents({}) >= 100000:
-        store_test_ratings(test_sample_ratings)
+    store_test_ratings(test_sample_ratings)
 
 
 if __name__ == "__main__":

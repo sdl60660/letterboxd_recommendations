@@ -322,8 +322,6 @@ async def get_ratings(usernames, pages_by_user, mongo_db=None, store_in_db=True)
         end_index = chunk_size * chunk_index + chunk_size
         username_chunk = usernames[start_index:end_index]
 
-        # pbar.set_description(f"Scraping ratings data for user group {chunk_index+1} of {total_chunks}")
-
         # For a given chunk, scrape each user's ratings and form an array of database upsert operations
         for i, username in enumerate(username_chunk):
             task = asyncio.ensure_future(
