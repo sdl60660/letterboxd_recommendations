@@ -1,5 +1,6 @@
 import asyncio
 import os
+import socket
 
 import mongomock
 import pytest
@@ -16,21 +17,31 @@ load_dotenv(override=True)
 TEST_DB_NAME = os.getenv("MONGO_DB", "letterboxd_test")
 
 
+def _internet_available() -> bool:
+    try:
+        with socket.create_connection(("8.8.8.8", 53), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+def pytest_collection_modifyitems(config, items):
+    online = _internet_available()
+    if online:
+        return
+
+    skip_live = pytest.mark.skip(reason="No internet connection — skipping live tests.")
+    for item in items:
+        if "live" in item.keywords:
+            item.add_marker(skip_live)
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     # pytest-asyncio: create one loop for the whole session
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
-
-
-# @pytest.fixture(scope="session")
-# def mongo_client():
-#     uri = os.getenv("CONNECTION_URL", "mongodb://localhost:27017")
-#     client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-#     yield client
-#     # don't close in case other services use same client; harmless if we do:
-#     client.close()
 
 
 @pytest.fixture(scope="session")

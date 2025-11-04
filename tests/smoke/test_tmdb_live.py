@@ -6,7 +6,7 @@ from aioresponses import aioresponses
 
 import data_processing.get_movies as get_movies
 
-pytestmark = [pytest.mark.smoke, pytest.mark.tmdb]
+pytestmark = [pytest.mark.smoke, pytest.mark.tmdb, pytest.mark.live]
 
 TMDB_KEY = os.getenv("TMDB_KEY")
 
