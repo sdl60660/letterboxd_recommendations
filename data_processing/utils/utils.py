@@ -113,4 +113,6 @@ explicit_exclude_list = [
     "bojack-horseman-christmas-special-sabrinas",
     "euphoria-trouble-dont-last-always",
     "game-of-thrones-the-imax-experience",
+    "making-true-detective",
+    "hannibal-this-is-my-design",
 ]
