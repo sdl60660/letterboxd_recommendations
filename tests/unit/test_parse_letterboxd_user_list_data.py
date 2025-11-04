@@ -15,6 +15,8 @@ def test_parse_user_list_page__content(html_sample_path):
     out = get_users.parse_user_list_page(html)
 
     assert all([type(x) is dict for x in out])
+
+    # this is the first user in the sample DOM data I pulled down for testing
     assert out[0]["username"] == "schaffrillas"
 
 

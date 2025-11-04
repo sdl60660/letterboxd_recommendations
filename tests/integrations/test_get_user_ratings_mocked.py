@@ -1,55 +1,70 @@
-import data_processing.get_ratings as get_ratings
+import responses
+
+import data_processing.get_users as get_users
 
 
-async def _run_once(mongo_db, http_mock, html):
-    """
-    Run one end-to-end pass that:
-        - fetches a single ratings page for 'samtestacct'
-        - parses it
-        - writes ratings/movies/users into the provided (mongomock) DB
-    """
-    username = "samtestacct"
-    # This is exactly the URL pattern used inside get_user_ratings()
-    url = f"https://letterboxd.com/{username}/films/by/date/page/1/"
+def _sample_html(html_sample_path):
+    return (html_sample_path / "sample_letterboxd_user_list_page.html").read_text()
 
-    # Serve our deterministic HTML for that page
-    http_mock.get(url, status=200, body=html)
 
-    # Tell the orchestrator to scrape exactly 1 page for our test user
-    pages_by_user = {username: 1}
+@responses.activate
+def test_get_users_inserts_documents(mongo_db, html_sample_path):
+    base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
+    html = _sample_html(html_sample_path)
 
-    # Kick off the pipeline. This will call:
-    #   - get_user_ratings(..., num_pages=1)
-    #   - generate_ratings_operations(...)
-    #   - bulk write into db.ratings, db.movies, db.users
-    await get_ratings.get_ratings(
-        [username],
-        pages_by_user,
-        mongo_db=mongo_db,
-        store_in_db=True,
+    # Mock the exact GET URL your code calls
+    responses.add(
+        responses.GET,
+        base_url.format(1),
+        body=html,
+        status=200,
+        content_type="text/html",
     )
 
+    # Run the page processor, inserting into mongomock
+    result = get_users.process_user_page(base_url, 1, mongo_db.users, send_to_db=True)
 
-def test_get_ratings_inserts_docs(mongo_db, http_mock, html_sample_path, event_loop):
-    # Load the sample page you already use in unit tests
-    html = (html_sample_path / "sample_letterboxd_user_ratings_page.html").read_text()
+    # It returns both data and ops for inspection
+    assert "data" in result and "ops" in result
+    assert len(result["data"]) == 30
+    assert len(result["ops"]) == 30
 
-    event_loop.run_until_complete(_run_once(mongo_db, http_mock, html))
+    # DB assertions
+    assert mongo_db.users.count_documents({}) == 30
+    # this is the first user in the sample DOM data I pulled down for testing
+    doc = mongo_db.users.find_one({"username": "schaffrillas"})
+    assert doc is not None
+    assert "display_name" in doc
+    assert isinstance(doc["num_reviews"], int)
 
-    # --- Assertions ---
-    # Ratings were inserted for our user
-    ratings_count = mongo_db.ratings.count_documents({"user_id": "samtestacct"})
 
-    # Your unit test says 63 rated items on this sample page
-    assert ratings_count == 63
+@responses.activate
+def test_get_users_idempotent(mongo_db, html_sample_path):
+    base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
+    html = _sample_html(html_sample_path)
 
-    # Movies skeleton upserts were also written
-    # (one per rating; duplicates are unlikely on a single page)
-    movies_count = mongo_db.movies.estimated_document_count()
-    assert movies_count == 63
+    # First run
+    responses.add(
+        responses.GET,
+        base_url.format(2),
+        body=html,
+        status=200,
+        content_type="text/html",
+    )
+    get_users.process_user_page(base_url, 2, mongo_db.users, send_to_db=True)
+    first_count = mongo_db.users.count_documents({})
 
-    # User scrape status should be updated to "ok"
-    user_doc = mongo_db.users.find_one({"username": "samtestacct"})
-    assert user_doc is not None
-    assert user_doc.get("scrape_status") == "ok"
-    # sanity: recent_page_count/num_ratings_pages are not set in this path (we bypassed get_page_counts)
+    # Second run (same response)
+    responses.add(
+        responses.GET,
+        base_url.format(2),
+        body=html,
+        status=200,
+        content_type="text/html",
+    )
+    get_users.process_user_page(base_url, 2, mongo_db.users, send_to_db=True)
+    second_count = mongo_db.users.count_documents({})
+
+    # Upsert behavior: document count should not increase
+    assert first_count == 30
+    assert second_count == 30
