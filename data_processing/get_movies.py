@@ -346,7 +346,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(5000)
+            .limit(1000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
@@ -365,7 +365,7 @@ def get_ids_for_update(movies_collection, data_type):
             for x in movies_collection.find(
                 {"content_type": {"$exists": False}},
                 {"movie_id": 1},
-            ).limit(5000)
+            ).limit(12000)
         }
 
         # anything newly added or missing key data (including missing poster image)
