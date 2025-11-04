@@ -1,22 +1,26 @@
 import os
-from pprint import pprint
+import random
 from statistics import mean
 
 import pandas as pd
 from pymongo import ReplaceOne
-from pymongo.errors import BulkWriteError
 from tqdm.auto import tqdm
 
 if os.getcwd().endswith("data_processing"):
     from get_user_ratings import attach_synthetic_ratings, get_user_data
     from utils.db_connect import connect_to_db
+    from utils.mongo_utils import safe_commit_ops
 
 else:
     from data_processing.get_user_ratings import attach_synthetic_ratings, get_user_data
     from data_processing.utils.db_connect import connect_to_db
+    from data_processing.utils.mongo_utils import safe_commit_ops
 
 
-def prepare_test_sample_ratings(db):
+TEST_USER_COLLECTION_NAME = "test_sample_ratings"
+
+
+def prepare_test_sample_ratings(db, name="test_sample_ratings"):
     """
     Drops and recreates the test_sample_ratings collection,
     then adds indexes:
@@ -24,8 +28,6 @@ def prepare_test_sample_ratings(db):
         - user_id (asc)
         - compound_unique_key on (movie_id, user_id), unique
     """
-    name = "test_sample_ratings"
-
     # Drop if it exists (removes data + indexes)
     if name in db.list_collection_names():
         db[name].drop()
@@ -70,29 +72,36 @@ def store_test_ratings(collection):
     df.to_parquet("./testing/test_user_data.parquet", index=False)
 
 
-def main(sample_size=1500):
-    # Connect to MongoDB client
-    db_name, client = connect_to_db()
-
-    # Find letterboxd database and user collection
-    db = client[db_name]
-    users = db.users
-
+def get_user_sample(users, num_users, review_range=[150, 1200]):
     user_sample = list(
         users.aggregate(
             [
                 {
                     "$match": {
-                        "num_reviews": {"$gte": 150, "$lte": 1200},
+                        "num_reviews": {
+                            "$gte": review_range[0],
+                            "$lte": review_range[1],
+                        },
                         "scrape_status": "ok",
                     }
                 },
-                {"$sample": {"size": sample_size}},
+                {"$sample": {"size": num_users}},
                 {"$project": {"_id": 0, "username": 1}},
             ]
         )
     )
+    return user_sample
 
+
+def cycle_out_users(test_sample_ratings, num_to_drop, current_users):
+    users_to_drop = random.sample(current_users, num_to_drop)
+    delete_result = test_sample_ratings.delete_many({"user_id": {"$in": users_to_drop}})
+    print(
+        f"Dropped ratings for {num_to_drop} users ({delete_result.deleted_count} docs)."
+    )
+
+
+def get_new_sample_ratings(user_sample):
     all_test_sample_ratings = []
     for user in tqdm(user_sample, desc="Fetching user data"):
         user_ratings, _status = get_user_data(user["username"])
@@ -105,7 +114,7 @@ def main(sample_size=1500):
 
     keepable = [r for r in all_test_sample_ratings if is_keepable(r)]
 
-    # Upsert all sampled ratings into the fresh collection
+    # Create ops to upsert all sampled ratings into the fresh collection
     ops = [
         ReplaceOne(
             {"user_id": r["user_id"], "movie_id": r["movie_id"]},
@@ -115,16 +124,44 @@ def main(sample_size=1500):
         for r in keepable
     ]
 
-    test_sample_ratings = prepare_test_sample_ratings(db)
-    try:
-        test_sample_ratings.bulk_write(ops, ordered=False)
+    return ops
 
-        # just adding a safety check in case something goes wrong, so that
-        # we don't overwrite the working test user file if the collection ends up empty/near-empty
-        if test_sample_ratings.count_documents({}) >= 100000:
-            store_test_ratings(test_sample_ratings)
-    except BulkWriteError as bwe:
-        pprint(bwe.details)
+
+def main(total_sample_size=1500, cycled_users=150):
+    # Connect to MongoDB client
+    db_name, client = connect_to_db()
+
+    # Find letterboxd database and user collection
+    db = client[db_name]
+    users = db.users
+
+    # If collection already exists, find the total number of new user ratings we need
+    # and cycle out some set of stale ratings
+    if TEST_USER_COLLECTION_NAME in db.list_collection_names():
+        test_sample_ratings = db[TEST_USER_COLLECTION_NAME]
+        total_current_users = list(test_sample_ratings.distinct("user_id"))
+        sample_size = cycled_users + (total_sample_size - len(total_current_users))
+
+        cycle_out_users(test_sample_ratings, sample_size, total_current_users)
+    # If it doesn't exist, create collection + indices
+    else:
+        test_sample_ratings = prepare_test_sample_ratings(
+            db, name=TEST_USER_COLLECTION_NAME
+        )
+        sample_size = total_sample_size
+
+    # Get new set of users
+    user_sample = get_user_sample(users, sample_size)
+    # Get ratings upsert ops from those users
+    ops = get_new_sample_ratings(user_sample)
+
+    # Send all update ops to collection
+    safe_commit_ops(test_sample_ratings, ops)
+
+    # Just adding a safety check in case something goes wrong, so that...
+    # we don't overwrite the working test user file if the collection ends up empty/near-empty
+    if test_sample_ratings.count_documents({}) >= 100000:
+        store_test_ratings(test_sample_ratings)
 
 
 if __name__ == "__main__":
