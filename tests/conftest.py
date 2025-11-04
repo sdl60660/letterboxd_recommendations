@@ -1,5 +1,6 @@
 import asyncio
 import os
+import pathlib
 import socket
 
 import mongomock
@@ -63,11 +64,7 @@ def mongo_db(mongo_client):
 
 @pytest.fixture()
 def html_sample_path():
-    # helper to read sample HTML from testdata
-    import pathlib
-
-    base = pathlib.Path(__file__).parent.parent / "testdata" / "html"
-    return base
+    return pathlib.Path(__file__).parent / "testdata" / "html"
 
 
 # For mocking aiohttp HTTP calls in async code

@@ -49,3 +49,6 @@ credentials
 
 # holds mongo connection URL/credentials + TMDB key and server secret key
 .env
+
+.pytest_cache/
+.ruff_cache/
