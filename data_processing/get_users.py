@@ -41,26 +41,33 @@ def parse_user_tile(user_item):
     return user
 
 
-def parse_user_list_page(html):
+def parse_user_list_page(html, data_as_ops=True):
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table", class_="member-table")
     table_items = table.find_all("td", class_="table-person")
 
-    update_operations = []
+    user_data_list = []
     for user_tile in table_items:
         user = parse_user_tile(user_tile)
-        update_operations.append(
-            UpdateOne({"username": user["username"]}, {"$set": user}, upsert=True)
-        )
+        user_data_list.append(user)
 
-    return update_operations
+    return user_data_list
 
 
-def process_user_page(base_url, page, users):
+def form_user_upsert_op(record):
+    return UpdateOne({"username": record["username"]}, {"$set": record}, upsert=True)
+
+
+def process_user_page(base_url, page, users, send_to_db=True):
     r = requests.get(base_url.format(page), headers=BROWSER_HEADERS)
-    update_operations = parse_user_list_page(r.text)
+    all_user_data = parse_user_list_page(r.text)
 
-    safe_commit_ops(users, update_operations)
+    update_operations = [form_user_upsert_op(user) for user in all_user_data]
+
+    if send_to_db:
+        safe_commit_ops(users, update_operations)
+
+    return {"data": all_user_data, "ops": update_operations}
 
 
 def main():
@@ -70,14 +77,13 @@ def main():
     db = client[db_name]
     users = db.users
 
-    # base_url = "https://letterboxd.com/members/popular/page/{}"
     base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
 
     total_pages = 128
     pbar = tqdm(range(1, total_pages + 1))
     for page in pbar:
         pbar.set_description(f"Scraping page {page} of {total_pages} of top users")
-        process_user_page(base_url, page, users)
+        process_user_page(base_url, page, users, send_to_db=True)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,13 @@ def test_parse_user_list_page__content(html_sample_path):
     html = (html_sample_path / "sample_letterboxd_user_list_page.html").read_text()
     out = get_users.parse_user_list_page(html)
 
+    assert all([type(x) is dict for x in out])
+    assert out[0]["username"] == "schaffrillas"
+
+
+def test_form_user_ops(html_sample_path):
+    html = (html_sample_path / "sample_letterboxd_user_list_page.html").read_text()
+    user_data = get_users.parse_user_list_page(html)
+
+    out = [get_users.form_user_upsert_op(user) for user in user_data]
     assert all([type(x) is pymongo.operations.UpdateOne for x in out])
-    assert out[0]._doc["$set"]["username"] == "schaffrillas"
-    # assert all([type(x) is pymongo.operations.UpdateOne for x in out])
