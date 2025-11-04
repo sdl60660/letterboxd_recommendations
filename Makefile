@@ -29,4 +29,4 @@ seed:
 	docker compose exec -T web python scripts/db/seed_minimal.py
 
 seed-full:
-	bash scripts/db/seed_full.sh
+	docker compose exec -T web bash scripts/db/seed_full.sh
