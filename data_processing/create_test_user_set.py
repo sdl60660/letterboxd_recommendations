@@ -118,7 +118,11 @@ def main(sample_size=1500):
 
     try:
         test_sample_ratings.bulk_write(ops, ordered=False)
-        store_test_ratings(test_sample_ratings)
+
+        # just adding a safety check in case something goes wrong, so that
+        # we don't overwrite the working test user file if the collection ends up empty/near-empty
+        if test_sample_ratings.count_documents({}) >= 100000:
+            store_test_ratings(test_sample_ratings)
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
