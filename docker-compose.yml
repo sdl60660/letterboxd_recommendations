@@ -49,7 +49,7 @@ services:
       - "3000:3000" # expose React dev server
     environment:
       NODE_ENV: development
-      BROWSER: none # <-- don't try to xdg-open
+      BROWSER: none
       CHOKIDAR_USEPOLLING: "true"  # good for Docker file watching
       WDS_SOCKET_PORT: "0"         # fixes websocket port behind Docker on CRA
     command: ["npm", "run", "start"]

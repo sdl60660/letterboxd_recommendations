@@ -30,3 +30,6 @@ seed:
 
 seed-full:
 	docker compose exec -T web bash scripts/db/seed_full.sh
+
+update-models:
+	docker compose exec -T web bash scripts/db/update_models.sh
