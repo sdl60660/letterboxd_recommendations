@@ -25,6 +25,7 @@ def archive_old_ratings(db, retired_db, old_id: str, new_id: str) -> None:
         {
             "$merge": {
                 "into": {"db": retired_db.name, "coll": "ratings"},
+                "on": ["user_id", "movie_id"],
                 "whenMatched": "keepExisting",
                 "whenNotMatched": "insert",
             }
@@ -48,6 +49,7 @@ def archive_old_movie(db, retired_db, old_id: str, new_id: str) -> None:
         {
             "$merge": {
                 "into": {"db": retired_db.name, "coll": "movies"},
+                "on": ["movie_id"],
                 "whenMatched": "replace",
                 "whenNotMatched": "insert",
             }

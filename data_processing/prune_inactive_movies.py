@@ -27,6 +27,7 @@ def migrate_inactive_movies(movies_collection, retired_movies_collection, filter
                     "db": retired_movies_collection.database.name,
                     "coll": retired_movies_collection.name,
                 },
+                "on": ["movie_id"],
                 "whenMatched": "keepExisting",
                 "whenNotMatched": "insert",
             }
@@ -61,6 +62,7 @@ def migrate_inactive_ratings(
                     "db": retired_ratings_coll.database.name,
                     "coll": retired_ratings_coll.name,
                 },
+                "on": ["user_id", "movie_id"],
                 "whenMatched": "keepExisting",
                 "whenNotMatched": "insert",
             }
