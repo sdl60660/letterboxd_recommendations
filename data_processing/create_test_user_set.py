@@ -77,14 +77,13 @@ def main(sample_size=1500):
     # Find letterboxd database and user collection
     db = client[db_name]
     users = db.users
-    test_sample_ratings = prepare_test_sample_ratings(db)
 
     user_sample = list(
         users.aggregate(
             [
                 {
                     "$match": {
-                        "num_reviews": {"$gte": 150, "$lte": 2000},
+                        "num_reviews": {"$gte": 150, "$lte": 1200},
                         "scrape_status": "ok",
                     }
                 },
@@ -116,6 +115,7 @@ def main(sample_size=1500):
         for r in keepable
     ]
 
+    test_sample_ratings = prepare_test_sample_ratings(db)
     try:
         test_sample_ratings.bulk_write(ops, ordered=False)
 
