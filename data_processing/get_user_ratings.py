@@ -7,9 +7,6 @@ from statistics import mean
 
 from pymongo import ReplaceOne, UpdateOne
 
-# from pymongo.operations import ReplaceOne
-
-
 if os.getcwd().endswith("/data_processing"):
     from get_ratings import get_user_ratings
     from utils.db_connect import connect_to_db

@@ -5,11 +5,13 @@ import mongomock
 import pytest
 from dotenv import load_dotenv
 
-# Load .env.test first if it exists, else fall back to .env
-if os.path.exists(".env.test"):
-    load_dotenv(".env.test", override=True)
-else:
-    load_dotenv(override=True)
+# We're no longer using a test db, instead only using mongomock, so no need for separate .env
+# if os.path.exists(".env.test"):
+#     load_dotenv(".env.test", override=True)
+# else:
+#     load_dotenv(override=True)
+
+load_dotenv(override=True)
 
 TEST_DB_NAME = os.getenv("MONGO_DB", "letterboxd_test")
 

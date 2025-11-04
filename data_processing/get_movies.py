@@ -19,6 +19,7 @@ if os.getcwd().endswith("/data_processing"):
     from utils.mongo_utils import safe_commit_ops
     from utils.selectors import (
         LBX_IMDB_ANCHOR,
+        LBX_JSON_LD_SCRIPT,
         LBX_MOVIE_HEADER,
         LBX_MOVIE_TITLE,
         LBX_MOVIE_YEAR,
@@ -31,6 +32,7 @@ else:
     from data_processing.utils.mongo_utils import safe_commit_ops
     from data_processing.utils.selectors import (
         LBX_IMDB_ANCHOR,
+        LBX_JSON_LD_SCRIPT,
         LBX_MOVIE_HEADER,
         LBX_MOVIE_TITLE,
         LBX_MOVIE_YEAR,
@@ -59,7 +61,7 @@ def extract_movie_id_from_url(url: str) -> str | None:
 
 def get_meta_data_from_script_tag(soup):
     # find the <script type="application/ld+json"> tag
-    data_script = soup.find("script", attrs={"type": "application/ld+json"})
+    data_script = soup.find(*LBX_JSON_LD_SCRIPT)
     if data_script and data_script.string:
         # clean out the /* <![CDATA[ */ and /* ]]> */ wrappers if present
         raw_json = data_script.string.strip()

@@ -13,3 +13,10 @@ line-ending = "lf"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+# By default, *exclude* live network tests unless explicitly -m "live"
+# addopts = "-m 'not live'"
+markers = [
+  "smoke: High-level smoke tests",
+  "live: Tests that hit live external services (Letterboxd, etc.)",
+  "tmdb: Tests that require a TMDB API key"
+]

@@ -3,6 +3,7 @@ LBX_MOVIE_TITLE = ("h1", {})
 LBX_MOVIE_YEAR = ("span", {"class": "releasedate"})
 LBX_IMDB_ANCHOR = ("a", {"data-track-action": "IMDb"})
 LBX_TMDB_ANCHOR = ("a", {"data-track-action": "TMDB"})
+LBX_JSON_LD_SCRIPT = ("script", {"type": "application/ld+json"})
 
 LBX_USER_TABLE = ("table", {"class": "member-table"})
 LBX_USER_ROW = ("td", {"class": "table-person"})
