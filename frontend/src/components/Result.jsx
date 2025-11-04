@@ -82,7 +82,7 @@ const Result = ({ movie_data, predicted_rating, textColor }) => {
                 movie_data.movie_title
               }: ${predicted_rating.toFixed(2)} out of 10`}
             >
-              {predicted_rating.toFixed(2)}
+              {predicted_rating.toFixed(1)}
             </div>
           </div>
         </div>
