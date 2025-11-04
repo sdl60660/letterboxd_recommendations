@@ -5,8 +5,8 @@ on:
   push:
     branches: ["test-workflows"]
   schedule:
-    # runs once every two months at 18:00 (to not conflict with other workflows, which runs at midnight/noon)
-    - cron: '0 18 1 */2 *'
+    # runs once every three months at 18:00 (to not conflict with other workflows, which runs at midnight/noon)
+    - cron: '0 18 1 */3 *'
 
 permissions:
   contents: write
