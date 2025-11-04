@@ -21,8 +21,7 @@ To run the full stack locally (backend, crawlers, frontend), you’ll need Docke
    cp .env.example .env
    ```
    - Update any values as needed.  
-   - `SECRET_KEY` can be anything.  
-   - `CONNECTION_URL` (or `MONGODB_URI`) should point to your MongoDB instance — it defaults to the local Docker Mongo container (`mongodb://mongo:27017`).  
+   - `CONNECTION_URL` (and `MONGODB_URI`) should point to your MongoDB instance. It defaults to the local Docker Mongo container (`mongodb://mongo:27017`).  
    - If you have a TMDB API key, add it under `TMDB_KEY` (optional but recommended for richer movie data).
 
 2. **Run the setup script**  
@@ -60,7 +59,7 @@ Once everything’s running, visit `http://localhost:3000`, enter a Letterboxd u
   Make sure Docker is running and `CONNECTION_URL` points to `mongodb://mongo:27017` (or your remote Mongo server)
 
 - **TMDB key errors**  
-  Live rich-data crawls and some smoke tests require a valid `TMDB_KEY`.  
+  Live rich-data crawls and some tests require a valid `TMDB_KEY`.  
   If missing, those tests will skip automatically.
 
 - **Pre-commit hooks not running**  
