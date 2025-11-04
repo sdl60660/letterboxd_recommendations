@@ -112,4 +112,5 @@ explicit_exclude_list = [
     "adventure-time",
     "bojack-horseman-christmas-special-sabrinas",
     "euphoria-trouble-dont-last-always",
+    "game-of-thrones-the-imax-experience",
 ]
