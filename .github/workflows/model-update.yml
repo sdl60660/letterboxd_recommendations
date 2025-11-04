@@ -1,14 +1,12 @@
-name: Automated data crawl/database update
+name: Data sample/live model update (automated)
 
 on:
   workflow_dispatch: {}
   push:
     branches: ["test-workflows"]
   schedule:
-    # runs once every two days
-    # - cron: '0 0 */2 * *'
-    # run once every three hours
-    - cron: '0 */3 * * *'
+    # runs once per week at noon (to not conflict with other workflow, which runs at midnight)
+    - cron: '0 12 * * 0'
 
 permissions:
   contents: write
@@ -44,48 +42,33 @@ jobs:
         if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: pipenv install --deploy --dev
 
-      - name: Ensure dev deps (pipenv)
-        run: |
-          pipenv sync --dev
-
-      - name: Run unit + integration + smoke tests
-        env:
-          TMDB_KEY: ${{ secrets.TMDB_KEY }}
-        run: |
-          # Show versions for debugging
-          python -V
-          pipenv --version
-          pipenv run pytest -ra
-
-      - name: Crawl users data
+      - name: Create new training data sample file
         env:
           CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
           TMDB_KEY: ${{ secrets.TMDB_KEY }}
-        run: cd data_processing && pipenv run python get_users.py
-
-      - name: Crawl ratings data
-        env:
-          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-          MONGO_DB: ${{ secrets.MONGO_DB }}
-          TMDB_KEY: ${{ secrets.TMDB_KEY }}
-        run: cd data_processing && pipenv run python get_ratings.py
-
-      - name: Get movie data
-        env:
-          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
-          MONGO_DB: ${{ secrets.MONGO_DB }}
-          TMDB_KEY: ${{ secrets.TMDB_KEY }}
-        run: cd data_processing && pipenv run python get_movies.py
+        run: cd data_processing && pipenv run python create_training_data.py
       
-      - name: Prune inactive movie data from database
+      - name: Evaluate model params and update prod params
         env:
           CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
-        run: cd data_processing && pipenv run python prune_inactive_movies.py
-      
-      - name: Consolidate/migrate data for any movies that now redirect to other pages
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python evaluate_models.py
+
+      - name: Build new cached models
         env:
           CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
-        run: cd data_processing && pipenv run python consolidate_redirects.py
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: cd data_processing && pipenv run python build_model.py
+
+      - name: Update last updated date
+        run: cd data_processing && pipenv run python update_last_updated.py
+
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: Automated update to sample data and live models (triggered from model-update.yml GitHub action)
+          branch: main
+          commit_options: '--no-verify --signoff'
+          repository: .
