@@ -6,9 +6,9 @@ on:
     branches: ["test-workflows"]
   schedule:
     # runs once every two days
-    - cron: '0 0 */2 * *'
-    # run once every two hours
-    # - cron: '0 */2 * * *'
+    # - cron: '0 0 */2 * *'
+    # run once every three hours
+    - cron: '0 */3 * * *'
 
 permissions:
   contents: write

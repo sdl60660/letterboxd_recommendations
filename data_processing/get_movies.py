@@ -365,7 +365,7 @@ def get_ids_for_update(movies_collection, data_type):
             for x in movies_collection.find(
                 {"content_type": {"$exists": False}},
                 {"movie_id": 1},
-            ).limit(10000)
+            ).limit(5000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -421,7 +421,8 @@ def get_ids_for_update(movies_collection, data_type):
             for x in list(
                 movies_collection.find(
                     {
-                        "genres": {"$exists": False},
+                        "scrape_status": "ok",
+                        "runtime": {"$exists": False},
                         "content_type": {"$exists": True, "$ne": None},
                     }
                 )
