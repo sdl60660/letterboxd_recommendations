@@ -180,7 +180,7 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
 
 def format_failed_update(movie_id, fail_count):
     # backoff_days = get_backoff_days(fail_count)
-    backoff_days = 7
+    backoff_days = 1
     now = datetime.datetime.now(datetime.timezone.utc)
     next_retry = now + datetime.timedelta(days=backoff_days)
 
