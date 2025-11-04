@@ -218,7 +218,7 @@ def eval_fold_in_user(user_data_set, model, top_k=50, explicit_ratings_only=True
         if x["movie_id"] in test_key
     ]
 
-    rmse_value = accuracy.rmse(predictions, verbose=False)
+    # rmse_value = accuracy.rmse(predictions, verbose=False)
     precisions, recalls = precision_recall_at_k(predictions, k=top_k, threshold=7)
 
     precision = sum(prec for prec in precisions.values()) / len(precisions)
@@ -227,12 +227,13 @@ def eval_fold_in_user(user_data_set, model, top_k=50, explicit_ratings_only=True
     top_k_recs = [x.iid for x in predictions[:top_k]]
 
     user_metrics = {
-        "rmse": rmse_value,
+        # "rmse": rmse_value,
         "precision": precision,
         "recall": recall,
         "total_test_predictions": len(predictions),
         "top_k_recs": top_k_recs,
         "user_id": username,
+        "all_predictions": predictions,
     }
 
     return user_metrics
@@ -243,7 +244,6 @@ def _safe_weighted_means(sums):
     if sums["preds"] == 0:
         return float("nan"), float("nan"), float("nan")
     return (
-        sums["rmse"] / sums["preds"],
         sums["prec"] / sums["preds"],
         sums["rec"] / sums["preds"],
     )
@@ -264,30 +264,33 @@ def eval_param_set_fold_in(
     personalization_testing_data_explicit = {}
     personalization_testing_data_with_likes = {}
 
+    full_prediction_set_explicit = []
+    full_prediction_set_with_likes = []
+
     for user_data_set in tqdm(user_data_sets, desc="Fold-in users", leave=False):
         # ---- explicit-only ----
         m_exp = eval_fold_in_user(user_data_set, model, explicit_ratings_only=True)
         n_exp = m_exp["total_test_predictions"]
-        sums_explicit["rmse"] += m_exp["rmse"] * n_exp
         sums_explicit["prec"] += m_exp["precision"] * n_exp
         sums_explicit["rec"] += m_exp["recall"] * n_exp
         sums_explicit["preds"] += n_exp
+        full_prediction_set_explicit += m_exp["all_predictions"]
 
         personalization_testing_data_explicit[m_exp["user_id"]] = m_exp["top_k_recs"]
 
         # ---- explicit + likes/synthetic ----
         m_lik = eval_fold_in_user(user_data_set, model, explicit_ratings_only=False)
         n_lik = m_lik["total_test_predictions"]
-        sums_withlikes["rmse"] += m_lik["rmse"] * n_lik
         sums_withlikes["prec"] += m_lik["precision"] * n_lik
         sums_withlikes["rec"] += m_lik["recall"] * n_lik
         sums_withlikes["preds"] += n_lik
+        full_prediction_set_with_likes += m_lik["all_predictions"]
 
         personalization_testing_data_with_likes[m_lik["user_id"]] = m_lik["top_k_recs"]
 
     # Weighted means (by # predictions)
-    rmse_e, prec_e, rec_e = _safe_weighted_means(sums_explicit)
-    rmse_l, prec_l, rec_l = _safe_weighted_means(sums_withlikes)
+    prec_e, rec_e = _safe_weighted_means(sums_explicit)
+    prec_l, rec_l = _safe_weighted_means(sums_withlikes)
 
     personalization_e = personalization_score(
         personalization_testing_data_explicit, all_model_movies
@@ -296,14 +299,16 @@ def eval_param_set_fold_in(
         personalization_testing_data_with_likes, all_model_movies
     )
 
+    true_rmse_e = accuracy.rmse(full_prediction_set_explicit, verbose=False)
+    true_rmse_l = accuracy.rmse(full_prediction_set_with_likes, verbose=False)
+
     return {
         # explicit-only
-        "fold_in_rmse_explicit": rmse_e,
+        "fold_in_rmse_explicit": true_rmse_e,
         "fold_in_precision@k_explicit": prec_e,
         # "fold_in_recall@k_explicit": rec_e,
         "personalization_score_explicit": personalization_e,
-        # explicit + likes/synthetic
-        "fold_in_rmse_with_likes": rmse_l,
+        "fold_in_rmse_with_likes": true_rmse_l,
         "fold_in_precision@k_with_likes": prec_l,
         # "fold_in_recall@k_with_likes": rec_l,
         "personalization_score_with_likes": personalization_l,
