@@ -496,5 +496,5 @@ async def main(data_type: str = "letterboxd"):
 
 
 if __name__ == "__main__":
-    # asyncio.run(main("letterboxd"))
+    asyncio.run(main("letterboxd"))
     asyncio.run(main("tmdb"))
