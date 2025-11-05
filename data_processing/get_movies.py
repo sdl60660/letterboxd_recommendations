@@ -151,6 +151,7 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
         "scrape_status": "ok",
         "fail_count": 0,
         "next_retry_at": None,
+        "last_updated": datetime.datetime.now(datetime.timezone.utc),
     }
 
     # script-tag metadata: be explicit about the expected failures
@@ -440,7 +441,7 @@ def get_ids_for_update(movies_collection, data_type):
                         "scrape_status": "ok",
                         "tmdb_id": {"$exists": True},
                     }
-                ).limit(10000)
+                ).limit(5000)
             )
         ]
 
