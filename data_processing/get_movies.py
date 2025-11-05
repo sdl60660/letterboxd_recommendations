@@ -424,8 +424,23 @@ def get_ids_for_update(movies_collection, data_type):
                         "scrape_status": "ok",
                         "runtime": {"$exists": False},
                         "content_type": {"$exists": True, "$ne": None},
+                        "tmdb_id": {"$exists": True},
                     }
                 )
+            )
+        ]
+
+        # semi-incomplete TMDB data/late_updated timestamp
+        all_movies = [
+            x
+            for x in list(
+                movies_collection.find(
+                    {
+                        "last_updated": {"$exists": False},
+                        "scrape_status": "ok",
+                        "tmdb_id": {"$exists": True},
+                    }
+                ).limit(10000)
             )
         ]
 
@@ -480,5 +495,5 @@ async def main(data_type: str = "letterboxd"):
 
 
 if __name__ == "__main__":
-    asyncio.run(main("letterboxd"))
+    # asyncio.run(main("letterboxd"))
     asyncio.run(main("tmdb"))
