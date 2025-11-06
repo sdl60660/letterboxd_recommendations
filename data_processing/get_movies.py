@@ -347,33 +347,24 @@ def get_ids_for_update(movies_collection, data_type):
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 5000 least recently updated items, excluding anything updated in the last month
+        # 10,000 least recently updated items, excluding anything updated in the last month
+        # will look at some point at whether this keeps thins on a regular enough update schedule or not
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
                 {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(5000)
+            .limit(10000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                # {"scrape_status": "failed"},
                 {"next_retry_at": {"$lte": now}, "scrape_status": "failed"},
                 {"movie_id": 1},
             ).sort("next_retry_at", 1)
-        }
-
-        # backfill a chunk of any records that are missing 'content_type' (newly-added)
-        update_ids |= {
-            x["movie_id"]
-            for x in movies_collection.find(
-                {"content_type": {"$exists": False}},
-                {"movie_id": 1},
-            ).limit(1000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -386,7 +377,7 @@ def get_ids_for_update(movies_collection, data_type):
                         {"tmdb_id": {"$exists": False}},
                         {"image_url": {"$exists": False}},
                         {"year_released": {"$exists": False}},
-                        {"year_released": {"$in": ["", None]}},
+                        {"content_type": {"$exists": False}},
                     ]
                 },
                 {"movie_id": 1},
