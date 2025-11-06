@@ -116,4 +116,5 @@ explicit_exclude_list = [
     "making-true-detective",
     "hannibal-this-is-my-design",
     "paint-drying",
+    "over-the-garden-wall-10th-anniversary-tribute",
 ]
