@@ -24,7 +24,9 @@ def _fetch(url: str) -> str:
     return r.text
 
 
-def test_letterboxd_site_up():
+@pytest.fixture(scope="module")
+def letterboxd_available():
+    """Check if Letterboxd is up; skip all dependent tests if not."""
     try:
         r = requests.get(
             "https://letterboxd.com/",
@@ -32,12 +34,12 @@ def test_letterboxd_site_up():
             timeout=default_request_timeout,
             allow_redirects=True,
         )
-
-        # 503 Service Unavailable code has come back in the past when the site is down
-        assert r.status_code != 503
-
-    except requests.exceptions.ReadTimeout:
-        pytest.fail("Request to main site timed out, site is likely down")
+        # 503 = site down, or network issue
+        if r.status_code == 503:
+            pytest.skip("Letterboxd appears to be down (503).")
+    except requests.exceptions.RequestException:
+        pytest.skip("Cannot reach Letterboxd.com (network or DNS error).")
+    return True
 
 
 def test_zone_of_interest_structure_and_script_tag_meta():
