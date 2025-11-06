@@ -5,6 +5,7 @@ import requests
 from aioresponses import aioresponses
 
 import data_processing.get_movies as get_movies
+from data_processing.utils.http_utils import default_request_timeout
 
 pytestmark = [pytest.mark.smoke, pytest.mark.tmdb, pytest.mark.live]
 
@@ -25,7 +26,7 @@ def test_tmdb_movie_detail_matrix():
     Checks basic shape only.
     """
     url = f"https://api.themoviedb.org/3/movie/603?api_key={TMDB_KEY}"
-    r = requests.get(url, timeout=20)
+    r = requests.get(url, timeout=default_request_timeout)
     r.raise_for_status()
     j = r.json()
 
@@ -39,7 +40,7 @@ def test_tmdb_tv_detail_got():
     Another stable TMDB endpoint: Game of Thrones, id=1399.
     """
     url = f"https://api.themoviedb.org/3/tv/1399?api_key={TMDB_KEY}"
-    r = requests.get(url, timeout=20)
+    r = requests.get(url, timeout=default_request_timeout)
     r.raise_for_status()
     j = r.json()
 
