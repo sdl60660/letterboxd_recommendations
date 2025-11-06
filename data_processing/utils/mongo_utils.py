@@ -1,11 +1,56 @@
 from typing import Iterable, List
 from pymongo import DeleteMany, DeleteOne, InsertOne, ReplaceOne, UpdateOne
-from pymongo.errors import BulkWriteError
+from pymongo.errors import (
+    BulkWriteError,
+    AutoReconnect,
+    NetworkTimeout,
+    WriteConcernError,
+)
 from tqdm.auto import tqdm
+import time, random
 
 
 def _is_mongomock_collection(coll) -> bool:
     return coll.__class__.__module__.startswith("mongomock")
+
+
+_TRANSIENT_CODES = {
+    11600,
+    11602,
+    91,
+}  # Interrupted, InterruptedDueToReplStateChange, ShutdownInProgress
+
+
+def run_agg_with_retries(
+    coll, pipeline, *, allowDiskUse=True, comment=None, max_retries=5, base_sleep=1.0
+):
+    """Run aggregate with retries for transient repl/election errors."""
+    attempt = 0
+    while True:
+        try:
+            return list(
+                coll.aggregate(pipeline, allowDiskUse=allowDiskUse, comment=comment)
+            )
+        except WriteConcernError as e:
+            if getattr(e, "code", None) in _TRANSIENT_CODES and attempt < max_retries:
+                attempt += 1
+                delay = base_sleep * (2 ** (attempt - 1)) + random.random() * 0.25
+                print(
+                    f"[agg-retry] WriteConcernError {e.code}; retry {attempt}/{max_retries} in {delay:.2f}s"
+                )
+                time.sleep(delay)
+                continue
+            raise
+        except (AutoReconnect, NetworkTimeout) as e:
+            if attempt < max_retries:
+                attempt += 1
+                delay = base_sleep * (2 ** (attempt - 1)) + random.random() * 0.25
+                print(
+                    f"[agg-retry] {type(e).__name__}; retry {attempt}/{max_retries} in {delay:.2f}s"
+                )
+                time.sleep(delay)
+                continue
+            raise
 
 
 def bulk_write_compat(coll, ops, **kwargs):

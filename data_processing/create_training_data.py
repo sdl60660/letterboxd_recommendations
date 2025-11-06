@@ -4,6 +4,7 @@ import time
 import pandas as pd
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import CollectionInvalid
+from pymongo.write_concern import WriteConcern
 from utils.config import sample_sizes
 from utils.db_connect import connect_to_db
 from utils.utils import get_rich_movie_data
