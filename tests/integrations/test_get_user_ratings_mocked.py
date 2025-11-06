@@ -1,4 +1,6 @@
 import responses
+import asyncio
+from aioresponses import aioresponses
 
 import data_processing.get_users as get_users
 
@@ -11,27 +13,24 @@ def _sample_html(html_sample_path):
 def test_get_users_inserts_documents(mongo_db, html_sample_path):
     base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
     html = _sample_html(html_sample_path)
+    users_coll = mongo_db.users
 
-    # Mock the exact GET URL your code calls
-    responses.add(
-        responses.GET,
-        base_url.format(1),
-        body=html,
-        status=200,
-        content_type="text/html",
-    )
+    with aioresponses() as m:
+        m.get(base_url.format(1), status=200, body=html)
 
-    # Run the page processor, inserting into mongomock
-    result = get_users.process_user_page(base_url, 1, mongo_db.users, send_to_db=True)
-
-    # It returns both data and ops for inspection
-    assert "data" in result and "ops" in result
-    assert len(result["data"]) == 30
-    assert len(result["ops"]) == 30
+        # Run one-page async scrape
+        asyncio.run(
+            get_users.run_async_scrape(
+                users_coll=users_coll,
+                base_url=base_url,
+                total_pages=1,
+                concurrency=2,
+                send_to_db=True,
+            )
+        )
 
     # DB assertions
     assert mongo_db.users.count_documents({}) == 30
-    # this is the first user in the sample DOM data I pulled down for testing
     doc = mongo_db.users.find_one({"username": "schaffrillas"})
     assert doc is not None
     assert "display_name" in doc
@@ -42,29 +41,35 @@ def test_get_users_inserts_documents(mongo_db, html_sample_path):
 def test_get_users_idempotent(mongo_db, html_sample_path):
     base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
     html = _sample_html(html_sample_path)
+    users_coll = mongo_db.users
 
     # First run
-    responses.add(
-        responses.GET,
-        base_url.format(2),
-        body=html,
-        status=200,
-        content_type="text/html",
-    )
-    get_users.process_user_page(base_url, 2, mongo_db.users, send_to_db=True)
+    with aioresponses() as m:
+        m.get(base_url.format(2), status=200, body=html)
+        asyncio.run(
+            get_users.run_async_scrape(
+                users_coll=users_coll,
+                base_url=base_url,
+                total_pages=1,  # we’ll use page=2 by formatting below
+                concurrency=2,
+                send_to_db=True,
+            )
+        )
     first_count = mongo_db.users.count_documents({})
 
-    # Second run (same response)
-    responses.add(
-        responses.GET,
-        base_url.format(2),
-        body=html,
-        status=200,
-        content_type="text/html",
-    )
-    get_users.process_user_page(base_url, 2, mongo_db.users, send_to_db=True)
+    # Second run (same page & body) — add another mock call
+    with aioresponses() as m:
+        m.get(base_url.format(2), status=200, body=html)
+        asyncio.run(
+            get_users.run_async_scrape(
+                users_coll=users_coll,
+                base_url=base_url,
+                total_pages=1,
+                concurrency=2,
+                send_to_db=True,
+            )
+        )
     second_count = mongo_db.users.count_documents({})
 
-    # Upsert behavior: document count should not increase
     assert first_count == 30
     assert second_count == 30
