@@ -34,7 +34,6 @@ fastparquet = "*"
 ruff = "*"
 tqdm-joblib = "*"
 pre-commit = "*"
-aioresponses = "*"
 
 [dev-packages]
 pytest = "*"
