@@ -4,15 +4,18 @@ import asyncio
 import os
 from itertools import chain
 
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("/data_processing"):
-    from utils.http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
     from utils.selectors import LBX_REVIEW_TILE
     from utils.utils import get_page_count
 else:
-    from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import (
+        BROWSER_HEADERS,
+        default_request_timeout,
+    )
     from data_processing.utils.selectors import (
         LBX_REVIEW_TILE,
     )
@@ -20,7 +23,9 @@ else:
 
 
 async def fetch(url, session, input_data={}):
-    async with session.get(url) as response:
+    async with session.get(
+        url, timeout=ClientTimeout(total=default_request_timeout)
+    ) as response:
         try:
             return await response.read(), input_data
         except:

@@ -8,14 +8,14 @@ import re
 import traceback
 from urllib.parse import urlparse
 
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
     from utils.mongo_utils import safe_commit_ops
     from utils.selectors import (
         LBX_IMDB_ANCHOR,
@@ -28,7 +28,10 @@ if os.getcwd().endswith("/data_processing"):
 
 else:
     from data_processing.utils.db_connect import connect_to_db
-    from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import (
+        BROWSER_HEADERS,
+        default_request_timeout,
+    )
     from data_processing.utils.mongo_utils import safe_commit_ops
     from data_processing.utils.selectors import (
         LBX_IMDB_ANCHOR,
@@ -219,7 +222,9 @@ def handle_redirects(r, movie_update_object, movie_id, mongo_db):
 
 
 async def fetch_letterboxd(url, session, mongo_db, input_data={}):
-    async with session.get(url) as r:
+    async with session.get(
+        url, timeout=ClientTimeout(total=default_request_timeout)
+    ) as r:
         response = await r.read()
 
         movie_id = input_data["movie_id"]
@@ -249,7 +254,9 @@ async def fetch_letterboxd(url, session, mongo_db, input_data={}):
 
 
 async def fetch_tmdb_data(url, session, movie_data, input_data={}):
-    async with session.get(url) as r:
+    async with session.get(
+        url, timeout=ClientTimeout(total=default_request_timeout)
+    ) as r:
         response = await r.json()
 
         movie_object = movie_data
