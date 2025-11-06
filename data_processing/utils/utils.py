@@ -117,4 +117,5 @@ explicit_exclude_list = [
     "hannibal-this-is-my-design",
     "paint-drying",
     "over-the-garden-wall-10th-anniversary-tribute",
+    "the-owl-house-thanks-to-them",
 ]
