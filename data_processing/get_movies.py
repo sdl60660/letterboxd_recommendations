@@ -154,6 +154,7 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
         "scrape_status": "ok",
         "fail_count": 0,
         "next_retry_at": None,
+        "last_updated": datetime.datetime.now(datetime.timezone.utc),
     }
 
     # script-tag metadata: be explicit about the expected failures
@@ -353,7 +354,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(5000)
+            .limit(1000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
@@ -372,7 +373,7 @@ def get_ids_for_update(movies_collection, data_type):
             for x in movies_collection.find(
                 {"content_type": {"$exists": False}},
                 {"movie_id": 1},
-            ).limit(5000)
+            ).limit(12000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -431,8 +432,23 @@ def get_ids_for_update(movies_collection, data_type):
                         "scrape_status": "ok",
                         "runtime": {"$exists": False},
                         "content_type": {"$exists": True, "$ne": None},
+                        "tmdb_id": {"$exists": True},
                     }
                 )
+            )
+        ]
+
+        # semi-incomplete TMDB data/late_updated timestamp
+        all_movies = [
+            x
+            for x in list(
+                movies_collection.find(
+                    {
+                        "last_updated": {"$exists": False},
+                        "scrape_status": "ok",
+                        "tmdb_id": {"$exists": True},
+                    }
+                ).limit(5000)
             )
         ]
 
