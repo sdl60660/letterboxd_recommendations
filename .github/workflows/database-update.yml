@@ -7,11 +7,11 @@ on:
   schedule:
     # Normal schedule: Runs once every two days (will switch back once backfill is complete)
     # - cron: '0 0 */2 * *'
-    # While backfilling: runs every hour Mon–Sat (UTC)...
-    - cron: '0 * * * 1-6'
-    # And on Sunday (UTC): every hour, but NOT 12:00–18:00, to avoid conflicts with other workflow
+    # While backfilling: runs every four hours Mon–Sat (UTC)...
+    - cron: '0 */4 * * 1-6'
+    # And on Sunday (UTC): every four hours, but NOT 12:00–18:00, to avoid conflicts with other workflow
     # - cron: '0 0-10/2,20,22 * * 0'
-    - cron: '0 0-11,19-23 * * 0'
+    - cron: '0 0,4,8,20 * * 0'
 
 permissions:
   contents: write

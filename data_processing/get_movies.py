@@ -184,7 +184,7 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
 
 def format_failed_update(movie_id, fail_count):
     # backoff_days = get_backoff_days(fail_count)
-    backoff_days = 1
+    backoff_days = 3
     now = datetime.datetime.now(datetime.timezone.utc)
     next_retry = now + datetime.timedelta(days=backoff_days)
 
@@ -354,7 +354,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(1000)
+            .limit(5000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
@@ -367,13 +367,13 @@ def get_ids_for_update(movies_collection, data_type):
             ).sort("next_retry_at", 1)
         }
 
-        # backfill a chunk of the records that are missing 'content_type' (newly-added)
+        # backfill a chunk of any records that are missing 'content_type' (newly-added)
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
                 {"content_type": {"$exists": False}},
                 {"movie_id": 1},
-            ).limit(12000)
+            ).limit(1000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -393,7 +393,7 @@ def get_ids_for_update(movies_collection, data_type):
             )
         }
 
-        # missing key data (but has been attempted before), limited to a batch of 500 per update
+        # missing key data (but has been attempted before), limited to a batch of 1000 per update
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
@@ -418,7 +418,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"movie_id": 1},
             )
             .sort("last_updated", 1)
-            .limit(500)
+            .limit(1000)
         }
 
         all_movies = list(update_ids)
@@ -438,7 +438,7 @@ def get_ids_for_update(movies_collection, data_type):
             )
         ]
 
-        # semi-incomplete TMDB data/late_updated timestamp
+        # any semi-incomplete: has TMDB ID/scrape_status, but no last_updated timestamp
         all_movies = [
             x
             for x in list(
@@ -448,7 +448,7 @@ def get_ids_for_update(movies_collection, data_type):
                         "scrape_status": "ok",
                         "tmdb_id": {"$exists": True},
                     }
-                ).limit(5000)
+                )
             )
         ]
 
