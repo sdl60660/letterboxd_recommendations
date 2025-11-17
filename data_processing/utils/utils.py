@@ -118,4 +118,5 @@ explicit_exclude_list = [
     "paint-drying",
     "over-the-garden-wall-10th-anniversary-tribute",
     "the-owl-house-thanks-to-them",
+    "its-always-sunny-in-philadelphia-sunny-side-up",
 ]
