@@ -13,13 +13,16 @@ from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
     from utils.mongo_utils import safe_commit_ops
     from utils.selectors import LBX_USER_ROW, LBX_USER_TABLE
 
 else:
     from data_processing.utils.db_connect import connect_to_db
-    from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import (
+        BROWSER_HEADERS,
+        default_request_timeout,
+    )
     from data_processing.utils.mongo_utils import safe_commit_ops
     from data_processing.utils.selectors import LBX_USER_ROW, LBX_USER_TABLE
 
@@ -62,7 +65,9 @@ def form_user_upsert_op(record):
 
 
 def process_user_page(base_url, page, users, send_to_db=True):
-    r = requests.get(base_url.format(page), headers=BROWSER_HEADERS)
+    r = requests.get(
+        base_url.format(page), headers=BROWSER_HEADERS, timeout=default_request_timeout
+    )
     all_user_data = parse_user_list_page(r.text)
 
     update_operations = [form_user_upsert_op(user) for user in all_user_data]

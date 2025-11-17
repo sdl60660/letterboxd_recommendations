@@ -8,14 +8,14 @@ import re
 import traceback
 from urllib.parse import urlparse
 
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS
+    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
     from utils.mongo_utils import safe_commit_ops
     from utils.selectors import (
         LBX_IMDB_ANCHOR,
@@ -28,7 +28,10 @@ if os.getcwd().endswith("/data_processing"):
 
 else:
     from data_processing.utils.db_connect import connect_to_db
-    from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import (
+        BROWSER_HEADERS,
+        default_request_timeout,
+    )
     from data_processing.utils.mongo_utils import safe_commit_ops
     from data_processing.utils.selectors import (
         LBX_IMDB_ANCHOR,
@@ -181,7 +184,7 @@ def parse_letterboxd_page_data(response: str, movie_id: str) -> dict:
 
 def format_failed_update(movie_id, fail_count):
     # backoff_days = get_backoff_days(fail_count)
-    backoff_days = 1
+    backoff_days = 3
     now = datetime.datetime.now(datetime.timezone.utc)
     next_retry = now + datetime.timedelta(days=backoff_days)
 
@@ -220,7 +223,9 @@ def handle_redirects(r, movie_update_object, movie_id, mongo_db):
 
 
 async def fetch_letterboxd(url, session, mongo_db, input_data={}):
-    async with session.get(url) as r:
+    async with session.get(
+        url, timeout=ClientTimeout(total=default_request_timeout)
+    ) as r:
         response = await r.read()
 
         movie_id = input_data["movie_id"]
@@ -250,7 +255,9 @@ async def fetch_letterboxd(url, session, mongo_db, input_data={}):
 
 
 async def fetch_tmdb_data(url, session, movie_data, input_data={}):
-    async with session.get(url) as r:
+    async with session.get(
+        url, timeout=ClientTimeout(total=default_request_timeout)
+    ) as r:
         response = await r.json()
 
         movie_object = movie_data
@@ -340,33 +347,24 @@ def get_ids_for_update(movies_collection, data_type):
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 5000 least recently updated items, excluding anything updated in the last month
+        # 10,000 least recently updated items, excluding anything updated in the last month
+        # will look at some point at whether this keeps thins on a regular enough update schedule or not
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
                 {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(1000)
+            .limit(10000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                # {"scrape_status": "failed"},
                 {"next_retry_at": {"$lte": now}, "scrape_status": "failed"},
                 {"movie_id": 1},
             ).sort("next_retry_at", 1)
-        }
-
-        # backfill a chunk of the records that are missing 'content_type' (newly-added)
-        update_ids |= {
-            x["movie_id"]
-            for x in movies_collection.find(
-                {"content_type": {"$exists": False}},
-                {"movie_id": 1},
-            ).limit(12000)
         }
 
         # anything newly added or missing key data (including missing poster image)
@@ -379,14 +377,14 @@ def get_ids_for_update(movies_collection, data_type):
                         {"tmdb_id": {"$exists": False}},
                         {"image_url": {"$exists": False}},
                         {"year_released": {"$exists": False}},
-                        {"year_released": {"$in": ["", None]}},
+                        {"content_type": {"$exists": False}},
                     ]
                 },
                 {"movie_id": 1},
             )
         }
 
-        # missing key data (but has been attempted before), limited to a batch of 500 per update
+        # missing key data (but has been attempted before), limited to a batch of 1000 per update
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
@@ -411,7 +409,7 @@ def get_ids_for_update(movies_collection, data_type):
                 {"movie_id": 1},
             )
             .sort("last_updated", 1)
-            .limit(500)
+            .limit(1000)
         }
 
         all_movies = list(update_ids)
@@ -431,7 +429,7 @@ def get_ids_for_update(movies_collection, data_type):
             )
         ]
 
-        # semi-incomplete TMDB data/late_updated timestamp
+        # any semi-incomplete: has TMDB ID/scrape_status, but no last_updated timestamp
         all_movies = [
             x
             for x in list(
@@ -441,7 +439,7 @@ def get_ids_for_update(movies_collection, data_type):
                         "scrape_status": "ok",
                         "tmdb_id": {"$exists": True},
                     }
-                ).limit(5000)
+                )
             )
         ]
 

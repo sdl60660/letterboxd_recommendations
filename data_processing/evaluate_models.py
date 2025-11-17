@@ -471,13 +471,13 @@ def get_current_champion_results(model, dataset, params, cv_folds=3):
 
 def run_grid_search(model, dataset, num_candidates, current_best_params, cv_folds=3):
     param_dists = {
-        "n_factors": dists.randint(100, 250),
+        "n_factors": dists.randint(80, 250),
         "n_epochs": dists.randint(40, 80),
         "lr_all": dists.uniform(0.003, 0.008),
         "reg_qi": dists.uniform(0.01, 0.04),
         "reg_pu": dists.uniform(0.01, 0.04),
-        "reg_bu": dists.uniform(0.03, 0.08),
-        "reg_bi": dists.uniform(0.08, 0.2),
+        "reg_bu": dists.uniform(0.02, 0.07),
+        "reg_bi": dists.uniform(0.07, 0.18),
         "init_std_dev": dists.uniform(0.05, 0.25),
     }
 

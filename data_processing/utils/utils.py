@@ -115,4 +115,7 @@ explicit_exclude_list = [
     "game-of-thrones-the-imax-experience",
     "making-true-detective",
     "hannibal-this-is-my-design",
+    "paint-drying",
+    "over-the-garden-wall-10th-anniversary-tribute",
+    "the-owl-house-thanks-to-them",
 ]
