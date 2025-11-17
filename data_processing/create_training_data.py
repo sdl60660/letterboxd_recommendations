@@ -132,8 +132,8 @@ def get_raw_final_sample(
     raw_final_sample = db[collection_name]
     raw_final_sample.create_index(
         [("user_id", ASCENDING), ("movie_id", ASCENDING)],
-        unique=True,
-        name="user_movie_unique",
+        unique=False,
+        name="user_movie_ix",
     )
 
     deterministic_cap_pipeline = [
