@@ -71,17 +71,24 @@ def filter_active_users(db):
 def create_movie_counts(db):
     ratings = db.ratings
 
-    # Build (or rebuild) movie_counts
-    db[MOVIE_COUNTS_COLL].drop()
+    # Stream into movie_counts with stable upserts; avoid $out/index race
     ratings.aggregate(
         [
             {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
-            {"$out": MOVIE_COUNTS_COLL},
+            {
+                "$merge": {
+                    "into": MOVIE_COUNTS_COLL,
+                    "on": "_id",  # movie_id is in _id from the $group
+                    "whenMatched": "replace",  # replace {count} value
+                    "whenNotMatched": "insert",
+                }
+            },
         ],
         allowDiskUse=True,
+        comment="movie_counts_merge",
     )
 
-    # Indexes
+    # (Re)create indexes after the merge completes
     db[MOVIE_COUNTS_COLL].create_index([("count", DESCENDING)])
     db[MOVIE_COUNTS_COLL].create_index([("_id", ASCENDING)])
 
@@ -120,12 +127,13 @@ def get_raw_final_sample(
     sampled_users,
     deterministic_user_cap=True,
     collection_suffix="",
+    user_batch_size: int = 10_000,  # NEW: bound each aggregate + merge
 ):
     raw_final_sample = db[collection_name]
     raw_final_sample.create_index(
         [("user_id", ASCENDING), ("movie_id", ASCENDING)],
-        unique=True,
-        name="user_movie_unique",
+        unique=False,
+        name="user_movie_ix",
     )
 
     deterministic_cap_pipeline = [
@@ -150,16 +158,66 @@ def get_raw_final_sample(
 
     start = time.time()
 
+    # NEW: stream user_ids in bounded batches from sampled_users
+    uid_cur = sampled_users.find({}, {"_id": 0, "user_id": 1})
+    batch = []
+    total_users = 0
+    for doc in uid_cur:
+        batch.append(doc["user_id"])
+        if len(batch) >= user_batch_size:
+            _run_one_batch(
+                db,
+                batch,
+                collection_name,
+                deterministic_user_cap,
+                deterministic_cap_pipeline,
+                non_deterministic_cap_pipeline,
+            )
+            total_users += len(batch)
+            print(f" … merged ratings for {total_users} users so far")
+            batch = []
+
+    if batch:
+        _run_one_batch(
+            db,
+            batch,
+            collection_name,
+            deterministic_user_cap,
+            deterministic_cap_pipeline,
+            non_deterministic_cap_pipeline,
+        )
+        total_users += len(batch)
+
+    elapsed = time.time() - start
+    written_docs = raw_final_sample.estimated_document_count()
+    written_users = total_users
+    print(
+        f"Added {written_docs} ratings for {written_users} filtered users in {elapsed:.1f}s "
+        f"({(elapsed / max(1, written_users)):.2f} seconds/user)"
+    )
+
+    raw_final_sample.create_index([("movie_id", 1)])
+
+    return raw_final_sample
+
+
+def _run_one_batch(
+    db,
+    user_ids_batch,
+    collection_name,
+    deterministic_user_cap,
+    deterministic_cap_pipeline,
+    non_deterministic_cap_pipeline,
+):
     pipeline = [
-        # {"$match": {"user_id": {"$in": uids}}},
+        # NEW: bound to this user batch
+        {"$match": {"user_id": {"$in": user_ids_batch}}},
         {
             "$lookup": {
                 "from": "ratings",
                 "let": {"uid": "$user_id"},
                 "pipeline": [
-                    # ratings for this user (hits ratings{user_id:1} index)
                     {"$match": {"$expr": {"$eq": ["$user_id", "$$uid"]}}},
-                    # keep only movies over threshold
                     {
                         "$lookup": {
                             "from": THRESHOLD_MOVIES_COLL,
@@ -172,7 +230,7 @@ def get_raw_final_sample(
                     {"$unset": "pm"},
                     *(
                         deterministic_cap_pipeline
-                        if deterministic_user_cap == True
+                        if deterministic_user_cap
                         else non_deterministic_cap_pipeline
                     ),
                 ],
@@ -191,20 +249,13 @@ def get_raw_final_sample(
         },
     ]
 
-    sampled_users.aggregate(
-        pipeline, allowDiskUse=True, comment="training_data_sample_build"
+    # Bound each run; keep disk use on to spill if needed.
+    db[SAMPLED_USERS_COLL].aggregate(
+        pipeline,
+        allowDiskUse=True,
+        comment="training_data_sample_build_chunked",
+        # maxTimeMS=0  # optionally leave unlimited; or set a ceiling if CI is touchy
     )
-
-    elapsed = time.time() - start
-    written_docs = raw_final_sample.estimated_document_count()
-    written_users = sampled_users.estimated_document_count()
-    print(
-        f"Added {written_docs} ratings for {written_users} filtered users in {elapsed:.1f}s ({(elapsed / written_users):.2f} seconds/user)"
-    )
-
-    raw_final_sample.create_index([("movie_id", 1)])
-
-    return raw_final_sample
 
 
 def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
