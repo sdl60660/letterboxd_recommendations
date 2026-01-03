@@ -1,4 +1,4 @@
-name: Data crawl/database update (automated)
+name: Database update (automated)
 
 on:
   workflow_dispatch: {}

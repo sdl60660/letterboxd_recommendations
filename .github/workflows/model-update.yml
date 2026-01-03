@@ -1,4 +1,4 @@
-name: Data sample/live model update (automated)
+name: Live model update (automated)
 
 on:
   workflow_dispatch: {}

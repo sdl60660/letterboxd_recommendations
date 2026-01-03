@@ -127,7 +127,7 @@ def get_raw_final_sample(
     sampled_users,
     deterministic_user_cap=True,
     collection_suffix="",
-    user_batch_size: int = 500,
+    user_batch_size: int = 1000,
 ):
     raw_final_sample = db[collection_name]
     raw_final_sample.create_index(
@@ -158,7 +158,7 @@ def get_raw_final_sample(
 
     start = time.time()
 
-    # NEW: stream user_ids in bounded batches from sampled_users
+    # stream user_ids in bounded batches from sampled_users
     uid_cur = sampled_users.find({}, {"_id": 0, "user_id": 1})
     batch = []
     total_users = 0
@@ -264,11 +264,30 @@ def prune_orphan_entries(
     dst,
     movie_threshold,
     collection_suffix="",
-    chunk_size=50_000,
+    user_chunk_size=250,
 ):
-    adjusted_threshold = movie_threshold // 2
+    """
+    Prune a ratings sample by removing entries whose movie_id does not meet
+    a minimum frequency threshold in the *full* source sample.
 
-    # --- 1) Build qualifying movies temp collection (unchanged) ---
+    This version chunks the prune/merge step by user_id (not _id), which is
+    robust even when _id values are non-ObjectId or mixed types.
+
+    Args:
+        db: pymongo database handle
+        src: source collection name (raw sample)
+        dst: destination collection base name
+        movie_threshold: original threshold; code uses movie_threshold // 2
+        collection_suffix: optional suffix appended to dst
+        user_chunk_size: number of user_ids per prune chunk
+
+    Returns:
+        Destination collection handle.
+    """
+    adjusted_threshold = movie_threshold // 2
+    dst_name = f"{dst}{collection_suffix}"
+
+    # --- 1) Build qualifying movies temp collection from FULL src ---
     db[QUALIFYING_MOVIES_COLL].drop()
     db[src].aggregate(
         [
@@ -281,13 +300,10 @@ def prune_orphan_entries(
     )
     db[QUALIFYING_MOVIES_COLL].create_index([("movie_id", 1)])
 
-    # Destination collection name (honor suffix consistently)
-    dst_name = f"{dst}{collection_suffix}"
-
-    # Start fresh so reruns don’t accumulate unexpected junk
+    # Start fresh so reruns don’t accumulate results
     db[dst_name].drop()
 
-    # --- 2) Chunked prune + merge ---
+    # --- 2) Prune + merge pipeline tail (applied per user chunk) ---
     base_pipeline_tail = [
         {
             "$lookup": {
@@ -308,46 +324,45 @@ def prune_orphan_entries(
         },
     ]
 
-    prev_last_id = None
-    total_src_docs_seen = 0
+    # Fetch all user_ids present in src. For your datasets (~4–5k users),
+    # this is usually fine; it returns just distinct values, not full docs.
     t0 = time.time()
+    user_ids = db[src].distinct("user_id")
 
-    while True:
-        # Find next chunk boundary using only _id (fast, index-backed)
-        find_filter = {}
-        if prev_last_id is not None:
-            find_filter = {"_id": {"$gt": prev_last_id}}
+    # Make progress stable/repeatable. Mixed types can exist; sort defensively.
+    # If user_id is always numeric or always string, this will be stable.
+    try:
+        user_ids.sort()
+    except TypeError:
+        # Mixed types: sort by (type-name, stringified value) to avoid crashes.
+        user_ids.sort(key=lambda x: (type(x).__name__, str(x)))
 
-        ids = list(
-            db[src].find(find_filter, {"_id": 1}).sort("_id", 1).limit(chunk_size)
-        )
+    print(
+        f"Pruning {src} -> {dst_name} using user_id chunks: "
+        f"{len(user_ids):,} users, user_chunk_size={user_chunk_size}, "
+        f"movie_threshold={movie_threshold} (adjusted={adjusted_threshold})"
+    )
 
-        if not ids:
-            break
+    processed_users = 0
 
-        chunk_last_id = ids[-1]["_id"]
+    for i in range(0, len(user_ids), user_chunk_size):
+        u_chunk = user_ids[i : i + user_chunk_size]
+        processed_users += len(u_chunk)
 
-        # Deterministic inclusive range for this chunk
-        chunk_match = {"_id": {"$lte": chunk_last_id}}
-        if prev_last_id is not None:
-            chunk_match["_id"]["$gt"] = prev_last_id
+        chunk_match = {"user_id": {"$in": u_chunk}}
 
-        # Run the prune/merge for just this chunk
-        db[src].aggregate(
-            [{"$match": chunk_match}, {"$sort": {"_id": 1}}] + base_pipeline_tail,
-            allowDiskUse=True,
-        )
+        # Optional: add a stable sort inside each chunk (not required for correctness)
+        # but can help with predictable resource usage.
+        pipeline = [{"$match": chunk_match}] + base_pipeline_tail
 
-        total_src_docs_seen += len(ids)
-        prev_last_id = chunk_last_id
+        db[src].aggregate(pipeline, allowDiskUse=True)
 
         elapsed = time.time() - t0
         print(
-            f"Prune/merge progress: processed ~{total_src_docs_seen:,} src docs "
-            f"in {elapsed:.1f}s (chunk={len(ids):,})"
+            f"Prune/merge progress: users processed {processed_users:,}/{len(user_ids):,} "
+            f"(chunk={len(u_chunk):,}) in {elapsed:.1f}s"
         )
 
-    # Reporting (use the correct dst collection)
     original_sample_count = db[src].estimated_document_count()
     pruned_sample_count = db[dst_name].estimated_document_count()
     print(
@@ -570,4 +585,4 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
 
 
 if __name__ == "__main__":
-    main(use_cached_aggregations=False, remove_temp_collections=True)
+    main(use_cached_aggregations=True, remove_temp_collections=True)
