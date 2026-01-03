@@ -44,14 +44,14 @@ jobs:
 
       - name: Create new training data sample file
         env:
-          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL_CI }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
           TMDB_KEY: ${{ secrets.TMDB_KEY }}
         run: cd data_processing && pipenv run python create_training_data.py
       
       - name: Evaluate model params and update prod params
         env:
-          CONNECTION_URL: ${{ secrets.CONNECTION_URL }}
+          CONNECTION_URL: ${{ secrets.CONNECTION_URL_CI }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
           TMDB_KEY: ${{ secrets.TMDB_KEY }}
         run: cd data_processing && pipenv run python evaluate_models.py

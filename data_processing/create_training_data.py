@@ -127,7 +127,7 @@ def get_raw_final_sample(
     sampled_users,
     deterministic_user_cap=True,
     collection_suffix="",
-    user_batch_size: int = 10_000,  # NEW: bound each aggregate + merge
+    user_batch_size: int = 500,
 ):
     raw_final_sample = db[collection_name]
     raw_final_sample.create_index(
@@ -258,11 +258,17 @@ def _run_one_batch(
     )
 
 
-def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
-    #  this is routh, but it seems to be a decent enough ratio to make the hard-cutoff threshold about half of the original filter pass threshold
+def prune_orphan_entries(
+    db,
+    src,
+    dst,
+    movie_threshold,
+    collection_suffix="",
+    chunk_size=50_000,
+):
     adjusted_threshold = movie_threshold // 2
 
-    # create temp movie group collection
+    # --- 1) Build qualifying movies temp collection (unchanged) ---
     db[QUALIFYING_MOVIES_COLL].drop()
     db[src].aggregate(
         [
@@ -275,8 +281,14 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
     )
     db[QUALIFYING_MOVIES_COLL].create_index([("movie_id", 1)])
 
-    pipeline = pipeline = [
-        # Start from the big collection and just *check existence* in the small set
+    # Destination collection name (honor suffix consistently)
+    dst_name = f"{dst}{collection_suffix}"
+
+    # Start fresh so reruns don’t accumulate unexpected junk
+    db[dst_name].drop()
+
+    # --- 2) Chunked prune + merge ---
+    base_pipeline_tail = [
         {
             "$lookup": {
                 "from": QUALIFYING_MOVIES_COLL,
@@ -287,25 +299,63 @@ def prune_orphan_entries(db, src, dst, movie_threshold, collection_suffix=""):
         },
         {"$match": {"qm.0": {"$exists": True}}},
         {"$unset": "qm"},
-        # Write as we go (so you can poll progress); $merge streams inserts
         {
             "$merge": {
-                "into": f"{dst}{collection_suffix}",
+                "into": dst_name,
                 "whenMatched": "replace",
                 "whenNotMatched": "insert",
             }
         },
     ]
 
-    db[src].aggregate(pipeline, allowDiskUse=True)
+    prev_last_id = None
+    total_src_docs_seen = 0
+    t0 = time.time()
 
+    while True:
+        # Find next chunk boundary using only _id (fast, index-backed)
+        find_filter = {}
+        if prev_last_id is not None:
+            find_filter = {"_id": {"$gt": prev_last_id}}
+
+        ids = list(
+            db[src].find(find_filter, {"_id": 1}).sort("_id", 1).limit(chunk_size)
+        )
+
+        if not ids:
+            break
+
+        chunk_last_id = ids[-1]["_id"]
+
+        # Deterministic inclusive range for this chunk
+        chunk_match = {"_id": {"$lte": chunk_last_id}}
+        if prev_last_id is not None:
+            chunk_match["_id"]["$gt"] = prev_last_id
+
+        # Run the prune/merge for just this chunk
+        db[src].aggregate(
+            [{"$match": chunk_match}, {"$sort": {"_id": 1}}] + base_pipeline_tail,
+            allowDiskUse=True,
+        )
+
+        total_src_docs_seen += len(ids)
+        prev_last_id = chunk_last_id
+
+        elapsed = time.time() - t0
+        print(
+            f"Prune/merge progress: processed ~{total_src_docs_seen:,} src docs "
+            f"in {elapsed:.1f}s (chunk={len(ids):,})"
+        )
+
+    # Reporting (use the correct dst collection)
     original_sample_count = db[src].estimated_document_count()
-    pruned_sample_count = db[dst].estimated_document_count()
+    pruned_sample_count = db[dst_name].estimated_document_count()
     print(
-        f"Original sample count: {original_sample_count}, Pruned count: {pruned_sample_count}"
+        f"Original sample count: {original_sample_count:,}, "
+        f"Pruned count: {pruned_sample_count:,}"
     )
 
-    return db[dst]
+    return db[dst_name]
 
 
 def create_training_set(
