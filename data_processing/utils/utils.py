@@ -119,4 +119,9 @@ explicit_exclude_list = [
     "over-the-garden-wall-10th-anniversary-tribute",
     "the-owl-house-thanks-to-them",
     "its-always-sunny-in-philadelphia-sunny-side-up",
+    "the-office-retrospective",
+    "the-grand-tour-one-for-the-road",
+    "sherlock-the-reichenbach-fall",
+    "bluey-the-sign-2024",
+    "grounded-making-the-last-of-us",
 ]
