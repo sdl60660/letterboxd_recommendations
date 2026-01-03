@@ -127,7 +127,7 @@ def get_raw_final_sample(
     sampled_users,
     deterministic_user_cap=True,
     collection_suffix="",
-    user_batch_size: int = 500,  # NEW: bound each aggregate + merge
+    user_batch_size: int = 10_000,  # NEW: bound each aggregate + merge
 ):
     raw_final_sample = db[collection_name]
     raw_final_sample.create_index(
