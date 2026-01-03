@@ -56,6 +56,7 @@ def migrate_inactive_ratings(
         {"$unwind": "$r"},
         {"$replaceRoot": {"newRoot": "$r"}},
         {"$set": {"migrated_at": now}},
+        {"$match": {"user_id": {"$type": "string"}, "movie_id": {"$type": "string"}}},
         {
             "$merge": {
                 "into": {
