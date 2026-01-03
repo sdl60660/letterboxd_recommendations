@@ -59,7 +59,12 @@ def health():
 
 
 @app.get("/get_recs")
-def get_recs(username: str, training_data_size: int, data_opt_in: bool):
+def get_recs(
+    username: str,
+    training_data_size: int,
+    data_opt_in: bool,
+    genre_blacklist: str | None = None,
+):
     username = username.strip().lower()
     # popularity_threshold = None
     num_items = 2000
@@ -127,6 +132,7 @@ def get_recs(username: str, training_data_size: int, data_opt_in: bool):
             username,
             training_data_size,
             num_items,
+            genre_blacklist,
         ),
         depends_on=job_get_user_data,
         description=f"Building model for {username} (sample: {training_data_size})",
