@@ -1,9 +1,18 @@
+# (full file content with retry wrapper inserted)
 import pickle
 import time
+import random
+from urllib.parse import urlparse, parse_qs
 
 import pandas as pd
 from pymongo import ASCENDING, DESCENDING
-from pymongo.errors import CollectionInvalid
+from pymongo.errors import (
+    CollectionInvalid,
+    WriteConcernError,
+    OperationFailure,
+    AutoReconnect,
+)
+
 from utils.config import sample_sizes
 from utils.db_connect import connect_to_db
 from utils.utils import get_rich_movie_data
@@ -21,6 +30,85 @@ SAMPLED_USERS_COLL = "sampled_users_tmp"
 QUALIFYING_MOVIES_COLL = "qualifying_movies_tmp"
 RAW_TRAINING_DATA_SAMPLE_COLL = "training_data_sample_raw"
 TRAINING_DATA_SAMPLE_COLL = "training_data_sample"
+
+# --- Retry helper for transient replica / network errors ---------------------
+_TRANSIENT_CODES = {11602, 10107, 13435, 189}  # InterruptedDueToReplStateChange etc.
+
+
+def _get_mongo_error_code(exc):
+    """Extract server error code from common PyMongo exception shapes."""
+    if getattr(exc, "code", None) is not None:
+        return exc.code
+    details = getattr(exc, "details", None)
+    if isinstance(details, dict):
+        return details.get("code")
+    return None
+
+
+def run_with_transient_retry(
+    fn, *, label, max_attempts=6, base_sleep_s=20.0, max_sleep_s=120.0
+):
+    """
+    Run fn() and retry on transient Mongo errors (replica stepdowns, reconnects).
+    Verbose logging + exponential backoff + jitter.
+
+    - fn: zero-arg callable that performs the operation and returns its result (cursor or value)
+    - label: human-readable label printed in logs
+    - max_attempts: total attempts (including first)
+    - base_sleep_s: base sleep for backoff (seconds)
+    - max_sleep_s: max cap for backoff (seconds)
+    """
+    attempt = 1
+    while True:
+        try:
+            if attempt == 1:
+                print(f"[{label}] starting")
+            else:
+                print(f"[{label}] attempt {attempt}/{max_attempts}")
+            return fn()
+        except (WriteConcernError, OperationFailure, AutoReconnect) as exc:
+            code = _get_mongo_error_code(exc)
+            code_name = None
+            details = getattr(exc, "details", None)
+            if isinstance(details, dict):
+                code_name = details.get("codeName")
+            is_transient = (
+                isinstance(exc, AutoReconnect)
+                or (code in _TRANSIENT_CODES)
+                or (
+                    code_name
+                    in {
+                        "InterruptedDueToReplStateChange",
+                        "NotWritablePrimary",
+                        "PrimarySteppedDown",
+                    }
+                )
+            )
+
+            # Print concise error info (first part of message)
+            print(
+                f"[{label}] ERROR: {type(exc).__name__} code={code} codeName={code_name} msg={str(exc)[:300]}"
+            )
+
+            if (not is_transient) or attempt >= max_attempts:
+                print(
+                    f"[{label}] giving up (transient={is_transient}, attempt={attempt})"
+                )
+                raise
+
+            # Exponential backoff with jitter
+            sleep_s = min(max_sleep_s, base_sleep_s * (2 ** (attempt - 1)))
+            sleep_s = sleep_s * (
+                0.8 + 0.4 * random.random()
+            )  # jitter between 0.8x and 1.2x
+            print(
+                f"[{label}] transient error; sleeping {sleep_s:.1f}s then retrying..."
+            )
+            time.sleep(sleep_s)
+            attempt += 1
+
+
+# ---------------------------------------------------------------------------
 
 
 def ensure_empty_collection(db, name, wait_secs=2.0):
@@ -53,14 +141,19 @@ def get_or_build_collection(db, name, build_fn, use_cache=False, drop_existing=T
 def filter_active_users(db):
     ratings = db.ratings
 
-    ratings.aggregate(
-        [
-            {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
-            {"$match": {"n": {"$gte": USER_MIN}}},
-            {"$project": {"_id": 0, "user_id": "$_id"}},  # one field: user_id
-            {"$out": ACTIVE_USERS_COLL},
-        ],
-        allowDiskUse=True,
+    def _agg():
+        return ratings.aggregate(
+            [
+                {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
+                {"$match": {"n": {"$gte": USER_MIN}}},
+                {"$project": {"_id": 0, "user_id": "$_id"}},  # one field: user_id
+                {"$out": ACTIVE_USERS_COLL},
+            ],
+            allowDiskUse=True,
+        )
+
+    run_with_transient_retry(
+        _agg, label="filter_active_users", max_attempts=6, base_sleep_s=20.0
     )
 
     db[ACTIVE_USERS_COLL].create_index([("user_id", 1)], unique=True)
@@ -71,21 +164,25 @@ def filter_active_users(db):
 def create_movie_counts(db):
     ratings = db.ratings
 
-    # Stream into movie_counts with stable upserts; avoid $out/index race
-    ratings.aggregate(
-        [
-            {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
-            {
-                "$merge": {
-                    "into": MOVIE_COUNTS_COLL,
-                    "on": "_id",  # movie_id is in _id from the $group
-                    "whenMatched": "replace",  # replace {count} value
-                    "whenNotMatched": "insert",
-                }
-            },
-        ],
-        allowDiskUse=True,
-        comment="movie_counts_merge",
+    def _agg():
+        return ratings.aggregate(
+            [
+                {"$group": {"_id": "$movie_id", "count": {"$sum": 1}}},
+                {
+                    "$merge": {
+                        "into": MOVIE_COUNTS_COLL,
+                        "on": "_id",  # movie_id is in _id from the $group
+                        "whenMatched": "replace",  # replace {count} value
+                        "whenNotMatched": "insert",
+                    }
+                },
+            ],
+            allowDiskUse=True,
+            comment="movie_counts_merge",
+        )
+
+    run_with_transient_retry(
+        _agg, label="create_movie_counts", max_attempts=6, base_sleep_s=20.0
     )
 
     # (Re)create indexes after the merge completes
@@ -96,13 +193,18 @@ def create_movie_counts(db):
 
 
 def filter_threshold_movies(db, threshold_ratings_count):
-    db[MOVIE_COUNTS_COLL].aggregate(
-        [
-            {"$match": {"count": {"$gte": threshold_ratings_count}}},
-            {"$project": {"_id": 0, "movie_id": "$_id"}},
-            {"$out": THRESHOLD_MOVIES_COLL},
-        ],
-        allowDiskUse=True,
+    def _agg():
+        return db[MOVIE_COUNTS_COLL].aggregate(
+            [
+                {"$match": {"count": {"$gte": threshold_ratings_count}}},
+                {"$project": {"_id": 0, "movie_id": "$_id"}},
+                {"$out": THRESHOLD_MOVIES_COLL},
+            ],
+            allowDiskUse=True,
+        )
+
+    run_with_transient_retry(
+        _agg, label="filter_threshold_movies", max_attempts=6, base_sleep_s=20.0
     )
 
     db[THRESHOLD_MOVIES_COLL].create_index([("movie_id", 1)], unique=True)
@@ -112,8 +214,14 @@ def filter_threshold_movies(db, threshold_ratings_count):
 
 def get_sampled_users(db, active_users_coll, target_sample_size):
     target_user_count = int((target_sample_size / (PER_USER_CAP / 1.25)) * 1.05)
-    active_users_coll.aggregate(
-        [{"$sample": {"size": target_user_count}}, {"$out": SAMPLED_USERS_COLL}]
+
+    def _agg():
+        return active_users_coll.aggregate(
+            [{"$sample": {"size": target_user_count}}, {"$out": SAMPLED_USERS_COLL}]
+        )
+
+    run_with_transient_retry(
+        _agg, label="get_sampled_users", max_attempts=6, base_sleep_s=20.0
     )
 
     db[SAMPLED_USERS_COLL].create_index([("user_id", 1)], unique=True)
@@ -250,12 +358,36 @@ def _run_one_batch(
     ]
 
     # Bound each run; keep disk use on to spill if needed.
-    db[SAMPLED_USERS_COLL].aggregate(
-        pipeline,
-        allowDiskUse=True,
-        comment="training_data_sample_build_chunked",
-        # maxTimeMS=0  # optionally leave unlimited; or set a ceiling if CI is touchy
+
+    def _agg():
+        return db[SAMPLED_USERS_COLL].aggregate(
+            pipeline,
+            allowDiskUse=True,
+            comment="training_data_sample_build_chunked",
+            # maxTimeMS=0  # optionally leave unlimited; or set a ceiling if CI is touchy
+        )
+
+    cursor = run_with_transient_retry(
+        _agg,
+        label=f"_run_one_batch users({len(user_ids_batch)})",
+        max_attempts=6,
+        base_sleep_s=20.0,
     )
+
+    # If cursor is consumed by iteration in calling code, this will behave the same as before.
+    # We do not convert to list() here to avoid storing large results in memory.
+    # The aggregate returns a cursor-like object; PyMongo will lazily fetch as needed.
+    # But returning cursor isn't necessary here since the aggregate writes via $merge.
+    try:
+        # ensure the aggregation completes by exhausting the cursor if the driver requires it
+        # (some server-side aggregations will complete immediately but iteration is safe)
+        for _ in cursor:
+            # we don't need the returned docs; the loop forces completion where necessary
+            pass
+    except TypeError:
+        # Some PyMongo aggregate variants may return None for server-side $out/$merge operations.
+        # In that case, we simply ignore iteration.
+        pass
 
 
 def prune_orphan_entries(
@@ -264,7 +396,7 @@ def prune_orphan_entries(
     dst,
     movie_threshold,
     collection_suffix="",
-    user_chunk_size=250,
+    user_chunk_size=125,
 ):
     """
     Prune a ratings sample by removing entries whose movie_id does not meet
@@ -289,15 +421,25 @@ def prune_orphan_entries(
 
     # --- 1) Build qualifying movies temp collection from FULL src ---
     db[QUALIFYING_MOVIES_COLL].drop()
-    db[src].aggregate(
-        [
-            {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
-            {"$match": {"n": {"$gte": adjusted_threshold}}},
-            {"$project": {"_id": 0, "movie_id": "$_id"}},
-            {"$out": QUALIFYING_MOVIES_COLL},
-        ],
-        allowDiskUse=True,
+
+    def _agg_qm():
+        return db[src].aggregate(
+            [
+                {"$group": {"_id": "$movie_id", "n": {"$sum": 1}}},
+                {"$match": {"n": {"$gte": adjusted_threshold}}},
+                {"$project": {"_id": 0, "movie_id": "$_id"}},
+                {"$out": QUALIFYING_MOVIES_COLL},
+            ],
+            allowDiskUse=True,
+        )
+
+    run_with_transient_retry(
+        _agg_qm,
+        label="prune:build_qualifying_movies",
+        max_attempts=6,
+        base_sleep_s=20.0,
     )
+
     db[QUALIFYING_MOVIES_COLL].create_index([("movie_id", 1)])
 
     # Start fresh so reruns don’t accumulate results
@@ -355,7 +497,16 @@ def prune_orphan_entries(
         # but can help with predictable resource usage.
         pipeline = [{"$match": chunk_match}] + base_pipeline_tail
 
-        db[src].aggregate(pipeline, allowDiskUse=True)
+        def _agg_chunk():
+            return db[src].aggregate(pipeline, allowDiskUse=True)
+
+        # Retry each chunk if it hits a transient error (auto-retries for stepdowns).
+        run_with_transient_retry(
+            _agg_chunk,
+            label=f"prune_chunk users {processed_users}/{len(user_ids)}",
+            max_attempts=6,
+            base_sleep_s=20.0,
+        )
 
         elapsed = time.time() - t0
         print(
