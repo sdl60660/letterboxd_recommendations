@@ -21,7 +21,7 @@ $mobile-breakpoint: 660px;
 
   div.recommendation-movie-data-wrapper {
     display: flex;
-    align-items: start;
+    align-items: flex-start;
     justify-content: space-between;
     flex-direction: column;
     gap: 12px;
