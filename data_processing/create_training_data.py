@@ -736,4 +736,4 @@ def main(use_cached_aggregations=False, remove_temp_collections=True):
 
 
 if __name__ == "__main__":
-    main(use_cached_aggregations=True, remove_temp_collections=True)
+    main(use_cached_aggregations=False, remove_temp_collections=True)
