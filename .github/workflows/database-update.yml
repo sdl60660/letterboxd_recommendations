@@ -5,8 +5,8 @@ on:
   push:
     branches: ["test-workflows"]
   schedule:
-    # Normal schedule: Runs once every day
-    - cron: '0 0 */2 * *'
+    # Normal schedule: Runs once every three days
+    - cron: '0 0 */3 * *'
     # While backfilling: runs every four hours Mon–Sat (UTC)...
     # - cron: '0 */4 * * 1-6'
     # And on Sunday (UTC): every four hours, but NOT 12:00–18:00, to avoid conflicts with other workflow
