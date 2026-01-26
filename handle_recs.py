@@ -43,7 +43,9 @@ def get_client_user_data(username, data_opt_in, include_liked_items=True):
     return user_data[0]
 
 
-def build_client_model(username, training_data_rows=1000000, num_items=30):
+def build_client_model(
+    username, training_data_rows=1000000, num_items=30, genre_blacklist=None
+):
     # Load user data from previous Redis job
     current_job = get_current_job(conn)
     user_data_job = current_job.dependency
@@ -89,6 +91,7 @@ def build_client_model(username, training_data_rows=1000000, num_items=30):
         num_items,
         use_synthetic_ratings=True,
         fold_in=True,
+        genre_blacklist=genre_blacklist,
     )
 
     return recs
