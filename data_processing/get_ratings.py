@@ -50,7 +50,7 @@ async def fetch(url, session, input_data={}, *, retries=3):
                 if resp.status == 200:
                     return await resp.read(), input_data
                 # backoff on transient blocks
-                if resp.status in (429, 503, 520, 521, 522):
+                if resp.status in (403, 429, 503, 520, 521, 522):
                     await asyncio.sleep(1.5 * (attempt + 1))
                     continue
                 return None, None

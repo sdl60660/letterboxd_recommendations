@@ -2,6 +2,7 @@ import re
 
 import pytest
 import requests
+import textwrap
 from bs4 import BeautifulSoup
 
 import data_processing.get_movies as get_movies
@@ -18,8 +19,42 @@ BASE = "https://letterboxd.com"
 FILM = f"{BASE}/film"
 
 
+import textwrap
+
+
+def _debug_response(r):
+    # Keep output short + safe for logs
+    headers = {k: v for k, v in r.headers.items()}
+    print("\n=== HTTP DEBUG ===")
+    print("request_url:", r.request.url)
+    print("method:", r.request.method)
+    print("status_code:", r.status_code)
+
+    # Request headers (what you sent)
+    try:
+        req_headers = dict(r.request.headers)
+        # avoid printing cookies/authorization if they exist
+        for k in ["Cookie", "Authorization"]:
+            if k in req_headers:
+                req_headers[k] = "<redacted>"
+        print("request_headers:", req_headers)
+    except Exception as e:
+        print("request_headers: <unavailable>", e)
+
+    # Response headers (what you got)
+    # (These often reveal Cloudflare/Akamai/etc)
+    print("response_headers:", headers)
+
+    # Body snippet (often contains bot/captcha message)
+    body = (r.text or "").strip()
+    print("body_snippet:", textwrap.shorten(body, width=500, placeholder=" …"))
+    print("=== END HTTP DEBUG ===\n")
+
+
 def _fetch(url: str) -> str:
     r = requests.get(url, headers=BROWSER_HEADERS, timeout=default_request_timeout)
+    if r.status_code != 200:
+        _debug_response(r)
     r.raise_for_status()
     return r.text
 
