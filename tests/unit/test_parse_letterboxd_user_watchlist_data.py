@@ -2,7 +2,6 @@ import pytest
 
 import data_processing.get_user_watchlist as get_user_watchlist
 import data_processing.utils.utils as utils_mod
-from data_processing.utils.http_utils import default_request_timeout
 
 
 @pytest.mark.asyncio
@@ -49,11 +48,11 @@ def test_get_page_count_parses_pagination(monkeypatch, html_sample_path):
     """get_page_count should parse the pagination links and return an integer >= 1."""
     html = (html_sample_path / "sample_letterboxd_user_watchlist_page.html").read_text()
 
-    # Monkeypatch requests.get to return our sample HTML
+    # Monkeypatch cffi_get to return our sample HTML
     monkeypatch.setattr(
-        utils_mod.requests,
-        "get",
-        lambda url, headers=None, timeout=default_request_timeout: DummyResp(html),
+        utils_mod,
+        "cffi_get",
+        lambda url, **kwargs: DummyResp(html),
     )
 
     n_pages, _ = utils_mod.get_page_count(
@@ -68,11 +67,9 @@ def test_get_page_count_handles_error_page(monkeypatch):
     error_html = '<html><body class="error">Not found</body></html>'
 
     monkeypatch.setattr(
-        utils_mod.requests,
-        "get",
-        lambda url, headers=None, timeout=default_request_timeout: DummyResp(
-            error_html
-        ),
+        utils_mod,
+        "cffi_get",
+        lambda url, **kwargs: DummyResp(error_html),
     )
 
     n_pages, _ = utils_mod.get_page_count(

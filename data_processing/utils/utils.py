@@ -1,16 +1,15 @@
 import os
 
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS
+    from utils.http_utils import cffi_get
     from utils.selectors import LBX_USER_RATINGS_PAGE_LINKS
 else:
     from data_processing.utils.db_connect import connect_to_db
-    from data_processing.utils.http_utils import BROWSER_HEADERS
+    from data_processing.utils.http_utils import cffi_get
     from data_processing.utils.selectors import LBX_USER_RATINGS_PAGE_LINKS
 
 
@@ -59,7 +58,7 @@ def get_rich_movie_data(movie_ids, output_path=None):
 
 
 def get_page_count(username, url="https://letterboxd.com/{}/films/by/date"):
-    r = requests.get(url.format(username), headers=BROWSER_HEADERS)
+    r = cffi_get(url.format(username))
 
     soup = BeautifulSoup(r.text, "lxml")
     body = soup.find("body")

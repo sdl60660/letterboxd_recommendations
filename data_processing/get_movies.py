@@ -8,14 +8,13 @@ import re
 import traceback
 from urllib.parse import urlparse
 
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
 from tqdm import tqdm
 
 if os.getcwd().endswith("/data_processing"):
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
+    from utils.http_utils import cffi_async_session, default_request_timeout
     from utils.mongo_utils import safe_commit_ops
     from utils.selectors import (
         LBX_IMDB_ANCHOR,
@@ -29,7 +28,7 @@ if os.getcwd().endswith("/data_processing"):
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import (
-        BROWSER_HEADERS,
+        cffi_async_session,
         default_request_timeout,
     )
     from data_processing.utils.mongo_utils import safe_commit_ops
@@ -198,7 +197,7 @@ def format_failed_update(movie_id, fail_count):
 
 
 def handle_redirects(r, movie_update_object, movie_id, mongo_db):
-    redirect_to = extract_movie_id_from_url(r.real_url)
+    redirect_to = extract_movie_id_from_url(r.url)
 
     if redirect_to and redirect_to != movie_id:
         movie_update_object["redirect_to"] = redirect_to
@@ -223,78 +222,75 @@ def handle_redirects(r, movie_update_object, movie_id, mongo_db):
 
 
 async def fetch_letterboxd(url, session, mongo_db, input_data={}):
-    async with session.get(
-        url, timeout=ClientTimeout(total=default_request_timeout)
-    ) as r:
-        response = await r.read()
+    r = await session.get(url, timeout=default_request_timeout)
+    response = r.content
 
-        movie_id = input_data["movie_id"]
-        if r.status == 404:
-            fail_count = input_data.get("fail_count", 0) + 1
-            movie_update_object = format_failed_update(movie_id, fail_count)
-            update_operation = UpdateOne(
-                {"movie_id": input_data["movie_id"]},
-                {"$set": movie_update_object, "$inc": {"fail_count": 1}},
-                upsert=True,
-            )
-        else:
-            movie_update_object = parse_letterboxd_page_data(response, movie_id)
-            update_operation = UpdateOne(
-                {"movie_id": input_data["movie_id"]},
-                {"$set": movie_update_object},
-                upsert=True,
-            )
+    movie_id = input_data["movie_id"]
+    if r.status_code == 404:
+        fail_count = input_data.get("fail_count", 0) + 1
+        movie_update_object = format_failed_update(movie_id, fail_count)
+        update_operation = UpdateOne(
+            {"movie_id": input_data["movie_id"]},
+            {"$set": movie_update_object, "$inc": {"fail_count": 1}},
+            upsert=True,
+        )
+    else:
+        movie_update_object = parse_letterboxd_page_data(response, movie_id)
+        update_operation = UpdateOne(
+            {"movie_id": input_data["movie_id"]},
+            {"$set": movie_update_object},
+            upsert=True,
+        )
 
-        # handle logging any redirects (to be updated in the database later, but flagged for now)
-        if r.history:
-            movie_update_object = handle_redirects(
-                r, movie_update_object, movie_id, mongo_db
-            )
+    # handle logging any redirects (to be updated in the database later, but flagged for now)
+    if r.redirect_count > 0:
+        movie_update_object = handle_redirects(
+            r, movie_update_object, movie_id, mongo_db
+        )
 
-        return update_operation
+    return update_operation
 
 
 async def fetch_tmdb_data(url, session, movie_data, input_data={}):
-    async with session.get(
-        url, timeout=ClientTimeout(total=default_request_timeout)
-    ) as r:
-        response = await r.json()
+    r = await session.get(url, timeout=default_request_timeout)
+    response = r.json()
 
-        movie_object = movie_data
+    movie_object = movie_data
 
-        object_fields = ["genres", "production_countries", "spoken_languages"]
-        for field_name in object_fields:
-            data = response.get(field_name)
-            if isinstance(data, list):
-                movie_object[field_name] = [x.get("name") for x in data if "name" in x]
-            else:
-                movie_object[field_name] = None
+    object_fields = ["genres", "production_countries", "spoken_languages"]
+    for field_name in object_fields:
+        data = response.get(field_name)
+        if isinstance(data, list):
+            movie_object[field_name] = [x.get("name") for x in data if "name" in x]
+        else:
+            movie_object[field_name] = None
 
-        simple_fields = [
-            "popularity",
-            "overview",
-            "runtime",
-            "vote_average",
-            "vote_count",
-            "release_date",
-            "original_language",
-        ]
-        for field_name in simple_fields:
-            movie_object[field_name] = response.get(field_name)
+    simple_fields = [
+        "popularity",
+        "overview",
+        "runtime",
+        "vote_average",
+        "vote_count",
+        "release_date",
+        "original_language",
+    ]
+    for field_name in simple_fields:
+        movie_object[field_name] = response.get(field_name)
 
-        movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
+    movie_object["last_updated"] = datetime.datetime.now(datetime.timezone.utc)
 
-        update_operation = UpdateOne(
-            {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
-        )
+    update_operation = UpdateOne(
+        {"movie_id": input_data["movie_id"]}, {"$set": movie_object}, upsert=True
+    )
 
-        return update_operation
+    return update_operation
 
 
 async def get_movies(movie_list, db_cursor, mongo_db):
     url = "https://letterboxd.com/film/{}/"
 
-    async with ClientSession() as session:
+    session = cffi_async_session(max_clients=6)
+    try:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for movie in movie_list:
@@ -307,6 +303,8 @@ async def get_movies(movie_list, db_cursor, mongo_db):
 
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
+    finally:
+        await session.close()
 
     safe_commit_ops(mongo_db.movies, upsert_operations)
 
@@ -314,9 +312,8 @@ async def get_movies(movie_list, db_cursor, mongo_db):
 async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
     base_url = "https://api.themoviedb.org/3/{}/{}?api_key={}"
 
-    async with ClientSession(
-        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
-    ) as session:
+    session = cffi_async_session(max_clients=6)
+    try:
         tasks = []
         movie_list = [x for x in movie_list if x["tmdb_id"]]
         # Make a request for each ratings page and add to task queue
@@ -334,6 +331,8 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
 
         # Gather all ratings page responses
         upsert_operations = await asyncio.gather(*tasks)
+    finally:
+        await session.close()
 
     safe_commit_ops(mongo_db.movies, upsert_operations)
 
