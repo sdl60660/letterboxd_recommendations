@@ -7,14 +7,13 @@ import os
 import re
 from itertools import chain
 
-from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from bs4 import BeautifulSoup
 from pymongo import UpdateOne
 from tqdm import tqdm
 
 if os.getcwd().endswith("data_processing"):
     from utils.db_connect import connect_to_db
-    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
+    from utils.http_utils import cffi_async_session, default_request_timeout
     from utils.mongo_utils import safe_commit_ops
     from utils.selectors import (
         LBX_REVIEW_LIKED,
@@ -28,7 +27,7 @@ if os.getcwd().endswith("data_processing"):
 else:
     from data_processing.utils.db_connect import connect_to_db
     from data_processing.utils.http_utils import (
-        BROWSER_HEADERS,
+        cffi_async_session,
         default_request_timeout,
     )
     from data_processing.utils.mongo_utils import safe_commit_ops
@@ -44,16 +43,13 @@ else:
 async def fetch(url, session, input_data={}, *, retries=3):
     for attempt in range(retries):
         try:
-            async with session.get(
-                url, timeout=ClientTimeout(total=default_request_timeout)
-            ) as resp:
-                if resp.status == 200:
-                    return await resp.read(), input_data
-                # backoff on transient blocks
-                if resp.status in (403, 429, 503, 520, 521, 522):
-                    await asyncio.sleep(1.5 * (attempt + 1))
-                    continue
-                return None, None
+            resp = await session.get(url, timeout=default_request_timeout)
+            if resp.status_code == 200:
+                return resp.content, input_data
+            if resp.status_code in (403, 429, 503, 520, 521, 522):
+                await asyncio.sleep(1.5 * (attempt + 1))
+                continue
+            return None, None
         except Exception:
             await asyncio.sleep(1.0 * (attempt + 1))
     return None, None
@@ -74,9 +70,8 @@ async def get_page_counts(usernames, users_cursor):
     now = datetime.datetime.now(datetime.timezone.utc)
     update_operations = []
 
-    async with ClientSession(
-        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
-    ) as session:
+    session = cffi_async_session(max_clients=6)
+    try:
         for username in usernames:
             task = asyncio.ensure_future(
                 fetch(url.format(username), session, {"username": username})
@@ -157,6 +152,8 @@ async def get_page_counts(usernames, users_cursor):
         safe_commit_ops(users_cursor, update_operations)
 
         return pages_by_user
+    finally:
+        await session.close()
 
 
 def generate_ratings_operations(
@@ -260,9 +257,8 @@ async def get_user_ratings(
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
-    async with ClientSession(
-        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
-    ) as session:
+    session = cffi_async_session(max_clients=6)
+    try:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
@@ -274,6 +270,8 @@ async def get_user_ratings(
         # Gather all ratings page responses
         scrape_responses = await asyncio.gather(*tasks)
         scrape_responses = [x for x in scrape_responses if x]
+    finally:
+        await session.close()
 
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
     parse_responses = [

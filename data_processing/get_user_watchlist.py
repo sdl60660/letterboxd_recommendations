@@ -4,16 +4,15 @@ import asyncio
 import os
 from itertools import chain
 
-from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from bs4 import BeautifulSoup
 
 if os.getcwd().endswith("/data_processing"):
-    from utils.http_utils import BROWSER_HEADERS, default_request_timeout
+    from utils.http_utils import cffi_async_session, default_request_timeout
     from utils.selectors import LBX_REVIEW_TILE
     from utils.utils import get_page_count
 else:
     from data_processing.utils.http_utils import (
-        BROWSER_HEADERS,
+        cffi_async_session,
         default_request_timeout,
     )
     from data_processing.utils.selectors import (
@@ -22,14 +21,19 @@ else:
     from data_processing.utils.utils import get_page_count
 
 
-async def fetch(url, session, input_data={}):
-    async with session.get(
-        url, timeout=ClientTimeout(total=default_request_timeout)
-    ) as response:
+async def fetch(url, session, input_data={}, *, retries=3):
+    for attempt in range(retries):
         try:
-            return await response.read(), input_data
-        except:
+            resp = await session.get(url, timeout=default_request_timeout)
+            if resp.status_code == 200:
+                return resp.content, input_data
+            if resp.status_code in (403, 429, 503, 520, 521, 522):
+                await asyncio.sleep(1.5 * (attempt + 1))
+                continue
             return None, None
+        except Exception:
+            await asyncio.sleep(1.0 * (attempt + 1))
+    return None, None
 
 
 async def parse_watchlist_page(response):
@@ -61,9 +65,8 @@ async def get_user_watchlist(
 
     # Fetch all responses within one Client session,
     # keep connection alive for all requests.
-    async with ClientSession(
-        headers=BROWSER_HEADERS, connector=TCPConnector(limit=6)
-    ) as session:
+    session = cffi_async_session(max_clients=6)
+    try:
         tasks = []
         # Make a request for each ratings page and add to task queue
         for i in range(num_pages):
@@ -75,6 +78,8 @@ async def get_user_watchlist(
         # Gather all ratings page responses
         scrape_responses = await asyncio.gather(*tasks)
         scrape_responses = [x for x in scrape_responses if x]
+    finally:
+        await session.close()
 
     # Process each ratings page response, converting it into bulk upsert operations or output dicts
     tasks = []
