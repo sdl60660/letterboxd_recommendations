@@ -51,14 +51,14 @@ jobs:
         run: |
           pipenv sync --dev
 
-      # - name: Run unit + integration + smoke tests
-      #   env:
-      #     TMDB_KEY: ${{ secrets.TMDB_KEY }}
-      #   run: |
-      #     # Show versions for debugging
-      #     python -V
-      #     pipenv --version
-      #     pipenv run pytest -ra
+      - name: Run unit + integration + smoke tests
+        env:
+          TMDB_KEY: ${{ secrets.TMDB_KEY }}
+        run: |
+          # Show versions for debugging
+          python -V
+          pipenv --version
+          pipenv run pytest -ra
 
       - name: Crawl users data
         env:

@@ -12,6 +12,10 @@ from data_processing.utils.selectors import (
     LBX_JSON_LD_SCRIPT,
     LBX_MOVIE_HEADER,
 )
+from data_processing.utils.http_utils import (
+    cffi_async_session,
+    default_request_timeout,
+)
 
 pytestmark = [pytest.mark.smoke, pytest.mark.live]
 
@@ -20,6 +24,9 @@ FILM = f"{BASE}/film"
 
 
 import textwrap
+
+
+session = cffi_async_session()
 
 
 def _debug_response(r):
@@ -51,8 +58,8 @@ def _debug_response(r):
     print("=== END HTTP DEBUG ===\n")
 
 
-def _fetch(url: str) -> str:
-    r = requests.get(url, headers=BROWSER_HEADERS, timeout=default_request_timeout)
+def _fetch(session, url: str) -> str:
+    r = session.get(url, headers=BROWSER_HEADERS, timeout=default_request_timeout)
     if r.status_code != 200:
         _debug_response(r)
     r.raise_for_status()
@@ -85,7 +92,7 @@ def test_zone_of_interest_structure_and_script_tag_meta():
         - get_meta_data_from_script_tag returns expected keys
     """
     slug = "the-zone-of-interest"
-    html = _fetch(f"{FILM}/{slug}/")
+    html = _fetch(session, f"{FILM}/{slug}/")
     soup = BeautifulSoup(html, "lxml")
 
     # structure present
@@ -164,7 +171,7 @@ def test_testuser_ratings_page_is_stable_enough():
     """
     username = "samtestacct"
     url = f"{BASE}/{username}/films/by/date/"
-    html = _fetch(url)
+    html = _fetch(session, url)
 
     # generate_ratings_operations is synchronous now
     ratings_ops, _movie_ops = get_ratings.generate_ratings_operations(
