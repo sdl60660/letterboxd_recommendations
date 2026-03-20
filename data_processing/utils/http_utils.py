@@ -15,9 +15,9 @@ default_request_timeout = 20
 IMPERSONATE = "chrome"
 
 
-def cffi_get(url, **kwargs):
+def cffi_get(url, timeout=default_request_timeout, **kwargs):
     """Sync GET with browser TLS fingerprint."""
-    return cffi_requests.get(url, impersonate=IMPERSONATE, timeout=default_request_timeout, **kwargs)
+    return cffi_requests.get(url, impersonate=IMPERSONATE, timeout=timeout, **kwargs)
 
 
 def cffi_async_session(**kwargs):

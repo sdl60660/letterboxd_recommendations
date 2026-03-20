@@ -56,7 +56,7 @@ def _debug_response(r):
 
 
 def _fetch(url: str) -> str:
-    r = cffi_get(url, headers=BROWSER_HEADERS, timeout=default_request_timeout)
+    r = cffi_get(url, headers=BROWSER_HEADERS)
     if r.status_code != 200:
         _debug_response(r)
     r.raise_for_status()
