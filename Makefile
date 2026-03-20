@@ -4,6 +4,9 @@
 bootstrap:
 	bash scripts/dev/bootstrap.sh
 
+install:
+	pipenv install
+
 up:
 	docker compose up -d
 

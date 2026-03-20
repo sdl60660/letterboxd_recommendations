@@ -339,22 +339,22 @@ async def get_rich_data(movie_list, db_cursor, mongo_db, tmdb_key):
 
 def get_ids_for_update(movies_collection, data_type):
     now = datetime.datetime.now(datetime.timezone.utc)
-    one_month_ago = now - datetime.timedelta(days=30)
+    two_months_ago = now - datetime.timedelta(days=60)
 
     # Find all movies with missing metadata, which implies that they were added during get_ratings and have not been scraped yet
     # All other movies have already had their data scraped and since this is almost always unchanging data, we won't rescrape 200,000+ records
     if data_type == "letterboxd":
         update_ids = set()
 
-        # 10,000 least recently updated items, excluding anything updated in the last month
+        # 20,000 least recently updated items, excluding anything updated in the last two months
         # will look at some point at whether this keeps thins on a regular enough update schedule or not
         update_ids |= {
             x["movie_id"]
             for x in movies_collection.find(
-                {"last_updated": {"$lte": one_month_ago}}, {"movie_id": 1}
+                {"last_updated": {"$lte": two_months_ago}}, {"movie_id": 1}
             )
             .sort("last_updated", 1)
-            .limit(10000)
+            .limit(20000)
         }
 
         # grab a sample of those which had a failed crawl and are now due for a retry
@@ -400,7 +400,7 @@ def get_ids_for_update(movies_collection, data_type):
                         {
                             "$or": [
                                 {"last_updated": {"$exists": False}},
-                                {"last_updated": {"$lte": one_month_ago}},
+                                {"last_updated": {"$lte": two_months_ago}},
                             ]
                         },
                     ]

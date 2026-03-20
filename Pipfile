@@ -35,6 +35,7 @@ ruff = "*"
 tqdm-joblib = "*"
 pre-commit = "*"
 curl-cffi = "*"
+mongomock = "*"
 
 [dev-packages]
 pytest = "*"
