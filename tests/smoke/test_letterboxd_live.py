@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 
 import data_processing.get_movies as get_movies
 import data_processing.get_ratings as get_ratings
-from data_processing.utils.http_utils import BROWSER_HEADERS, default_request_timeout
 from data_processing.utils.selectors import (
     LBX_JSON_LD_SCRIPT,
     LBX_MOVIE_HEADER,
@@ -56,7 +55,7 @@ def _debug_response(r):
 
 
 def _fetch(url: str) -> str:
-    r = cffi_get(url, headers=BROWSER_HEADERS)
+    r = cffi_get(url)
     if r.status_code != 200:
         _debug_response(r)
     r.raise_for_status()
@@ -67,10 +66,8 @@ def _fetch(url: str) -> str:
 def letterboxd_available():
     """Check if Letterboxd is up; skip all dependent tests if not."""
     try:
-        r = requests.get(
+        r = cffi_get(
             "https://letterboxd.com/",
-            headers=BROWSER_HEADERS,
-            timeout=default_request_timeout,
             allow_redirects=True,
         )
         # 503 = site down, or network issue
@@ -133,10 +130,8 @@ def test_zone_of_interest_structure_and_script_tag_meta():
 def test_redirects_resolve_to_expected_slug():
     """Old LOTR slug should redirect to Fellowship canonical slug."""
     redir_slug = "the-lord-of-the-rings-2003"
-    r = requests.get(
+    r = cffi_get(
         f"{FILM}/{redir_slug}/",
-        headers=BROWSER_HEADERS,
-        timeout=default_request_timeout,
         allow_redirects=True,
     )
     final_url = r.url
@@ -149,9 +144,7 @@ def test_redirects_resolve_to_expected_slug():
 def test_dummy_slug_404s_cleanly():
     """A fabricated slug should 404 (change slug if this ever becomes real)."""
     slug = "dummy-dummy-dummy-0123456-test"
-    r = requests.get(
-        f"{FILM}/{slug}/", headers=BROWSER_HEADERS, timeout=default_request_timeout
-    )
+    r = cffi_get(f"{FILM}/{slug}/")
     assert r.status_code == 404
 
 
