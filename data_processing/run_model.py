@@ -103,6 +103,7 @@ def run_model(
     fold_in=True,
     use_synthetic_ratings=False,
     verbose=False,
+    genre_blacklist=None,
 ):
     rating_min, rating_max = (
         getattr(algo, "rating_min", 1.0),
@@ -121,6 +122,12 @@ def run_model(
     top_n_pairs = get_top_n(predictions, num_recommendations)
 
     results = []
+    
+    # Parse blacklist if provided
+    blacklist_genres = []
+    if genre_blacklist:
+        blacklist_genres = [g.strip().lower() for g in genre_blacklist.split(',')]
+
     for movie_id, est_unclipped in top_n_pairs:
         est_clipped = min(rating_max, max(rating_min, est_unclipped))
 
@@ -131,7 +138,15 @@ def run_model(
         }
 
         if movie_data:
-            output_entry["movie_data"] = movie_data[movie_id]
+            movie_info = movie_data[movie_id]
+            
+            # Genre filtering
+            if blacklist_genres and "genres" in movie_info:
+                movie_genres = [g.lower() for g in movie_info["genres"]]
+                if any(bg in movie_genres for bg in blacklist_genres):
+                    continue
+            
+            output_entry["movie_data"] = movie_info
 
         results.append(output_entry)
 
