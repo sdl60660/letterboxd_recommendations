@@ -1,4 +1,4 @@
-import responses
+from types import SimpleNamespace
 
 import data_processing.get_users as get_users
 
@@ -7,19 +7,19 @@ def _sample_html(html_sample_path):
     return (html_sample_path / "sample_letterboxd_user_list_page.html").read_text()
 
 
-@responses.activate
-def test_get_users_inserts_documents(mongo_db, html_sample_path):
+def _mock_cffi_get(monkeypatch, expected_url, html):
+    def fake_cffi_get(url):
+        assert url == expected_url
+        return SimpleNamespace(text=html)
+
+    monkeypatch.setattr(get_users, "cffi_get", fake_cffi_get)
+
+
+def test_get_users_inserts_documents(mongo_db, html_sample_path, monkeypatch):
     base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
     html = _sample_html(html_sample_path)
 
-    # Mock the exact GET URL your code calls
-    responses.add(
-        responses.GET,
-        base_url.format(1),
-        body=html,
-        status=200,
-        content_type="text/html",
-    )
+    _mock_cffi_get(monkeypatch, base_url.format(1), html)
 
     # Run the page processor, inserting into mongomock
     result = get_users.process_user_page(base_url, 1, mongo_db.users, send_to_db=True)
@@ -38,30 +38,14 @@ def test_get_users_inserts_documents(mongo_db, html_sample_path):
     assert isinstance(doc["num_reviews"], int)
 
 
-@responses.activate
-def test_get_users_idempotent(mongo_db, html_sample_path):
+def test_get_users_idempotent(mongo_db, html_sample_path, monkeypatch):
     base_url = "https://letterboxd.com/members/popular/this/week/page/{}/"
     html = _sample_html(html_sample_path)
 
-    # First run
-    responses.add(
-        responses.GET,
-        base_url.format(2),
-        body=html,
-        status=200,
-        content_type="text/html",
-    )
+    _mock_cffi_get(monkeypatch, base_url.format(2), html)
     get_users.process_user_page(base_url, 2, mongo_db.users, send_to_db=True)
     first_count = mongo_db.users.count_documents({})
 
-    # Second run (same response)
-    responses.add(
-        responses.GET,
-        base_url.format(2),
-        body=html,
-        status=200,
-        content_type="text/html",
-    )
     get_users.process_user_page(base_url, 2, mongo_db.users, send_to_db=True)
     second_count = mongo_db.users.count_documents({})
 
