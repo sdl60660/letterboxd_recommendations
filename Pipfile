@@ -34,7 +34,7 @@ fastparquet = "*"
 ruff = "*"
 tqdm-joblib = "*"
 pre-commit = "*"
-curl-cffi = "*"
+curl-cffi = ">=0.15.0"
 mongomock = "*"
 
 [dev-packages]
