@@ -137,7 +137,7 @@ def get_recs(username: str, training_data_size: int, data_opt_in: bool):
     job_build_model.meta.update(
         {
             "reused_cache": reused_cache,
-            "user_job_id": job_get_user_data.get_id(),
+            "user_job_id": job_get_user_data.id,
             "user_cache_ttl_at_enqueue": conn.ttl(
                 job_get_user_data.key
             ),  # may be -1 or >0
@@ -148,8 +148,8 @@ def get_recs(username: str, training_data_size: int, data_opt_in: bool):
 
     return JSONResponse(
         {
-            "redis_get_user_data_job_id": job_get_user_data.get_id(),
-            "redis_build_model_job_id": job_build_model.get_id(),
+            "redis_get_user_data_job_id": job_get_user_data.id,
+            "redis_build_model_job_id": job_build_model.id,
             "user_data_cache": {
                 "reused_cache": reused_cache,
                 "cached_data_ttl": ttl_remaining,
