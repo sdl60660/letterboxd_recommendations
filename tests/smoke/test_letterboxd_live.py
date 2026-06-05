@@ -1,28 +1,22 @@
 import re
+import textwrap
 
 import pytest
-import requests
-import textwrap
 from bs4 import BeautifulSoup
+from curl_cffi.requests import exceptions as cffi_exceptions
 
 import data_processing.get_movies as get_movies
 import data_processing.get_ratings as get_ratings
+from data_processing.utils.http_utils import cffi_get
 from data_processing.utils.selectors import (
     LBX_JSON_LD_SCRIPT,
     LBX_MOVIE_HEADER,
-)
-from data_processing.utils.http_utils import (
-    cffi_get,
-    default_request_timeout,
 )
 
 pytestmark = [pytest.mark.smoke, pytest.mark.live]
 
 BASE = "https://letterboxd.com"
 FILM = f"{BASE}/film"
-
-
-import textwrap
 
 
 def _debug_response(r):
@@ -54,27 +48,46 @@ def _debug_response(r):
     print("=== END HTTP DEBUG ===\n")
 
 
+def _is_cloudflare_challenge(r) -> bool:
+    headers = {k.lower(): v for k, v in r.headers.items()}
+    if headers.get("cf-mitigated", "").lower() == "challenge":
+        return True
+
+    body = (r.text or "").lower()
+    return r.status_code in {403, 503} and (
+        "<title>just a moment" in body or "challenges.cloudflare.com" in body
+    )
+
+
+def _get_live(url: str, **kwargs):
+    try:
+        r = cffi_get(url, **kwargs)
+    except cffi_exceptions.RequestException as exc:
+        pytest.skip(f"Cannot reach Letterboxd.com: {exc}")
+
+    if _is_cloudflare_challenge(r):
+        _debug_response(r)
+        pytest.skip("Letterboxd returned a Cloudflare challenge to this runner.")
+
+    return r
+
+
 def _fetch(url: str) -> str:
-    r = cffi_get(url)
+    r = _get_live(url)
     if r.status_code != 200:
         _debug_response(r)
+
     r.raise_for_status()
     return r.text
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def letterboxd_available():
     """Check if Letterboxd is up; skip all dependent tests if not."""
-    try:
-        r = cffi_get(
-            "https://letterboxd.com/",
-            allow_redirects=True,
-        )
-        # 503 = site down, or network issue
-        if r.status_code == 503:
-            pytest.skip("Letterboxd appears to be down (503).")
-    except requests.exceptions.RequestException:
-        pytest.skip("Cannot reach Letterboxd.com (network or DNS error).")
+    r = _get_live("https://letterboxd.com/", allow_redirects=True)
+    if r.status_code == 503:
+        pytest.skip("Letterboxd appears to be down (503).")
+
     return True
 
 
@@ -130,7 +143,7 @@ def test_zone_of_interest_structure_and_script_tag_meta():
 def test_redirects_resolve_to_expected_slug():
     """Old LOTR slug should redirect to Fellowship canonical slug."""
     redir_slug = "the-lord-of-the-rings-2003"
-    r = cffi_get(
+    r = _get_live(
         f"{FILM}/{redir_slug}/",
         allow_redirects=True,
     )
@@ -144,7 +157,7 @@ def test_redirects_resolve_to_expected_slug():
 def test_dummy_slug_404s_cleanly():
     """A fabricated slug should 404 (change slug if this ever becomes real)."""
     slug = "dummy-dummy-dummy-0123456-test"
-    r = cffi_get(f"{FILM}/{slug}/")
+    r = _get_live(f"{FILM}/{slug}/")
     assert r.status_code == 404
 
 
@@ -194,6 +207,7 @@ async def test_redirect_path_marks_movie_and_redirects_collection(mongo_db):
         - movie_redirects has (old_id -> new_id) with status 'pending'
     """
     old_slug = "the-lord-of-the-rings-2003"
+    _get_live(f"{FILM}/{old_slug}/", allow_redirects=True)
     await get_movies.get_movies([old_slug], None, mongo_db)
 
     # movies collection updated with redirect metadata
@@ -226,6 +240,7 @@ async def test_404_path_sets_failed_and_increments_fail_count(mongo_db):
         - next_retry_at is set (datetime-like)
     """
     slug = "dummy-dummy-dummy-0123456-test"
+    _get_live(f"{FILM}/{slug}/")
     await get_movies.get_movies([slug], None, mongo_db)
 
     movies = mongo_db.movies
