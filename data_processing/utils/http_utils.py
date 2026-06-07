@@ -12,7 +12,7 @@ BROWSER_HEADERS = {
 
 default_request_timeout = 20
 
-IMPERSONATE = "chrome124"
+IMPERSONATE = "chrome"
 
 
 def cffi_get(url, timeout=default_request_timeout, **kwargs):
