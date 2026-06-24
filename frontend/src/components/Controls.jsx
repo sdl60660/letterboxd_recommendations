@@ -8,10 +8,41 @@ import {
   FormControl,
   TextField,
   Button,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
+
+import { unzipSync, strFromU8 } from "fflate";
 
 import LabeledSlider from "./ui/LabeledSlider";
 import { poll, getRecData } from "../util/util";
+
+// Export entries we send to the server (mirrors what the scraper gathers).
+// profile.csv is only sent when opting in, since it's only used to attribute
+// the database write and contains PII (email, bio) we otherwise don't need.
+const EXPORT_FILES = ["ratings.csv", "watched.csv", "watchlist.csv", "likes/films.csv"];
+const PROFILE_FILE = "profile.csv";
+
+// Guard so a decompression bomb can't blow up the user's own browser tab
+const MAX_UNZIP_BYTES = 60 * 1024 * 1024;
+
+// Unzip in the browser and return the relevant CSVs as [{name, text}]; a lone
+// CSV is sent as-is. The server only ever receives CSV text, never a ZIP.
+const extractExportFiles = async (file, includeProfile) => {
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    return [{ name: file.name, text: await file.text() }];
+  }
+
+  const wanted = new Set(includeProfile ? [...EXPORT_FILES, PROFILE_FILE] : EXPORT_FILES);
+  const entries = unzipSync(new Uint8Array(await file.arrayBuffer()), {
+    filter: (f) => wanted.has(f.name) && f.originalSize < MAX_UNZIP_BYTES,
+  });
+
+  return Object.entries(entries).map(([name, bytes]) => ({
+    name,
+    text: strFromU8(bytes),
+  }));
+};
 
 const validateData = (data, progressStep, setProgressStep, setRedisData) => {
   setRedisData(data);
@@ -49,22 +80,21 @@ const Controls = ({
 }) => {
   const POLL_INTERVAL = 1000;
 
+  const [inputMode, setInputMode] = useState("username");
   const [username, setUsername] = useState("");
+  const [file, setFile] = useState(null);
   const [modelStrength, setModelStrength] = useState(1000000);
   // const [popularityFilter, setPopularityFilter] = useState(-1)
   const [dataOptIn, setDataOptIn] = useState(false);
 
   const [runningModel, setRunningModel] = useState(false);
 
+  const usernameValid = /^[A-Za-z0-9_]*$/.test(username) && username !== "";
+  const canSubmit = !runningModel && (inputMode === "username" ? usernameValid : !!file);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    setQueryData({
-      username,
-      modelStrength,
-      // popularityFilter,
-      dataOptIn,
-    });
+    if (!canSubmit) return;
 
     setRunningModel(true);
 
@@ -73,12 +103,59 @@ const Controls = ({
         ? "http://127.0.0.1:8000"
         : "https://letterboxd-recommendations.herokuapp.com";
 
-    const response = await fetch(
-      `${url}/get_recs?username=${username}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
-      {
-        method: "GET",
-      },
-    );
+    let response;
+    if (inputMode === "upload") {
+      setQueryData({
+        isUpload: true,
+        filename: file.name,
+        modelStrength,
+        dataOptIn,
+      });
+
+      let files;
+      try {
+        files = await extractExportFiles(file, dataOptIn);
+      } catch (e) {
+        setQueryData({
+          error:
+            "Couldn't read that file. Please upload your Letterboxd export .zip or a CSV from it.",
+        });
+        setRunningModel(false);
+        return;
+      }
+
+      response = await fetch(
+        `${url}/get_recs_upload?training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ files }),
+        }
+      );
+    } else {
+      setQueryData({ username, modelStrength, dataOptIn });
+
+      response = await fetch(
+        `${url}/get_recs?username=${username}&training_data_size=${modelStrength}&data_opt_in=${dataOptIn}`,
+        {
+          method: "GET",
+        }
+      );
+    }
+
+    // A non-2xx response has no job ids; bail instead of polling garbage (which
+    // would otherwise leave the request spinning forever).
+    if (!response.ok) {
+      setQueryData({
+        error:
+          response.status === 413
+            ? "That file is too large to process. Try uploading just ratings.csv."
+            : "Something went wrong processing your request. Please try again.",
+      });
+      setRunningModel(false);
+      return;
+    }
+
     const data = await response.json();
 
     poll({
@@ -109,18 +186,64 @@ const Controls = ({
 
   return (
     <form className="recommendation-form" noValidate onSubmit={handleSubmit}>
-      <FormControl>
-        <TextField
-          required
-          error={!/^[A-Za-z0-9_]*$/.test(username)}
-          value={username}
-          pattern="^[A-Za-z0-9_]*$"
-          onInput={(e) => setUsername(e.target.value)}
-          helperText={"Please provide a valid Letterboxd username"}
-          label="Letterboxd Username"
-          variant="standard"
-        />
-      </FormControl>
+      <ToggleButtonGroup
+        className="input-mode-toggle"
+        value={inputMode}
+        exclusive
+        size="small"
+        onChange={(e, value) => value && setInputMode(value)}
+        aria-label="How to provide your Letterboxd data"
+      >
+        <ToggleButton value="username">Enter username</ToggleButton>
+        <ToggleButton value="upload">Upload export</ToggleButton>
+      </ToggleButtonGroup>
+
+      {inputMode === "username" ? (
+        <FormControl>
+          <TextField
+            required
+            error={!/^[A-Za-z0-9_]*$/.test(username)}
+            value={username}
+            pattern="^[A-Za-z0-9_]*$"
+            onInput={(e) => setUsername(e.target.value)}
+            helperText={"Please provide a valid Letterboxd username"}
+            label="Letterboxd Username"
+            variant="standard"
+          />
+        </FormControl>
+      ) : (
+        <div className="upload-control">
+          <Button variant="outlined" component="label" className="upload-button">
+            {file ? file.name : "Choose export file (.zip or .csv)"}
+            <input
+              type="file"
+              accept=".zip,.csv"
+              hidden
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </Button>
+
+          <div className="upload-instructions">
+            <p className="upload-instructions__heading">How to get your Letterboxd export:</p>
+            <ol>
+              <li>
+                On Letterboxd, open{" "}
+                <a target="_blank" rel="noreferrer" href="https://letterboxd.com/settings/data/">
+                  Settings → Data
+                </a>{" "}
+                and click <em>Export Your Data</em>.
+              </li>
+              <li>
+                Upload the downloaded <code>.zip</code> here (or just the <code>ratings.csv</code>{" "}
+                from inside it).
+              </li>
+            </ol>
+            <p className="upload-instructions__note">
+              Your file is used only to generate recommendations and isn't stored.
+            </p>
+          </div>
+        </div>
+      )}
 
       <FormGroup className={"form-slider"}>
         <LabeledSlider
@@ -173,20 +296,7 @@ const Controls = ({
       </FormGroup>
 
       <FormGroup className={"submit-button"}>
-        <Button
-          variant="contained"
-          type="submit"
-          disabled={
-            !/^[A-Za-z0-9_]*$/.test(username) ||
-            username === "" ||
-            runningModel === true
-          }
-          aria-disabled={
-            !/^[A-Za-z0-9_]*$/.test(username) ||
-            username === "" ||
-            runningModel === true
-          }
-        >
+        <Button variant="contained" type="submit" disabled={!canSubmit} aria-disabled={!canSubmit}>
           Get Recommendations
         </Button>
       </FormGroup>

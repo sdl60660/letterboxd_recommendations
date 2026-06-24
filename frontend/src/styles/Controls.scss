@@ -43,6 +43,64 @@
   font-size: 1rem;
 }
 
+.input-mode-toggle {
+  align-self: center;
+  margin-bottom: 4px;
+
+  .MuiToggleButton-root {
+    text-transform: none;
+    font-size: 0.85rem;
+    padding: 4px 14px;
+  }
+}
+
+.upload-control {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upload-button {
+  text-transform: none;
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.upload-instructions {
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.75);
+
+  .upload-instructions__heading {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  ol {
+    margin: 0;
+    padding-left: 18px;
+
+    li {
+      margin-bottom: 4px;
+    }
+  }
+
+  code {
+    font-family: "Roboto Mono", Inconsolata, Monaco, monospace;
+    font-size: 0.8rem;
+    background-color: #f0f0f0;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  .upload-instructions__note {
+    margin-top: 6px;
+    font-style: italic;
+    color: rgba(0, 0, 0, 0.55);
+  }
+}
+
 #body-content-container {
   min-height: 80vh;
 }
