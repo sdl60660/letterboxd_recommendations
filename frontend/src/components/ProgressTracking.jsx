@@ -6,8 +6,13 @@ import { Checkmark, Error, Loader } from "./ui/StatefulIcons";
 
 const formatRatingGatherText = ({ queryData, redisData }) => {
   const userDataStatus = redisData?.statuses?.redis_get_user_data_job_status;
+  const userStatus = redisData?.execution_data?.user_status;
+  const isUpload = queryData.isUpload;
+
   if (userDataStatus !== "finished" && userDataStatus !== "failed") {
-    return (
+    return isUpload ? (
+      <>Reading ratings from your uploaded export ({queryData.filename})</>
+    ) : (
       <>
         Gathering movie ratings from {queryData.username}'s{" "}
         <a
@@ -19,8 +24,10 @@ const formatRatingGatherText = ({ queryData, redisData }) => {
         </a>
       </>
     );
-  } else if (redisData?.execution_data?.user_status === "user_not_found") {
+  } else if (userStatus === "user_not_found") {
     return `Could not find Letterboxd user: ${queryData.username}. Will return generic recommendations.`;
+  } else if (isUpload && userStatus === "no_data") {
+    return "Couldn't read any ratings from your upload. Will return generic recommendations.";
   } else {
     const numRatings = redisData.execution_data.num_user_ratings;
     const additionalRatingsPrompt =
@@ -28,7 +35,12 @@ const formatRatingGatherText = ({ queryData, redisData }) => {
         ? " (Rate more movies for more personalized results)"
         : "";
 
-    return (
+    return isUpload ? (
+      <>
+        Read {numRatings} movie ratings from your export
+        {additionalRatingsPrompt}
+      </>
+    ) : (
       <>
         Gathered {numRatings} movie ratings from {queryData.username}'s{" "}
         <a
@@ -126,7 +138,7 @@ const ProgressTracking = ({ queryData, redisData }) => {
                   : stageProgress.runModel === "finished"
                     ? "Generated"
                     : "Generate"}{" "}
-                recommendations for {queryData.username}
+                recommendations for {queryData.isUpload ? "you" : queryData.username}
               </span>
             </li>
           </>
@@ -138,8 +150,9 @@ const ProgressTracking = ({ queryData, redisData }) => {
                 <Error />
               </div>
               <span className="progress-text">
-                Sorry! Server is too busy with other requests right now. Try
-                again later.
+                {typeof queryData.error === "string"
+                  ? queryData.error
+                  : "Sorry! Server is too busy with other requests right now. Try again later."}
               </span>
             </li>
           )}
