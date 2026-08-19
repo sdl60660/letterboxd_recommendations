@@ -1,6 +1,11 @@
 #included-genre-filter,
-#excluded-genre-filter {
+#excluded-genre-filter,
+#language-filter {
   max-height: 3rem;
+  background-color: white;
+}
+
+#runtime-filter {
   background-color: white;
 }
 

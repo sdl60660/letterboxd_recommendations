@@ -22,6 +22,8 @@ const Results = ({ results, userWatchlist }) => {
   const [filteredYearRange, setFilteredYearRange] = useState(null);
   const [filteredPopularityRange, setFilteredPopularityRange] = useState(null);
   const [excludeWatchlist, setExcludeWatchlist] = useState(true);
+  const [filteredLanguage, setFilteredLanguage] = useState(null);
+  const [maxRuntime, setMaxRuntime] = useState(null);
 
   const displayedResults = useMemo(() => {
     if (!results) {
@@ -72,6 +74,20 @@ const Results = ({ results, userWatchlist }) => {
       );
     }
 
+    // filter on language
+    if (filteredLanguage) {
+      output = output.filter(
+        (movie) => movie.movie_data.original_language === filteredLanguage,
+      );
+    }
+
+    // filter on max runtime
+    if (maxRuntime != null) {
+      output = output.filter(
+        (movie) => !movie.movie_data.runtime || movie.movie_data.runtime <= maxRuntime,
+      );
+    }
+
     return output.slice(0, 50);
   }, [
     results,
@@ -80,6 +96,8 @@ const Results = ({ results, userWatchlist }) => {
     filteredPopularityRange,
     excludeWatchlist,
     userWatchlist,
+    filteredLanguage,
+    maxRuntime,
   ]);
 
   return (
@@ -119,6 +137,8 @@ const Results = ({ results, userWatchlist }) => {
           setFilteredPopularityRange={setFilteredPopularityRange}
           excludeWatchlist={excludeWatchlist}
           setExcludeWatchlist={setExcludeWatchlist}
+          setFilteredLanguage={setFilteredLanguage}
+          setMaxRuntime={setMaxRuntime}
         />
       )}
       <div id="results">

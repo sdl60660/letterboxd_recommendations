@@ -12,6 +12,8 @@ import Chip from "@mui/material/Chip";
 import ListItemText from "@mui/material/ListItemText";
 import Checkbox from "@mui/material/Checkbox";
 import Slider from "@mui/material/Slider";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
 
 import "../styles/ListFilters.scss";
 // import LabeledSlider from "./ui/LabeledSlider";
@@ -44,6 +46,8 @@ const ListFilters = ({
   setFilteredPopularityRange,
   excludeWatchlist,
   setExcludeWatchlist,
+  setFilteredLanguage,
+  setMaxRuntime,
 }) => {
   const allGenres = useMemo(() => {
     return [
@@ -54,6 +58,57 @@ const ListFilters = ({
           .filter((d) => d && d !== ""),
       ),
     ].sort();
+  }, [results]);
+
+  const LANGUAGE_NAMES = {
+    en: "English",
+    fr: "French",
+    ja: "Japanese",
+    ko: "Korean",
+    es: "Spanish",
+    de: "German",
+    it: "Italian",
+    zh: "Chinese",
+    pt: "Portuguese",
+    ru: "Russian",
+    hi: "Hindi",
+    ar: "Arabic",
+    sv: "Swedish",
+    da: "Danish",
+    pl: "Polish",
+    th: "Thai",
+    tr: "Turkish",
+    nl: "Dutch",
+    cs: "Czech",
+    no: "Norwegian",
+    fi: "Finnish",
+    fa: "Persian",
+    bn: "Bengali",
+    el: "Greek",
+    he: "Hebrew",
+    hu: "Hungarian",
+    id: "Indonesian",
+    ms: "Malay",
+    ro: "Romanian",
+    uk: "Ukrainian",
+    vi: "Vietnamese",
+    tl: "Tagalog",
+    te: "Telugu",
+    ta: "Tamil",
+    ml: "Malayalam",
+    cn: "Cantonese",
+  };
+
+  const allLanguages = useMemo(() => {
+    return [
+      ...new Set(
+        results
+          .map((d) => d.movie_data.original_language)
+          .filter((l) => l && l !== ""),
+      ),
+    ].sort((a, b) =>
+      (LANGUAGE_NAMES[a] ?? a).localeCompare(LANGUAGE_NAMES[b] ?? b),
+    );
   }, [results]);
 
   const allYears = useMemo(() => {
@@ -87,6 +142,7 @@ const ListFilters = ({
     excluded: ["Music"],
   });
   const [yearRange, setYearRange] = useState(allYears);
+  const [language, setLanguage] = useState("");
   // const [popularity, setPopularity] = useState(popularityRange);
 
   useEffect(() => {
@@ -125,6 +181,16 @@ const ListFilters = ({
     },
     [setYearRange, setFilteredYearRange],
   );
+
+  const handleGenreToggleAll = useCallback(() => {
+    const allSelected = genres.included.length === allGenres.length;
+    const newIncluded = allSelected ? [] : allGenres;
+    setGenres((curr) => ({ ...curr, included: newIncluded }));
+    setFilteredGenres({
+      included: allSelected ? [] : null,
+      excluded: genres.excluded,
+    });
+  }, [genres, allGenres, setFilteredGenres]);
 
   // const handlePopularityChange = useCallback(
   //   (_, newValue) => {
@@ -222,6 +288,15 @@ const ListFilters = ({
             </MenuItem>
           ))}
         </Select>
+        <Button
+          size="small"
+          onClick={handleGenreToggleAll}
+          sx={{ mt: 0.5, alignSelf: "flex-start" }}
+        >
+          {genres.included.length === allGenres.length
+            ? "Clear All"
+            : "Select All"}
+        </Button>
       </FormControl>
 
       <FormControl sx={{ m: 1, width: 400, maxWidth: "90vw" }}>
@@ -268,6 +343,43 @@ const ListFilters = ({
             </MenuItem>
           ))}
         </Select>
+      </FormControl>
+
+      <FormControl sx={{ m: 1, width: 400, maxWidth: "90vw" }}>
+        <InputLabel id="language-filter-label">Language</InputLabel>
+        <Select
+          labelId="language-filter-label"
+          id="language-filter"
+          value={language}
+          onChange={(e) => {
+            setLanguage(e.target.value);
+            setFilteredLanguage(e.target.value === "" ? null : e.target.value);
+          }}
+          input={<OutlinedInput label="Language" />}
+          MenuProps={MenuProps}
+        >
+          <MenuItem value="">
+            <em>All</em>
+          </MenuItem>
+          {allLanguages.map((code) => (
+            <MenuItem key={code} value={code}>
+              {LANGUAGE_NAMES[code] ?? code}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <FormControl sx={{ m: 1, width: 400, maxWidth: "90vw" }}>
+        <TextField
+          id="runtime-filter"
+          label="Max Runtime (min)"
+          type="number"
+          InputLabelProps={{ shrink: true }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setMaxRuntime(val === "" ? null : Number(val));
+          }}
+        />
       </FormControl>
 
       <FormControlLabel
