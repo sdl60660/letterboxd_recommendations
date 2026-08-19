@@ -160,7 +160,7 @@ def send_to_db(username, display_name, user_ratings):
             )
         )
 
-    safe_commit_ops(ratings, upsert_movies_operations)
+    safe_commit_ops(ratings, upsert_ratings_operations)
     safe_commit_ops(movies, upsert_movies_operations)
 
     return

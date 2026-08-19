@@ -4,8 +4,9 @@ import pandas as pd
 from rq import Queue, get_current_job
 from rq.registry import FinishedJobRegistry
 
-from data_processing.get_user_ratings import get_user_data
+from data_processing.get_user_ratings import get_user_data, send_to_db
 from data_processing.get_user_watchlist import get_watchlist_data
+from data_processing.parse_export import build_user_data_from_files
 from data_processing.run_model import get_movie_data, load_compressed_model, run_model
 from worker import conn
 
@@ -41,6 +42,41 @@ def get_client_user_data(username, data_opt_in, include_liked_items=True):
     current_job.save()
 
     return user_data[0]
+
+
+def get_client_user_data_from_upload(files, data_opt_in):
+    # Mirror get_client_user_data, but build user data from uploaded export CSVs
+    # (unzipped in the browser) instead of scraping, returning the same
+    # list-of-dicts for build_client_model
+    parsed = build_user_data_from_files(files)
+    user_ratings = parsed["user_ratings"]
+
+    # Best-effort opt-in DB write (needs a username from profile.csv); a DB
+    # problem should never fail the recommendation job
+    if data_opt_in and parsed["username"]:
+        explicit_ratings = [
+            {k: v for k, v in r.items() if k != "liked"}
+            for r in user_ratings
+            if r["rating_val"] >= 0
+        ]
+        if explicit_ratings:
+            try:
+                send_to_db(
+                    parsed["username"],
+                    parsed["display_name"] or parsed["username"],
+                    user_ratings=explicit_ratings,
+                )
+            except (Exception, SystemExit) as e:
+                # connect_to_db() raises SystemExit, not Exception, when unconfigured
+                print(f"Skipping opt-in DB write (database unavailable): {e}")
+
+    current_job = get_current_job(conn)
+    current_job.meta["user_status"] = parsed["status"]
+    current_job.meta["num_user_ratings"] = parsed["num_explicit_ratings"]
+    current_job.meta["user_watchlist"] = parsed["watchlist"]
+    current_job.save()
+
+    return user_ratings
 
 
 def build_client_model(username, training_data_rows=1000000, num_items=30):
